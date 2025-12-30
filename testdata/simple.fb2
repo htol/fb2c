@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+	<description>
+		<title-info>
+			<genre>sf_history</genre>
+			<author>
+				<first-name>Isaac</first-name>
+				<last-name>Asimov</last-name>
+			</author>
+			<book-title>Foundation</book-title>
+			<lang>en</lang>
+			<sequence name="Foundation Series" number="1"/>
+		</title-info>
+		<publish-info>
+			<publisher>Gnome Press</publisher>
+			<year>1951</year>
+			<isbn>978-0-553-29335-7</isbn>
+		</publish-info>
+	</description>
+	<body>
+		<section>
+			<title>
+				<p>Part I</p>
+			</title>
+			<section>
+				<title>
+					<p>Chapter 1</p>
+				</title>
+				<p>He was not a Foundation man, and he was not a member of the faculty.</p>
+				<p>He was simply a Historian, the only one left in the Galaxy.</p>
+			</section>
+		</section>
+	</body>
+</FictionBook>
