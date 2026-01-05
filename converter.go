@@ -39,7 +39,7 @@ type ConvertOptions struct {
 // DefaultConvertOptions returns default conversion options
 func DefaultConvertOptions() ConvertOptions {
 	return ConvertOptions{
-		MobiType:        "old", // Create KF8 joint files by default (like Calibre)
+		MobiType:        "old", // MOBI 6 format
 		Compression:     true,
 		NoInlineTOC:     false,
 		ExtractImages:   true,
