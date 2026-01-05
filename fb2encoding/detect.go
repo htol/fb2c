@@ -12,24 +12,34 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 // Common encoding aliases
 var encodingAliases = map[string]string{
-	"macintosh":        "mac-roman",
-	"x-sjis":           "shift-jis",
+	"macintosh":         "mac-roman",
+	"x-sjis":            "shift-jis",
 	"mac-centraleurope": "cp1250",
-	"gb2312":           "gbk", // Microsoft Word bug workaround
-	"chinese":          "gbk",
-	"csiso58gb231280":  "gbk",
-	"euc-cn":           "gbk",
-	"euccn":            "gbk",
-	"eucgb2312-cn":     "gbk",
-	"gb2312-1980":      "gbk",
-	"gb2312-80":        "gbk",
-	"iso-ir-58":        "gbk",
-	"ascii":            "utf-8",
+	"gb2312":            "gbk", // Microsoft Word bug workaround
+	"chinese":           "gbk",
+	"csiso58gb231280":   "gbk",
+	"euc-cn":            "gbk",
+	"euccn":             "gbk",
+	"eucgb2312-cn":      "gbk",
+	"gb2312-1980":       "gbk",
+	"gb2312-80":         "gbk",
+	"iso-ir-58":         "gbk",
+	"ascii":             "utf-8",
+	// Windows codepages
+	"windows-1250":      "cp1250",
+	"windows-1251":      "cp1251",
+	"windows-1252":      "cp1252",
+	"cp1250":            "cp1250",
+	"cp1251":            "cp1251",
+	"cp1252":            "cp1252",
 }
 
 // BOM markers for different encodings
@@ -243,9 +253,39 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		return decodeUTF16(raw, unicode.BigEndian)
 	}
 
-	// For other encodings, we'd typically use golang.org/x/text/encoding
-	// For now, return an error for unsupported encodings
-	return "", fmt.Errorf("unsupported encoding: %s (you may need to add encoding support)", enc)
+	// Handle Windows codepages using charmap
+	var encoding encoding.Encoding
+	switch enc {
+	case "cp1250":
+		encoding = charmap.Windows1250
+	case "cp1251":
+		encoding = charmap.Windows1251
+	case "cp1252":
+		encoding = charmap.Windows1252
+	default:
+		// For other encodings, return an error
+		return "", fmt.Errorf("unsupported encoding: %s (you may need to add encoding support)", enc)
+	}
+
+	// Decode using the selected encoding
+	decoder := encoding.NewDecoder()
+	result, err := decoder.Bytes(raw)
+	if err != nil {
+		// Try character-by-character conversion for better error recovery
+		return decodeWithReplacement(raw, decoder)
+	}
+
+	return string(result), nil
+}
+
+// decodeWithReplacement decodes data replacing unconvertible characters
+func decodeWithReplacement(data []byte, transformer transform.Transformer) (string, error) {
+	// Transform with replacement
+	result, _, err := transform.Bytes(transformer, data)
+	if err != nil {
+		return "", fmt.Errorf("encoding conversion failed: %w", err)
+	}
+	return string(result), nil
 }
 
 // decodeUTF16 decodes UTF-16 data with specified byte order.

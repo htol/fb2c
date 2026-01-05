@@ -36,6 +36,7 @@ const (
 	EXTHThumbOffset   = 203
 	EXTHHasFakeCover   = 204
 	EXTHCreatorSoftware = 200
+	EXTHTitle         = 503
 	EXTHMajorMajor      = 501
 	EXTHMajorMinor      = 502
 	EXTHMinorCount      = 503
@@ -69,6 +70,11 @@ func NewEXTHWriter() *EXTHWriter {
 // AddAuthor adds an author record
 func (w *EXTHWriter) AddAuthor(author string) {
 	w.addRecord(EXTHAuthor, author)
+}
+
+// AddTitle adds a title record
+func (w *EXTHWriter) AddTitle(title string) {
+	w.addRecord(EXTHTitle, title)
 }
 
 // AddPublisher adds a publisher record
@@ -240,6 +246,7 @@ func (w *EXTHWriter) GetTotalLength() int {
 
 // AddFromMetadata adds common metadata fields
 func (w *EXTHWriter) AddFromMetadata(title, author, publisher, isbn, year, description, copyright string) {
+	w.AddTitle(title)
 	w.AddAuthor(author)
 	w.AddPublisher(publisher)
 	w.AddDescription(description)

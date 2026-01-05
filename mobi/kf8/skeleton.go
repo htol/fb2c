@@ -306,19 +306,26 @@ func (s *Skeleton) AssignAIDAttributes() string {
 		content := chunk.Content
 
 		// Add aid attribute to the first element in the chunk
-		// Find first opening tag
+		// Skip DOCTYPE and other special tags
 		tagStart := strings.Index(content, "<")
 		if tagStart >= 0 && !strings.HasPrefix(content[tagStart:], "</") {
-			// Find the tag name end
-			tagEnd := strings.Index(content[tagStart:], " ")
-			if tagEnd < 0 {
-				tagEnd = strings.Index(content[tagStart:], ">")
-			}
-			if tagEnd > 0 {
-				// Insert aid attribute
-				insertPos := tagStart + tagEnd
-				aidAttr := fmt.Sprintf(` aid="%s"`, chunk.AID)
-				content = content[:insertPos] + aidAttr + content[insertPos:]
+			// Skip DOCTYPE, comments, etc.
+			if strings.HasPrefix(content[tagStart:], "<!DOCTYPE") ||
+				strings.HasPrefix(content[tagStart:], "<!--") ||
+				strings.HasPrefix(content[tagStart:], "<?xml") {
+				// Don't add aid to these tags
+			} else {
+				// Find the tag name end
+				tagEnd := strings.Index(content[tagStart:], " ")
+				if tagEnd < 0 {
+					tagEnd = strings.Index(content[tagStart:], ">")
+				}
+				if tagEnd > 0 {
+					// Insert aid attribute
+					insertPos := tagStart + tagEnd
+					aidAttr := fmt.Sprintf(` aid="%s"`, chunk.AID)
+					content = content[:insertPos] + aidAttr + content[insertPos:]
+				}
 			}
 		}
 

@@ -26,8 +26,8 @@ func TestNewWriter(t *testing.T) {
 func TestDefaultWriteOptions(t *testing.T) {
 	opts := DefaultWriteOptions()
 
-	if opts.CompressionType != 1 {
-		t.Errorf("CompressionType = %v, want 1", opts.CompressionType)
+	if opts.CompressionType != NoCompression {
+		t.Errorf("CompressionType = %v, want %d (NoCompression)", opts.CompressionType, NoCompression)
 	}
 
 	if !opts.WithEXTH {

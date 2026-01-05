@@ -7,23 +7,24 @@ import (
 	"io"
 	"sort"
 
-	"github.com/htol/fb2c/opf"
 	"github.com/htol/fb2c/mobi/index"
+	"github.com/htol/fb2c/opf"
 )
 
 // WriteOptions contains options for writing MOBI files
 type WriteOptions struct {
-	CompressionType int // 0=none, 1=PalmDOC, 2=HuffCD
+	CompressionType int // NoCompression=1, PalmDOCCompression=2, HuffCDCompression=17480
 	WithEXTH        bool
 	Title           string
 	CoverImage      []byte
 	GenerateTOC     bool
+	debug           bool
 }
 
 // DefaultWriteOptions returns default write options
 func DefaultWriteOptions() WriteOptions {
 	return WriteOptions{
-		CompressionType: 1, // PalmDOC compression
+		CompressionType: NoCompression, // 1 = no compression (safer compatibility)
 		WithEXTH:        true,
 		GenerateTOC:     true,
 	}
@@ -62,40 +63,38 @@ func (w *Writer) GetBookName() string {
 
 // Write writes the MOBI file
 func (w *Writer) Write(output io.Writer) error {
-	// 1. Prepare text content
 	textData := []byte(w.book.Content)
+	uncompressedSize := len(textData)
 
-	// 2. Compress text if requested
-	if w.options.CompressionType == 1 {
+	if w.options.CompressionType == PalmDOCCompression {
 		textData = CompressPalmDOC(textData)
 	}
 
-	// 3. Create PalmDB writer
-	palmWriter := NewPalmDBWriter(w.getBookName())
+	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.debug)
 
-	// 4. Create records
+	// Calculate record information before creating header
+	// Record count is based on UNCOMPRESSED size (for PalmDOC header)
 	recordIndex := 0
+	firstTextRecord := 1 // After MOBI header record 0
+	recordCount := CalculateRecordCount(uncompressedSize)
+	lastTextRecord := firstTextRecord + recordCount - 1
 
-	// Record 0: MOBI header
-	mobiHeaderRecord, err := w.createMOBIHeaderRecord(len(w.book.Content))
+	// Create MOBI header with correct record indices
+	mobiHeaderRecord, err := w.createMOBIHeaderRecord(len(w.book.Content), firstTextRecord, lastTextRecord)
 	if err != nil {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
+
 	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex))
 	recordIndex++
 
-	// Text records come after MOBI header
-	firstTextRecord := recordIndex
-
-	// Split text into records
+	// Split and add text records
 	textRecords := w.splitTextRecords(textData)
 	for _, rec := range textRecords {
 		palmWriter.AddRecord(rec, 0, uint32(recordIndex))
 		recordIndex++
 	}
-	lastTextRecord := recordIndex - 1
 
-	// Image records
 	if w.options.CoverImage != nil {
 		coverRecord := w.createImageRecord(w.options.CoverImage, "cover.jpg")
 		palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex))
@@ -103,31 +102,23 @@ func (w *Writer) Write(output io.Writer) error {
 	}
 
 	// Add other images from manifest
-	imageIndices := w.addImages(palmWriter, &recordIndex)
+	w.addImages(palmWriter, &recordIndex)
 
-	// 5. Generate and add TOC INDX if requested
 	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
-		// Generate TOC index with HTML content
 		tocINDX, err := w.GenerateTOCIndex(w.book.Content, textRecords)
 		if err != nil {
 			return fmt.Errorf("failed to generate TOC index: %w", err)
 		}
 
-		// Encode INDX to bytes
 		indxData, err := tocINDX.Encode()
 		if err != nil {
 			return fmt.Errorf("failed to encode TOC INDX: %w", err)
 		}
 
-		// Add INDX as a record
 		palmWriter.AddRecord(indxData, 0, uint32(recordIndex))
 		recordIndex++
 	}
 
-	// 6. Update MOBI header with record info
-	w.updateMOBIHeader(firstTextRecord, lastTextRecord, imageIndices)
-
-	// 7. Write PalmDB
 	if err := palmWriter.Write(output); err != nil {
 		return fmt.Errorf("failed to write PalmDB: %w", err)
 	}
@@ -148,7 +139,7 @@ func (w *Writer) getBookName() string {
 }
 
 // createMOBIHeaderRecord creates the MOBI header record
-func (w *Writer) createMOBIHeaderRecord(textSize int) ([]byte, error) {
+func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Calculate record count
@@ -157,8 +148,16 @@ func (w *Writer) createMOBIHeaderRecord(textSize int) ([]byte, error) {
 	// Create MOBI header
 	mobiHeader := NewMOBIHeader(textSize, recordCount)
 
+	// Set content record indices - tells readers which records contain the book text
+	mobiHeader.FirstContentRec = uint16(firstTextRec)
+	mobiHeader.LastContentRec = uint16(lastTextRec)
+
+	// Set compression type to match actual compression
+	mobiHeader.Compression = uint16(w.options.CompressionType)
+
 	// Set title
-	mobiHeader.SetFullName(w.getBookName())
+	bookName := w.getBookName()
+	mobiHeader.SetFullName(bookName)
 
 	// Create EXTH header if requested
 	if w.options.WithEXTH {
@@ -180,24 +179,36 @@ func (w *Writer) createMOBIHeaderRecord(textSize int) ([]byte, error) {
 			w.book.Metadata.Rights,
 		)
 
-		// Write EXTH
+		// Write EXTH to buffer
 		exthData := bytes.NewBuffer(nil)
 		if _, err := exthWriter.Write(exthData); err != nil {
 			return nil, fmt.Errorf("failed to write EXTH: %w", err)
 		}
+
+		// Set full name offset (PalmDOC header 16 + MOBI header 232 = 248)
+		mobiHeader.FullNameOffset = 248
 
 		// Write MOBI header
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}
 
-		// Write EXTH
+		// Write full name string
+		buf.WriteString(bookName)
+
+		// Write EXTH after full name
 		buf.Write(exthData.Bytes())
 	} else {
+		// Set full name offset (PalmDOC header 16 + MOBI header 232 = 248)
+		mobiHeader.FullNameOffset = 248
+
 		// Write MOBI header without EXTH
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}
+
+		// Write full name string
+		buf.WriteString(bookName)
 	}
 
 	return buf.Bytes(), nil
@@ -249,12 +260,6 @@ func (w *Writer) addImages(palmWriter *PalmDBWriter, recordIndex *int) map[strin
 	}
 
 	return indices
-}
-
-// updateMOBIHeader updates the MOBI header with final values
-func (w *Writer) updateMOBIHeader(firstTextRec, lastTextRec int, imageIndices map[string]int) {
-	// In a real implementation, would update the header with calculated values
-	// For now, this is a placeholder
 }
 
 // CalculateRecordCount calculates the number of records for text

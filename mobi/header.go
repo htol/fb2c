@@ -3,14 +3,13 @@ package mobi
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
 const (
 	// MOBI header constants
-	MOBIHeaderSize = 232
-	MOBIVersion    = 6 // MOBI 6
+	MOBIHeaderSize = 232 // MOBI header size (from MOBI marker to end)
+	MOBIVersion    = 6   // MOBI 6
 
 	// Compression types
 	NoCompression      = 1
@@ -18,366 +17,165 @@ const (
 	HuffCDCompression  = 17480
 
 	// Text encoding
-	UTF8Encoding = 65001 // CP65001 = UTF-8
-	Latin1Encoding = 1252 // CP1252 = Latin-1
+	UTF8Encoding   = 65001 // CP65001 = UTF-8
+	Latin1Encoding = 1252  // CP1252 = Latin-1
+
+	// Record sizes
+	StandardRecordSize = 4096       // Standard record size for MOBI 6
+	KF8JointRecordSize = 0x10000000 // Record size for KF8 joint files (bit mask)
 )
 
-// MOBIHeader represents the MOBI header
+// MOBIHeader represents the MOBI header (MOBI 6 format, 232 bytes from MOBI marker)
+// Offsets are from record start, with MOBI marker offsets in parentheses.
+// Specification: https://wiki.mobileread.com/wiki/MOBI
 type MOBIHeader struct {
-	// PalmDOC header (first 16 bytes)
-	Compression     uint16
-	Unused          uint16
-	UncompressedTextSize uint32
-	RecordCount     uint16
-	RecordSize      uint32
-	EncryptionType  uint16
+	// PalmDOC Header (offsets 0x00 to 0x0F from record start)
+	Compression          uint16 // 0x00: 1=none, 2=PalmDOC, 17480=HuffCDIC
+	Unused1              uint16 // 0x02: Always zero
+	UncompressedTextSize uint32 // 0x04: Uncompressed text length
+	RecordCount          uint16 // 0x08: Number of text records
+	RecordSize           uint16 // 0x0A: Always 4096 (or 0x10000000 for KF8)
+	EncryptionType       uint16 // 0x0C: 0=none, 1=old DRM, 2=new DRM
+	Unused2              uint16 // 0x0E: Always zero
 
-	// MOBI header (remaining bytes)
-	MOBIMarker       [4]byte
-	HeaderLength     uint32
-	MOBIType         uint32
-	TextEncoding     uint32
-	ID               uint32
-	FormatVersion    uint32
-	OrthographicIndex uint32
-	OrthographicName  uint32
-	InflectionIndex  uint32
-	InflectionName   uint32
-	IndexNames       uint32
-	IndexKeys        uint32
-	ExtraIndexData   uint32
-	FirstNonBookIndex uint32
-	FullNameOffset   uint32
-	FullNameLength   uint32
-	Locale           uint32
-	InputLanguage    uint32
-	OutputLanguage   uint32
-	MinVersion       uint32
-	FirstImageIndex  uint32
-	HuffmanRecordOffset uint32
-	HuffmanRecordCount uint32
-	HuffmanTableOffset uint32
-	HuffmanTableLength uint32
-	EXTHFlags        uint32
-	Unknown6         uint32
-	DRMOffset        uint32
-	DRMCount         uint32
-	DRMKeySize       uint32
-	DRMFlags         uint32
-	FirstContentRec  uint16
-	LastContentRec   uint16
-	Unknown10        uint32
-	FCISIndex        uint32
-	FCISCount        uint32
-	FLISIndex        uint32
-	FLISCount        uint32
-	Unknown11        uint32
-	Unknown12        uint32
-	Unknown13        uint32
-	CoverIndex       uint32
-	ThumbnailIndex   uint32
-	Unknown14        uint32
-	Unknown15        uint32
-	Unknown16        uint32
-	Unknown17        uint32
-	Unknown18        uint32
-	Unknown19        uint32
-	Unknown20        uint32
-	Unknown21        uint32
-	Unknown22        uint32
-	Unknown23        uint32
-	Unknown24        uint32
-	Unknown25        uint32
-	Unknown26        uint32
-	Unknown27        uint32
-	Unknown28        uint32
-	Unknown29        uint32
-	Unknown30        uint32
-	Unknown31        uint32
-	Unknown32        uint32
-	Unknown33        uint32
-	Unknown34        uint32
-	Unknown35        uint32
-	Unknown36        uint32
-	Unknown37        uint32
-	Unknown38        uint32
-	Unknown39        uint32
-	Unknown40        uint32
-	Unknown41        uint32
-	Unknown42        uint32
-	Unknown43        uint32
-	Unknown44        uint32
-	Unknown45        uint32
-	Unknown46        uint32
-	Unknown47        uint32
-	Unknown48        uint32
-	Unknown49        uint32
-	Unknown50        uint32
-	Unknown51        uint32
-	Unknown52        uint32
-	Unknown53        uint32
-	Unknown54        uint32
-	Unknown55        uint32
-	Unknown56        uint32
-	Unknown57        uint32
-	Unknown58        uint32
-	Unknown59        uint32
-	Unknown60        uint32
-	Unknown61        uint32
-	Unknown62        uint32
-	Unknown63        uint32
-	Unknown64        uint32
-	Unknown65        uint32
-	Unknown66        uint32
-	Unknown67        uint32
-	Unknown68        uint32
-	Unknown69        uint32
-	Unknown70        uint32
-	Unknown71        uint32
-	Unknown72        uint32
-	Unknown73        uint32
-	Unknown74        uint32
-	Unknown75        uint32
-	Unknown76        uint32
-	Unknown77        uint32
-	Unknown78        uint32
-	Unknown79        uint32
-	Unknown80        uint32
-	Unknown81        uint32
-	Unknown82        uint32
-	Unknown83        uint32
-	Unknown84        uint32
-	Unknown85        uint32
-	Unknown86        uint32
-	Unknown87        uint32
-	Unknown88        uint32
-	Unknown89        uint32
-	Unknown90        uint32
-	Unknown91        uint32
-	Unknown92        uint32
-	Unknown93        uint32
-	Unknown94        uint32
-	Unknown95        uint32
-	Unknown96        uint32
-	Unknown97        uint32
-	Unknown98        uint32
-	Unknown99        uint32
-	Unknown100        uint32
-	Unknown101        uint32
-	Unknown102        uint32
-	Unknown103        uint32
-	Unknown104        uint32
-	Unknown105        uint32
-	Unknown106        uint32
-	Unknown107        uint32
-	Unknown108        uint32
-	Unknown109        uint32
-	Unknown110        uint32
-	Unknown111        uint32
-	Unknown112        uint32
-	Unknown113        uint32
-	Unknown114        uint32
-	Unknown115        uint32
-	Unknown116        uint32
-	Unknown117        uint32
-	Unknown118        uint32
-	Unknown119        uint32
-	Unknown120        uint32
-	Unknown121        uint32
-	Unknown122        uint32
-	Unknown123        uint32
-	Unknown124        uint32
-	Unknown125        uint32
-	Unknown126        uint32
-	Unknown127        uint32
+	// MOBI Header (MOBI marker at 0x10 from record start)
+	MOBIMarker           [4]byte  // 0x10 (+0x00): "MOBI" magic string
+	HeaderLength         uint32   // 0x14 (+0x04): MOBI header length (232)
+	MOBIType             uint32   // 0x18 (+0x08): 2=book, 3=PalmDoc, 248=KF8, etc.
+	TextEncoding         uint32   // 0x1C (+0x0C): 1252=CP1252, 65001=UTF-8
+	UniqueID             uint32   // 0x20 (+0x10): Unique ID
+	FileVersion          uint32   // 0x24 (+0x14): MOBI version (6 for MOBI 6)
+	OrthographicIndex    uint32   // 0x28 (+0x18): Orthographic index section (0xFFFFFFFF if none)
+	InflectionIndex      uint32   // 0x2C (+0x1C): Inflection index section (0xFFFFFFFF if none)
+	IndexNames           uint32   // 0x30 (+0x20): Index names section (0xFFFFFFFF if none)
+	IndexKeys            uint32   // 0x34 (+0x24): Index keys section (0xFFFFFFFF if none)
+	ExtraIndex0          uint32   // 0x38 (+0x28): Extra index 0 (0xFFFFFFFF if none)
+	ExtraIndex1          uint32   // 0x3C (+0x2C): Extra index 1 (0xFFFFFFFF if none)
+	ExtraIndex2          uint32   // 0x40 (+0x30): Extra index 2 (0xFFFFFFFF if none)
+	ExtraIndex3          uint32   // 0x44 (+0x34): Extra index 3 (0xFFFFFFFF if none)
+	ExtraIndex4          uint32   // 0x48 (+0x38): Extra index 4 (0xFFFFFFFF if none)
+	ExtraIndex5          uint32   // 0x4C (+0x3C): Extra index 5 (0xFFFFFFFF if none)
+	FirstNonBookIndex    uint32   // 0x50 (+0x40): First non-book record index
+	FullNameOffset       uint32   // 0x54 (+0x44): Offset to full name in record 0
+	FullNameLength       uint32   // 0x58 (+0x48): Length of full name
+	Locale               uint32   // 0x5C (+0x4C): Locale code (e.g., 1033=US English)
+	InputLanguage        uint32   // 0x60 (+0x50): Input language (dictionary)
+	OutputLanguage       uint32   // 0x64 (+0x54): Output language (dictionary)
+	MinVersion           uint32   // 0x68 (+0x58): Minimum MOBI version needed
+	FirstImageIndex      uint32   // 0x6C (+0x5C): First image record index
+	HuffmanRecordOffset  uint32   // 0x70 (+0x60): Huffman compression record offset
+	HuffmanRecordCount   uint32   // 0x74 (+0x64): Huffman compression record count
+	HuffmanTableOffset   uint32   // 0x78 (+0x68): Huffman table offset
+	HuffmanTableLength   uint32   // 0x7C (+0x6C): Huffman table length
+	EXTHFlags            uint32   // 0x80 (+0x70): EXTH flags (0x40 = has EXTH header)
+	Unknown1             [32]byte // 0x84 (+0x74): 32 unknown bytes
+	Unknown2             uint32   // 0xA4 (+0x94): Unknown (use 0xFFFFFFFF)
+	DRMOffset            uint32   // 0xA8 (+0x98): DRM key info offset (0xFFFFFFFF if none)
+	DRMCount             uint32   // 0xAC (+0x9C): DRM entry count (0xFFFFFFFF if none)
+	DRMSize              uint32   // 0xB0 (+0xA0): DRM info size
+	DRMFlags             uint32   // 0xB4 (+0xA4): DRM flags
+	Unknown4             [8]byte  // 0xB8 (+0xA8): 8 unknown bytes
+	FirstContentRec      uint16   // 0xC0 (+0xB0): First content record number (usually 1)
+	LastContentRec       uint16   // 0xC2 (+0xB2): Last content record number
+	Unknown5             uint32   // 0xC4 (+0xB4): Unknown (use 0x00000001)
+	FCISIndex            uint32   // 0xC8 (+0xB8): FCIS record number
+	FCISCount            uint32   // 0xCC (+0xBC): Unknown (FCIS count? use 0x00000001)
+	FLISIndex            uint32   // 0xD0 (+0xC0): FLIS record number
+	FLISCount            uint32   // 0xD4 (+0xC4): Unknown (FLIS count? use 0x00000001)
+	Unknown216           [8]byte  // 0xD8 (+0xC8): 8 unknown bytes
+	Unknown224           uint32   // 0xE0 (+0xD0): Unknown (use 0xFFFFFFFF)
+	FirstCompilation     uint32   // 0xE4 (+0xD4): First Compilation data section count (use 0x00000000)
+	NumCompilation       uint32   // 0xE8 (+0xD8): Number of Compilation data sections (use 0xFFFFFFFF)
+	Unknown236           uint32   // 0xEC (+0xDC): Unknown (use 0xFFFFFFFF)
+	ExtraRecordFlags     uint32   // 0xF0 (+0xE0): Extra record data flags (0 = no extra data)
+	INDXRecordOffset     uint32   // 0xF4 (+0xE4): INDX record offset (0xFFFFFFFF if none)
 }
 
-// NewMOBIHeader creates a new MOBI header
+// NewMOBIHeader creates a new MOBI header with default values
 func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
 	h := &MOBIHeader{
 		// PalmDOC header
-		Compression:     PalmDOCCompression, // 2 = PalmDOC compression
-		Unused:          0,
+		Compression:          NoCompression,
+		Unused1:              0,
 		UncompressedTextSize: uint32(textSize),
-		RecordCount:     uint16(recordCount),
-		RecordSize:      4096, // Standard record size
-		EncryptionType:  0, // No encryption
+		RecordCount:          uint16(recordCount),
+		RecordSize:           StandardRecordSize,
+		EncryptionType:       0,
+		Unused2:              0,
 
 		// MOBI header
-		MOBIMarker:      [4]byte{'M', 'O', 'B', 'I'},
-		HeaderLength:    232, // Header size
-		MOBIType:        2, // MOBI type 2 = book
-		TextEncoding:    UTF8Encoding,
-		ID:              generateRandomID(),
-		FormatVersion:   6,
-		FirstNonBookIndex: 0xFFFFFFFF, // No images yet
-		FullNameOffset:  0xFFFFFFFF,
-		FullNameLength:  0,
-		Locale:          0, // Language/locale
-		InputLanguage:   0,
-		OutputLanguage:  0,
-		MinVersion:      6,
-		FirstImageIndex: 0xFFFFFFFF,
-		EXTHFlags:       0x50, // Has EXTH header
-		DRMFlags:        0, // No DRM
-		FirstContentRec: 1,
-		LastContentRec:  uint16(recordCount),
-		CoverIndex:      0xFFFFFFFF,
-		ThumbnailIndex:  0xFFFFFFFF,
+		MOBIMarker:           [4]byte{'M', 'O', 'B', 'I'},
+		HeaderLength:         232, // MOBI header size (0xE8) including previous 4 bytes - up to Unknown236
+		MOBIType:             2,   // MOBI type 2 = book
+		TextEncoding:         UTF8Encoding,
+		UniqueID:             generateRandomID(),
+		FileVersion:          6,
+		OrthographicIndex:    0xFFFFFFFF,
+		InflectionIndex:      0xFFFFFFFF,
+		IndexNames:           0xFFFFFFFF,
+		IndexKeys:            0xFFFFFFFF,
+		ExtraIndex0:          0xFFFFFFFF,
+		ExtraIndex1:          0xFFFFFFFF,
+		ExtraIndex2:          0xFFFFFFFF,
+		ExtraIndex3:          0xFFFFFFFF,
+		ExtraIndex4:          0xFFFFFFFF,
+		ExtraIndex5:          0xFFFFFFFF,
+		FirstNonBookIndex:    0xFFFFFFFF,
+		FullNameOffset:       0xFFFFFFFF,
+		FullNameLength:       0,
+		Locale:               0,
+		InputLanguage:        0,
+		OutputLanguage:       0,
+		MinVersion:           6,
+		FirstImageIndex:      0xFFFFFFFF,
+		HuffmanRecordOffset:  0,
+		HuffmanRecordCount:   0,
+		HuffmanTableOffset:   0,
+		HuffmanTableLength:   0,
+		EXTHFlags:            0x40, // Has EXTH header
+		Unknown1:             [32]byte{},
+		Unknown2:             0xFFFFFFFF,
+		DRMOffset:            0xFFFFFFFF,
+		DRMCount:             0xFFFFFFFF,
+		DRMSize:              0,
+		DRMFlags:             0,
+		Unknown4:             [8]byte{},
+		FirstContentRec:      1,
+		LastContentRec:       uint16(recordCount),
+		Unknown5:         0x00000001,
+		FCISIndex:        0xFFFFFFFF,
+		FCISCount:        0x00000001,
+		FLISIndex:        0xFFFFFFFF,
+		FLISCount:        0x00000001,
+		Unknown216:       [8]byte{},
+		Unknown224:       0xFFFFFFFF,
+		FirstCompilation: 0x00000000,
+		NumCompilation:   0xFFFFFFFF,
+		Unknown236:       0xFFFFFFFF,
+		ExtraRecordFlags: 0,
+		INDXRecordOffset: 0xFFFFFFFF,
 	}
-
-	// Initialize unknown fields to 0
-	// In production, would set appropriate values
 
 	return h
 }
 
-// Write writes the MOBI header to a writer
+// Write writes the complete MOBI header to a writer.
+// The struct is properly aligned with the MOBI specification, so we can
+// write it all at once with binary.Write without padding issues.
 func (h *MOBIHeader) Write(w io.Writer) error {
-	// Write PalmDOC header (16 bytes)
-	if err := binary.Write(w, binary.BigEndian, h.Compression); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.Unused); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.UncompressedTextSize); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.RecordCount); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.RecordSize); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.EncryptionType); err != nil {
-		return err
-	}
-
-	// Write MOBI marker
-	if _, err := w.Write(h.MOBIMarker[:]); err != nil {
-		return err
-	}
-
-	// Write remaining MOBI header fields
-	fields := []uint32{
-		h.HeaderLength,
-		h.MOBIType,
-		h.TextEncoding,
-		h.ID,
-		h.FormatVersion,
-		h.OrthographicIndex,
-		h.OrthographicName,
-		h.InflectionIndex,
-		h.InflectionName,
-		h.IndexNames,
-		h.IndexKeys,
-		h.ExtraIndexData,
-		h.FirstNonBookIndex,
-		h.FullNameOffset,
-		h.FullNameLength,
-		h.Locale,
-		h.InputLanguage,
-		h.OutputLanguage,
-		h.MinVersion,
-		h.FirstImageIndex,
-		h.HuffmanRecordOffset,
-		h.HuffmanRecordCount,
-		h.HuffmanTableOffset,
-		h.HuffmanTableLength,
-		h.EXTHFlags,
-		h.Unknown6,
-		h.DRMOffset,
-		h.DRMCount,
-		h.DRMKeySize,
-		h.DRMFlags,
-		0, // padding before FirstContentRec
-	}
-
-	for _, field := range fields {
-		if err := binary.Write(w, binary.BigEndian, field); err != nil {
-			return err
-		}
-	}
-
-	// Write FirstContentRec and LastContentRec
-	if err := binary.Write(w, binary.BigEndian, h.FirstContentRec); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.BigEndian, h.LastContentRec); err != nil {
-		return err
-	}
-
-	// Write remaining fields
-	remaining := []interface{}{
-		h.Unknown10, h.FCISIndex, h.FCISCount,
-		h.FLISIndex, h.FLISCount,
-		h.Unknown11, h.Unknown12, h.Unknown13,
-		h.CoverIndex, h.ThumbnailIndex,
-		h.Unknown14, h.Unknown15, h.Unknown16,
-		h.Unknown17, h.Unknown18, h.Unknown19,
-		h.Unknown20, h.Unknown21, h.Unknown22,
-		h.Unknown23, h.Unknown24, h.Unknown25,
-		h.Unknown26, h.Unknown27, h.Unknown28,
-		h.Unknown29, h.Unknown30, h.Unknown31,
-		h.Unknown32, h.Unknown33, h.Unknown34,
-		h.Unknown35, h.Unknown36, h.Unknown37,
-		h.Unknown38, h.Unknown39, h.Unknown40,
-		h.Unknown41, h.Unknown42, h.Unknown43,
-		h.Unknown44, h.Unknown45, h.Unknown46,
-		h.Unknown47, h.Unknown48, h.Unknown49,
-		h.Unknown50, h.Unknown51, h.Unknown52,
-		h.Unknown53, h.Unknown54, h.Unknown55,
-		h.Unknown56, h.Unknown57, h.Unknown58,
-		h.Unknown59, h.Unknown60, h.Unknown61,
-		h.Unknown62, h.Unknown63, h.Unknown64,
-		h.Unknown65, h.Unknown66, h.Unknown67,
-		h.Unknown68, h.Unknown69, h.Unknown70,
-		h.Unknown71, h.Unknown72, h.Unknown73,
-		h.Unknown74, h.Unknown75, h.Unknown76,
-		h.Unknown77, h.Unknown78, h.Unknown79,
-		h.Unknown80, h.Unknown81, h.Unknown82,
-		h.Unknown83, h.Unknown84, h.Unknown85,
-		h.Unknown86, h.Unknown87, h.Unknown88,
-		h.Unknown89, h.Unknown90, h.Unknown91,
-		h.Unknown92, h.Unknown93, h.Unknown94,
-		h.Unknown95, h.Unknown96, h.Unknown97,
-		h.Unknown98, h.Unknown99, h.Unknown100,
-		h.Unknown101, h.Unknown102, h.Unknown103,
-		h.Unknown104, h.Unknown105, h.Unknown106,
-		h.Unknown107, h.Unknown108, h.Unknown109,
-		h.Unknown110, h.Unknown111, h.Unknown112,
-		h.Unknown113, h.Unknown114, h.Unknown115,
-		h.Unknown116, h.Unknown117, h.Unknown118,
-		h.Unknown119, h.Unknown120, h.Unknown121,
-		h.Unknown122, h.Unknown123, h.Unknown124,
-		h.Unknown125, h.Unknown126, h.Unknown127,
-	}
-
-	for _, field := range remaining {
-		if err := binary.Write(w, binary.BigEndian, field); err != nil {
-			return fmt.Errorf("failed to write MOBI header field: %w", err)
-		}
-	}
-
-	return nil
+	return binary.Write(w, binary.BigEndian, h)
 }
 
 // SetFullName sets the book full name
 func (h *MOBIHeader) SetFullName(name string) {
 	// In production, this would write the name to data and set offset/length
-	// For now, placeholder
+	// For now, just set the length
 	h.FullNameLength = uint32(len(name))
 }
 
 // SetEXTHFlags sets the EXTH flags
 func (h *MOBIHeader) SetEXTHFlags(flags uint32) {
 	h.EXTHFlags = flags
-}
-
-// SetCoverIndex sets the cover image index
-func (h *MOBIHeader) SetCoverIndex(index uint32) {
-	h.CoverIndex = index
 }
 
 // SetContentRecords sets the first and last content record indices

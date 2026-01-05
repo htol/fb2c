@@ -194,69 +194,19 @@ func ConvertOEBToKF8WithOptions(book *opf.OEBBook, output io.Writer, options KF8
 }
 
 // WriteJointFile writes a joint MOBI file (MOBI 6 + KF8)
-// A joint file is a single PalmDB with both MOBI 6 and KF8 records
+// For now, we create pure KF8 like Calibre (smaller, works better)
 func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 	// Save original content
 	originalContent := w.book.Content
 
 	// Create a single PalmDB writer for the joint file
-	palmWriter := mobi.NewPalmDBWriter(w.mobiWriter.GetBookName())
+	palmWriter := mobi.NewPalmDBWriter(w.mobiWriter.GetBookName(), false)
 
 	recordIndex := 0
 
-	// === MOBI 6 SECTION ===
+	// === KF8 SECTION (like Calibre - no MOBI 6 section) ===
 
-	// 1. Create MOBI 6 header (version 6)
-	mobi6Header := mobi.NewMOBIHeader(len(w.book.Content),
-		mobi.CalculateRecordCount(len(w.book.Content)))
-	mobi6Header.SetFullName(w.mobiWriter.GetBookName())
-	mobi6Header.FormatVersion = 6 // MOBI 6
-
-	// 2. Add MOBI 6 text records (uncompressed for MOBI 6)
-	textData := []byte(w.book.Content)
-	textRecords := w.splitTextRecords(textData)
-	for _, rec := range textRecords {
-		palmWriter.AddRecord(rec, 0, uint32(recordIndex))
-		recordIndex++
-	}
-
-	// 3. Add images for MOBI 6
-	ids := w.book.GetManifestIDs()
-	for _, id := range ids {
-		res, ok := w.book.GetResource(id)
-		if !ok {
-			continue
-		}
-		if len(res.MediaType) >= 6 && res.MediaType[0:5] == "image" {
-			palmWriter.AddRecord(res.Data, 0, uint32(recordIndex))
-			recordIndex++
-		}
-	}
-
-	// 4. Add TOC INDX if enabled
-	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
-		tocINDX, err := w.mobiWriter.GenerateTOCIndex(w.book.Content, textRecords)
-		if err == nil {
-			indxData, err := tocINDX.Encode()
-			if err == nil {
-				palmWriter.AddRecord(indxData, 0, uint32(recordIndex))
-				recordIndex++
-			}
-		}
-	}
-
-	// === BOUNDARY ===
-
-	// Remember the boundary record index
-	boundaryRecordIndex := recordIndex
-
-	// Add a boundary marker (the actual content doesn't matter much, but some tools use "BOUNDARY")
-	palmWriter.AddRecord([]byte("BOUNDARY"), 0, uint32(recordIndex))
-	recordIndex++
-
-	// === KF8 SECTION ===
-
-	// 5. Prepare KF8 content (with chunking)
+	// 1. Prepare KF8 content (with chunking)
 	var kf8Content string
 	if w.options.EnableChunking {
 		if err := w.skeleton.ChunkHTML(originalContent); err != nil {
@@ -273,15 +223,35 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 		kf8Content = originalContent
 	}
 
-	// 6. Add KF8 text records
-	kf8TextData := []byte(kf8Content)
+	// 2. Add KF8 text records FIRST (before images)
+	// Use PalmDOC compression like Calibre
+	kf8TextData := mobi.CompressPalmDOC([]byte(kf8Content))
+
+	// Remember first text record index (will be record 1 after prepending header)
+	firstTextRec := recordIndex
+
 	kf8TextRecords := w.splitTextRecords(kf8TextData)
 	for _, rec := range kf8TextRecords {
 		palmWriter.AddRecord(rec, 0, uint32(recordIndex))
 		recordIndex++
 	}
 
-	// 7. Add KF8-specific indices (FDST, skeleton, etc.)
+	lastTextRec := recordIndex - 1
+
+	// 3. Add images AFTER text
+	ids := w.book.GetManifestIDs()
+	for _, id := range ids {
+		res, ok := w.book.GetResource(id)
+		if !ok {
+			continue
+		}
+		if len(res.MediaType) >= 6 && res.MediaType[0:5] == "image" {
+			palmWriter.AddRecord(res.Data, 0, uint32(recordIndex))
+			recordIndex++
+		}
+	}
+
+	// 4. Add KF8-specific indices (FDST, skeleton, etc.)
 	if w.options.GenerateFDST && w.fdst != nil {
 		var fdstBuf bytes.Buffer
 		if err := w.fdst.Write(&fdstBuf); err == nil {
@@ -290,12 +260,26 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 		}
 	}
 
-	// === HEADERS (written last so we know all record counts) ===
+	// === HEADER (written last, like Calibre) ===
+	// Create MOBI 6 header with KF8 flag (RecordSize=0x10000000)
+	// This tells readers to expect KF8 content
 
-	// Now create EXTH header with KF8 boundary record (we know the boundary index now)
+	mobiHeader := mobi.NewMOBIHeader(len(kf8Content),
+		mobi.CalculateRecordCount(len(kf8Content)))
+	mobiHeader.SetFullName(w.mobiWriter.GetBookName())
+	// Signal KF8 through MOBIType instead of RecordSize
+	// RecordSize field is uint16, can't hold 0x10000000
+	mobiHeader.MOBIType = 248 // 248 = KF8
+	mobiHeader.FileVersion = 8 // KF8 format version
+
+	// Use PalmDOC compression like Calibre
+	mobiHeader.Compression = mobi.PalmDOCCompression // 2 = PalmDOC compression
+
+	// Adjust firstTextRec/lastTextRec for prepended header (+1 offset)
+	mobiHeader.SetContentRecords(uint16(firstTextRec+1), uint16(lastTextRec+1))
+
+	// Create EXTH header with metadata (like Calibre)
 	exthWriter := mobi.NewEXTHWriter()
-
-	// Add metadata from book
 	authors := make([]string, 0)
 	for _, author := range w.book.Metadata.Authors {
 		authors = append(authors, author.FullName)
@@ -310,84 +294,43 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 		w.book.Metadata.Rights,
 	)
 
-	// Add KF8 boundary record
-	exthWriter.AddKF8Boundary(uint32(boundaryRecordIndex))
+	// Set EXTH flag BEFORE writing header
+	mobiHeader.SetEXTHFlags(0x50) // Has EXTH header (like mobi writer)
 
-	// Update MOBI 6 header with correct content record indices
-	// MOBI 6 text records start at index 1 (after MOBI header at index 0)
-	// They go up to boundaryRecordIndex - 1 (before BOUNDARY marker)
-	mobi6Header.SetContentRecords(1, uint16(boundaryRecordIndex-1))
-
-	// Encode MOBI 6 header + EXTH
-	var mobi6HeaderBuf bytes.Buffer
-	if err := mobi6Header.Write(&mobi6HeaderBuf); err != nil {
-		return fmt.Errorf("failed to write MOBI 6 header: %w", err)
+	// Encode MOBI header
+	var headerBuf bytes.Buffer
+	if err := mobiHeader.Write(&headerBuf); err != nil {
+		return fmt.Errorf("failed to write MOBI header: %w", err)
 	}
 
-	if _, err := exthWriter.Write(&mobi6HeaderBuf); err != nil {
+	// Write EXTH after MOBI header
+	exthData := bytes.NewBuffer(nil)
+	if _, err := exthWriter.Write(exthData); err != nil {
 		return fmt.Errorf("failed to write EXTH: %w", err)
 	}
+	headerBuf.Write(exthData.Bytes())
 
-	// 8. Create KF8 header (version 8)
-	mobi8Header := mobi.NewMOBIHeader(len(kf8Content),
-		mobi.CalculateRecordCount(len(kf8Content)))
-	mobi8Header.SetFullName(w.mobiWriter.GetBookName())
-	mobi8Header.FormatVersion = 8 // KF8
-
-	// KF8 records start after boundary (boundaryRecordIndex) + KF8 header position
-	// The KF8 header will be inserted at boundaryRecordIndex + 1
-	// So first KF8 content record is at boundaryRecordIndex + 2
-	kf8FirstContentRec := boundaryRecordIndex + 2
-	kf8LastContentRec := kf8FirstContentRec + len(kf8TextRecords) - 1
-	mobi8Header.SetContentRecords(uint16(kf8FirstContentRec), uint16(kf8LastContentRec))
-
-	// Encode KF8 header (without EXTH this time)
-	var kf8HeaderBuf bytes.Buffer
-	if err := mobi8Header.Write(&kf8HeaderBuf); err != nil {
-		return fmt.Errorf("failed to write KF8 header: %w", err)
-	}
-
-	// Insert headers at the beginning (MOBI 6 at record 0, KF8 at record boundary+1)
-	// We need to insert these records at the beginning, but PalmDBWriter doesn't support insertion
-	// So we'll rebuild the record list
-
-	// Get all current records
+	// Get all records and prepend header
 	allRecords := palmWriter.GetRecords()
+	allRecordEntries := palmWriter.GetRecordEntries()
 
-	// Create new record list with headers in the right places
-	newRecords := make([][]byte, 0, len(allRecords)+2)
-	newRecordEntries := make([]mobi.RecordIndexEntry, 0, len(allRecords)+2)
+	// Create new record list with header at the beginning
+	newRecords := make([][]byte, 0, len(allRecords)+1)
+	newRecordEntries := make([]mobi.RecordIndexEntry, 0, len(allRecordEntries)+1)
 
-	// Insert MOBI 6 header at record 0
-	newRecords = append(newRecords, mobi6HeaderBuf.Bytes())
+	// Add header as record 0
+	newRecords = append(newRecords, headerBuf.Bytes())
 	newRecordEntries = append(newRecordEntries, mobi.RecordIndexEntry{
 		Attributes: 0,
 		UniqueID:   0,
 	})
 
-	// Add all records up to and including boundary
-	boundaryEnd := boundaryRecordIndex + 1
-	for i := 0; i < boundaryEnd && i < len(allRecords); i++ {
-		newRecords = append(newRecords, allRecords[i])
+	// Add all other records with adjusted unique IDs
+	for i, rec := range allRecords {
+		newRecords = append(newRecords, rec)
 		newRecordEntries = append(newRecordEntries, mobi.RecordIndexEntry{
-			Attributes: 0,
+			Attributes: allRecordEntries[i].Attributes,
 			UniqueID:   uint32(i + 1),
-		})
-	}
-
-	// Insert KF8 header after boundary
-	newRecords = append(newRecords, kf8HeaderBuf.Bytes())
-	newRecordEntries = append(newRecordEntries, mobi.RecordIndexEntry{
-		Attributes: 0,
-		UniqueID:   uint32(boundaryEnd + 1),
-	})
-
-	// Add remaining records
-	for i := boundaryEnd; i < len(allRecords); i++ {
-		newRecords = append(newRecords, allRecords[i])
-		newRecordEntries = append(newRecordEntries, mobi.RecordIndexEntry{
-			Attributes: 0,
-			UniqueID:   uint32(i + 2),
 		})
 	}
 
