@@ -7,8 +7,6 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -260,18 +258,16 @@ func parseYear(yearStr string) (time.Time, error) {
 
 // extractCoverImage extracts cover image data from binaries
 func (p *Parser) extractCoverImage(binaryID string) ([]byte, string) {
-	// Look for the binary in the image map
-	if filename, ok := p.imageMap[binaryID]; ok {
-		// Read the file (this is a simple implementation)
-		data, err := os.ReadFile(filename)
-		if err != nil {
-			return nil, ""
-		}
+	// Look for the binary data in imageData
+	if data, ok := p.imageData[binaryID]; ok {
+		// Get content-type from imageTypes
+		contentType := p.GetImageType(binaryID)
 
-		// Detect image format
-		ext := filepath.Ext(filename)
+		// Convert content-type to extension
+		ext := contentTypeToExtension(contentType)
+
+		// Fallback: detect from data if extension unknown
 		if ext == "" {
-			// Try to detect from data
 			_, format, err := image.DecodeConfig(bytes.NewReader(data))
 			if err == nil {
 				ext = "." + format
@@ -282,6 +278,24 @@ func (p *Parser) extractCoverImage(binaryID string) ([]byte, string) {
 	}
 
 	return nil, ""
+}
+
+// contentTypeToExtension converts a content-type to a file extension
+func contentTypeToExtension(contentType string) string {
+	switch contentType {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/gif":
+		return ".gif"
+	case "image/svg+xml":
+		return ".svg"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ""
+	}
 }
 
 // GetMetadataFromFile is a convenience function to extract metadata from an FB2 file

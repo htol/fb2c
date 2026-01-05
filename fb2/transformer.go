@@ -3,6 +3,7 @@ package fb2
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -427,10 +428,19 @@ func (t *Transformer) renderImage(img Image) string {
 		href = img.XLinkHref
 	}
 
-	// Map binary ID to filename
-	if filename, ok := t.parser.imageMap[strings.TrimPrefix(href, "#")]; ok {
-		href = filename
+	// Remove # prefix if present to get binary ID
+	binaryID := strings.TrimPrefix(href, "#")
+
+	// Check if we have image data for data URL generation
+	if data, ok := t.parser.imageData[binaryID]; ok {
+		// Generate data URL
+		contentType := t.parser.GetImageType(binaryID)
+		dataURL := fmt.Sprintf("data:%s;base64,%s",
+			contentType,
+			base64.StdEncoding.EncodeToString(data))
+		href = dataURL
 	}
+	// If no image data found, keep original href (for external images)
 
 	// Always include alt attribute (empty if not specified) for EPUB compliance
 	alt := ""
@@ -472,17 +482,6 @@ func htmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
-}
-
-// Cleanup removes temporary files created during conversion
-func (t *Transformer) Cleanup() error {
-	// Remove extracted images
-	for _, filename := range t.parser.imageMap {
-		if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return nil
 }
 
 // ConvertFile is a convenience function to convert an FB2 file to HTML

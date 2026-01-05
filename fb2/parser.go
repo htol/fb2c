@@ -258,9 +258,9 @@ type Parser struct {
 	ExtractImages  bool
 
 	// Internal state
-	imageMap    map[string]string // binary ID -> filename
-	stylesheets map[string]string
-	coverPath   string
+	imageData    map[string][]byte     // binary ID -> decoded image data
+	imageTypes   map[string]string     // binary ID -> content-type
+	stylesheets  map[string]string
 
 	// Detected namespace
 	fbNamespace string
@@ -272,7 +272,8 @@ func NewParser() *Parser {
 		NoInlineTOC:   false,
 		ProcessCSS:    true,
 		ExtractImages: true,
-		imageMap:      make(map[string]string),
+		imageData:     make(map[string][]byte),
+		imageTypes:    make(map[string]string),
 		stylesheets:   make(map[string]string),
 	}
 }
@@ -392,37 +393,32 @@ func (p *Parser) extractEmbeddedContent(fb2 *FictionBook) error {
 			continue
 		}
 
-		// Determine filename
-		filename := sanitizeFilename(binary.ID)
+		// Store decoded data in memory
+		p.imageData[binary.ID] = data
 
-		// Add extension based on content type (only if not already present)
-		ct := strings.ToLower(binary.ContentType)
-		if strings.HasPrefix(ct, "image/") {
-			ext := extensionFromMIME(ct)
-			if ext != "" && !strings.HasSuffix(filename, ext) {
-				filename += ext
-			}
-			p.imageMap[binary.ID] = filename
+		// Store content-type for data URL generation
+		if binary.ContentType != "" {
+			p.imageTypes[binary.ID] = binary.ContentType
+		} else {
+			// Default to jpeg if unknown
+			p.imageTypes[binary.ID] = "image/jpeg"
 		}
-
-		// Write to file (in current directory for now)
-		// In production, you'd want to control the output directory
-		p.writeExtractedFile(filename, data)
 	}
 
 	return nil
 }
 
-// writeExtractedFile writes extracted content to a file
-func (p *Parser) writeExtractedFile(filename string, data []byte) error {
-	// Create output directory if needed
-	// For now, write to current directory
-	return os.WriteFile(filename, data, 0644)
+// GetImageData returns the map of binary IDs to decoded image data
+func (p *Parser) GetImageData() map[string][]byte {
+	return p.imageData
 }
 
-// GetImageMap returns the map of binary IDs to filenames
-func (p *Parser) GetImageMap() map[string]string {
-	return p.imageMap
+// GetImageType returns the content-type for a binary ID
+func (p *Parser) GetImageType(binaryID string) string {
+	if ct, ok := p.imageTypes[binaryID]; ok {
+		return ct
+	}
+	return "image/jpeg" // Default fallback
 }
 
 // GetNamespace returns the detected FB2 namespace

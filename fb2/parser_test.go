@@ -1,7 +1,6 @@
 package fb2
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -380,26 +379,46 @@ func TestParseKeywords(t *testing.T) {
 // Test with actual file I/O would require sample files
 // For now, we test the in-memory operations
 
-func TestCleanup(t *testing.T) {
-	// Create a test file
-	testFile := "test_image.jpg"
-	testData := []byte("fake image data")
-	err := os.WriteFile(testFile, testData, 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-	defer os.Remove(testFile)
+func TestImageDataToDataURL(t *testing.T) {
+	// Simple FB2 document with embedded image
+	fb2Data := `<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+    <description>
+        <title-info>
+            <book-title>Test Book</book-title>
+            <lang>en</lang>
+        </title-info>
+    </description>
+    <body>
+        <section>
+            <p>Text before image</p>
+            <image l:href="#cover.jpg"/>
+            <p>Text after image</p>
+        </section>
+    </body>
+    <binary id="cover.jpg" content-type="image/jpeg">
+        /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAALCAACAgBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AT//Z
+    </binary>
+</FictionBook>`
 
 	transformer := NewTransformer()
-	transformer.parser.imageMap["cover"] = testFile
-
-	err = transformer.Cleanup()
+	html, _, _, err := transformer.ConvertBytes([]byte(fb2Data))
 	if err != nil {
-		t.Errorf("Cleanup() error = %v", err)
+		t.Fatalf("ConvertBytes() error = %v", err)
 	}
 
-	// Verify file was deleted
-	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
-		t.Error("Cleanup() failed to remove file")
+	// Verify data URL is used
+	if !strings.Contains(html, "data:image/jpeg;base64,") {
+		t.Error("HTML doesn't contain data URL")
+	}
+
+	// Verify original filename is NOT used
+	if strings.Contains(html, "src=\"cover.jpg\"") {
+		t.Error("HTML should use data URL, not filename")
+	}
+
+	// Verify img tag is present
+	if !strings.Contains(html, "<img") {
+		t.Error("HTML doesn't contain img tag")
 	}
 }
