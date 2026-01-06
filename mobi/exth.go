@@ -21,7 +21,8 @@ const (
 	EXTHContributor     = 108
 	EXTHRights          = 109
 	EXTHSubjectCode     = 110
-	EXTHType            = 111
+	EXTHType            = 501
+	EXTHLanguage        = 524
 	EXTHSource          = 112
 	EXTHASIN            = 113
 	EXTHVersion         = 114
@@ -126,6 +127,11 @@ func (w *EXTHWriter) AddType(typ string) {
 // AddSource adds a source record
 func (w *EXTHWriter) AddSource(source string) {
 	w.addRecord(EXTHSource, source)
+}
+
+// AddLanguage adds a language record
+func (w *EXTHWriter) AddLanguage(lang string) {
+	w.addRecord(EXTHLanguage, lang)
 }
 
 // AddCoverOffset adds a cover offset record
@@ -266,7 +272,7 @@ func (w *EXTHWriter) GetTotalLength() int {
 }
 
 // AddFromMetadata adds common metadata fields
-func (w *EXTHWriter) AddFromMetadata(title, author, publisher, isbn, year, description, copyright string) {
+func (w *EXTHWriter) AddFromMetadata(title, author, publisher, isbn, year, description, copyright, language string) {
 	w.AddTitle(title)
 	w.AddAuthor(author)
 	w.AddPublisher(publisher)
@@ -274,6 +280,9 @@ func (w *EXTHWriter) AddFromMetadata(title, author, publisher, isbn, year, descr
 	w.AddISBN(isbn)
 	w.AddPublishedDate(year)
 	w.AddRights(copyright)
+	if language != "" {
+		w.AddLanguage(language)
+	}
 	w.AddCreatorSoftware("fb2c - FB2 to MOBI Converter")
 }
 

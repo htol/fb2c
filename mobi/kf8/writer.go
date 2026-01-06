@@ -16,33 +16,33 @@ type KF8WriteOptions struct {
 	mobi.WriteOptions
 
 	// KF8-specific options
-	EnableChunking   bool
-	TargetChunkSize  int
-	SupportFlows     bool
-	GenerateFDST     bool
-	KF8Boundary      bool // Insert BOUNDARY marker for joint files
+	EnableChunking  bool
+	TargetChunkSize int
+	SupportFlows    bool
+	GenerateFDST    bool
+	KF8Boundary     bool // Insert BOUNDARY marker for joint files
 }
 
 // DefaultKF8WriteOptions returns default KF8 write options
 func DefaultKF8WriteOptions() KF8WriteOptions {
 	return KF8WriteOptions{
-		WriteOptions:     mobi.DefaultWriteOptions(),
-		EnableChunking:   true,
-		TargetChunkSize:  TargetChunkSize,
-		SupportFlows:     true,
-		GenerateFDST:     true,
-		KF8Boundary:      false,
+		WriteOptions:    mobi.DefaultWriteOptions(),
+		EnableChunking:  true,
+		TargetChunkSize: TargetChunkSize,
+		SupportFlows:    true,
+		GenerateFDST:    true,
+		KF8Boundary:     false,
 	}
 }
 
 // KF8Writer writes KF8 (MOBI 8) files
 type KF8Writer struct {
-	mobiWriter   *mobi.Writer
-	skeleton     *Skeleton
-	flowManager  *FlowManager
-	fdst         *FDST
-	options      KF8WriteOptions
-	book         *opf.OEBBook
+	mobiWriter  *mobi.Writer
+	skeleton    *Skeleton
+	flowManager *FlowManager
+	fdst        *FDST
+	options     KF8WriteOptions
+	book        *opf.OEBBook
 }
 
 // NewKF8Writer creates a new KF8 writer
@@ -269,7 +269,7 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 	mobiHeader.SetFullName(w.mobiWriter.GetBookName())
 	// Signal KF8 through MOBIType instead of RecordSize
 	// RecordSize field is uint16, can't hold 0x10000000
-	mobiHeader.MOBIType = 248 // 248 = KF8
+	mobiHeader.MOBIType = 248  // 248 = KF8
 	mobiHeader.FileVersion = 8 // KF8 format version
 
 	// Use PalmDOC compression like Calibre
@@ -292,6 +292,7 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 		w.book.Metadata.Year,
 		w.book.Metadata.Annotation,
 		w.book.Metadata.Rights,
+		w.book.Metadata.Language,
 	)
 
 	// Set EXTH flag BEFORE writing header

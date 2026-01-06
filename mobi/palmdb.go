@@ -369,6 +369,13 @@ func (w *PalmDBWriter) AddRecord(data []byte, attributes uint8, uniqueID uint32)
 	})
 }
 
+// SetRecord sets the data for an existing record
+func (w *PalmDBWriter) SetRecord(index int, data []byte) {
+	if index >= 0 && index < len(w.records) {
+		w.records[index] = data
+	}
+}
+
 // Write writes the complete PalmDB file
 func (w *PalmDBWriter) Write(output io.Writer) error {
 	// Update header with actual record count

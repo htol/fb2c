@@ -7,7 +7,7 @@ import (
 
 // ExtractTOC extracts table of contents from FB2 document structure
 func (p *Parser) ExtractTOC(fb2 *FictionBook) (*TOCData, error) {
-	if len(fb2.Body.Sections) == 0 {
+	if len(fb2.Bodies) == 0 || len(fb2.Bodies[0].Sections) == 0 {
 		return nil, nil // No TOC available
 	}
 
@@ -15,8 +15,8 @@ func (p *Parser) ExtractTOC(fb2 *FictionBook) (*TOCData, error) {
 		Entries: []*TOCEntry{},
 	}
 
-	// Extract TOC from body sections
-	for _, section := range fb2.Body.Sections {
+	// Extract TOC from main body sections (usually the first one)
+	for _, section := range fb2.Bodies[0].Sections {
 		p.extractSectionTOC(&section, toc.Root, 1, toc)
 	}
 
@@ -66,7 +66,7 @@ func (p *Parser) extractSectionTOC(section *Section, parent *TOCEntry, level int
 
 // TOCData represents table of contents data
 type TOCData struct {
-	Root   *TOCEntry
+	Root    *TOCEntry
 	Entries []*TOCEntry
 }
 

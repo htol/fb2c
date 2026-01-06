@@ -88,9 +88,16 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	// Apply metadata overrides
 	c.applyMetadataOverrides(metadata)
 
+	// Detect output format from file extension
+	ext := strings.ToLower(filepath.Ext(outputPath))
+
 	// Transform to HTML
 	transformer := fb2.NewTransformer()
 	transformer.NoInlineTOC = c.options.NoInlineTOC
+	// Enable MOBI mode for MOBI/KF8 output to ensure compatibility
+	if ext != ".epub" {
+		transformer.MOBIMode = true
+	}
 
 	html, _, _, err := transformer.ConvertBytes(fb2Data)
 	if err != nil {
@@ -107,7 +114,7 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	book := c.createOPFBook(metadata, html, tocData, fb2Doc)
 
 	// Detect output format from file extension
-	ext := strings.ToLower(filepath.Ext(outputPath))
+	ext = strings.ToLower(filepath.Ext(outputPath))
 
 	// Write output based on format
 	outputFile, err := os.Create(outputPath)
@@ -154,17 +161,25 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 		return fmt.Errorf("failed to extract metadata: %w", err)
 	}
 
-	// Apply overrides
-	c.applyMetadataOverrides(metadata)
-
 	// Extract TOC from FB2 document
 	tocData, err := c.parser.ExtractTOC(fb2Doc)
 	if err != nil {
 		return fmt.Errorf("failed to extract TOC: %w", err)
 	}
 
+	// Transform to HTML
+	transformer := fb2.NewTransformer()
+	transformer.NoInlineTOC = c.options.NoInlineTOC
+	// Stream usually defaults to MOBI unless extension known (not known here)
+	transformer.MOBIMode = true
+
+	html, _, _, err := transformer.ConvertBytes(data)
+	if err != nil {
+		return fmt.Errorf("failed to transform FB2: %w", err)
+	}
+
 	// Create OPF book
-	book := c.createOPFBook(metadata, "", tocData, fb2Doc)
+	book := c.createOPFBook(metadata, html, tocData, fb2Doc)
 
 	// Write MOBI
 	switch c.options.MobiType {

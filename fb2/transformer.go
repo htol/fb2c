@@ -17,7 +17,9 @@ type Transformer struct {
 	// Options
 	NoInlineTOC bool
 	ProcessCSS  bool
+	UseDataURLs bool   // If true, images are embedded as data URLs. If false, href is used.
 	Title       string // Override title
+	MOBIMode    bool   // If true, generate minimalist HTML for MOBI
 
 	// CSS processing
 	cssContent string
@@ -31,9 +33,10 @@ type Transformer struct {
 // NewTransformer creates a new FB2 transformer
 func NewTransformer() *Transformer {
 	return &Transformer{
-		parser:     NewParser(),
+		parser:      NewParser(),
 		NoInlineTOC: false,
 		ProcessCSS:  true,
+		MOBIMode:    true,
 	}
 }
 
@@ -95,8 +98,20 @@ func (t *Transformer) processStylesheets(fb2 *FictionBook) {
 func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	var buf bytes.Buffer
 
-	// HTML header
-	buf.WriteString(`<!DOCTYPE html>
+	if t.MOBIMode {
+		// Minimalist MOBI HTML with mandatory head/guide
+		buf.WriteString("<html>\n<head>\n")
+		// Add guide for TOC if generated
+		if !t.NoInlineTOC && fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
+			// Note: filepos will be resolved by the reader or binary TOC
+			buf.WriteString("<guide>\n")
+			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"0000000000\" />\n")
+			buf.WriteString("</guide>\n")
+		}
+		buf.WriteString("</head>\n")
+	} else {
+		// Modern HTML header
+		buf.WriteString(`<!DOCTYPE html>
 <html lang="` + fb2.Description.TitleInfo.Language + `">
 <head>
     <meta charset="UTF-8">
@@ -119,14 +134,24 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
         td, th { border: 1px solid black; padding: 0.3em; }
     </style>
 `)
-
-	if t.cssContent != "" {
-		buf.WriteString("    <link rel=\"stylesheet\" type=\"text/css\" href=\"inline-styles.css\" />\n")
+		if t.cssContent != "" {
+			buf.WriteString("    <link rel=\"stylesheet\" type=\"text/css\" href=\"inline-styles.css\" />\n")
+		}
+		buf.WriteString("</head>\n")
 	}
 
-	buf.WriteString(`</head>
-<body>
-`)
+	// Body content
+	buf.WriteString("<body>\n")
+
+	// Render cover page if present
+	if fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
+		buf.WriteString(t.renderCoverPage(fb2.Description.TitleInfo.Coverpage))
+		if t.MOBIMode {
+			buf.WriteString("<p>&nbsp;</p>\n")
+		} else {
+			buf.WriteString("<hr/>\n")
+		}
+	}
 
 	// Annotation
 	if fb2.Description.TitleInfo.Annotation != nil {
@@ -139,13 +164,15 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	}
 
 	// Table of Contents
-	if !t.NoInlineTOC {
-		buf.WriteString(t.generateTOC(fb2.Body.Sections, 1))
+	if !t.NoInlineTOC && len(fb2.Bodies) > 0 {
+		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 1))
 		buf.WriteString("<hr/>\n")
 	}
 
 	// Body content
-	buf.WriteString(t.renderBody(fb2.Body))
+	for _, body := range fb2.Bodies {
+		buf.WriteString(t.renderBody(body))
+	}
 
 	buf.WriteString("</body>\n</html>")
 
@@ -164,7 +191,9 @@ func (t *Transformer) getDisplayTitle(fb2 *FictionBook) string {
 func (t *Transformer) generateTOC(sections []Section, depth int) string {
 	var buf strings.Builder
 
-	buf.WriteString("<ul>\n")
+	if !t.MOBIMode {
+		buf.WriteString("<ul>\n")
+	}
 
 	for i, section := range sections {
 		// Generate section title
@@ -185,18 +214,32 @@ func (t *Transformer) generateTOC(sections []Section, depth int) string {
 			id = fmt.Sprintf("section_%d", i+1)
 		}
 
-		buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, htmlEscape(title)))
+		if t.MOBIMode {
+			indent := ""
+			if depth > 1 {
+				indent = strings.Repeat("&nbsp;&nbsp;", depth-1)
+			}
+			buf.WriteString(fmt.Sprintf("<p>%s<a href=\"#%s\">%s</a></p>\n", indent, id, htmlEscape(title)))
+		} else {
+			buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, htmlEscape(title)))
+		}
 
 		// Recurse for subsections
 		if len(section.Sections) > 0 {
-			buf.WriteString("\n")
+			if !t.MOBIMode {
+				buf.WriteString("\n")
+			}
 			buf.WriteString(t.generateTOC(section.Sections, depth+1))
 		}
 
-		buf.WriteString("</li>\n")
+		if !t.MOBIMode {
+			buf.WriteString("</li>\n")
+		}
 	}
 
-	buf.WriteString("</ul>\n")
+	if !t.MOBIMode {
+		buf.WriteString("</ul>\n")
+	}
 
 	return buf.String()
 }
@@ -205,11 +248,17 @@ func (t *Transformer) generateTOC(sections []Section, depth int) string {
 func (t *Transformer) renderBody(body Body) string {
 	var buf strings.Builder
 
-	buf.WriteString("<div>\n")
+	if !t.MOBIMode {
+		buf.WriteString("<div>\n")
+	}
 
 	// Body name if present
 	if body.Name != "" {
-		buf.WriteString(fmt.Sprintf("<h4 align=\"center\">%s</h4>\n", htmlEscape(body.Name)))
+		if t.MOBIMode {
+			buf.WriteString(fmt.Sprintf("<p align=\"center\"><b>%s</b></p>\n", htmlEscape(body.Name)))
+		} else {
+			buf.WriteString(fmt.Sprintf("<h4 align=\"center\">%s</h4>\n", htmlEscape(body.Name)))
+		}
 	}
 
 	// Process sections
@@ -217,7 +266,9 @@ func (t *Transformer) renderBody(body Body) string {
 		buf.WriteString(t.renderSection(section, i+1))
 	}
 
-	buf.WriteString("</div>\n")
+	if !t.MOBIMode {
+		buf.WriteString("</div>\n")
+	}
 
 	return buf.String()
 }
@@ -232,7 +283,11 @@ func (t *Transformer) renderSection(section Section, index int) string {
 		id = fmt.Sprintf("section_%d", index)
 	}
 
-	buf.WriteString(fmt.Sprintf("<div id=\"%s\">\n", id))
+	if t.MOBIMode {
+		buf.WriteString(fmt.Sprintf("<a name=\"%s\"></a>\n", id))
+	} else {
+		buf.WriteString(fmt.Sprintf("<div id=\"%s\">\n", id))
+	}
 
 	// Section title
 	if section.Title != nil && len(section.Title.P) > 0 {
@@ -288,12 +343,14 @@ func (t *Transformer) renderSection(section Section, index int) string {
 		buf.WriteString(fmt.Sprintf("<p class=\"paragraph\">%s</p>\n", htmlEscape(p.Text)))
 	}
 
-	// Subsections
+	// subsections
 	for i, subsection := range section.Sections {
 		buf.WriteString(t.renderSection(subsection, i+1))
 	}
 
-	buf.WriteString("</div>\n")
+	if !t.MOBIMode {
+		buf.WriteString("</div>\n")
+	}
 
 	return buf.String()
 }
@@ -432,15 +489,22 @@ func (t *Transformer) renderImage(img Image) string {
 	binaryID := strings.TrimPrefix(href, "#")
 
 	// Check if we have image data for data URL generation
-	if data, ok := t.parser.imageData[binaryID]; ok {
-		// Generate data URL
-		contentType := t.parser.GetImageType(binaryID)
-		dataURL := fmt.Sprintf("data:%s;base64,%s",
-			contentType,
-			base64.StdEncoding.EncodeToString(data))
-		href = dataURL
+	// Only generate data URL if explicitly enabled
+	if t.UseDataURLs {
+		if data, ok := t.parser.imageData[binaryID]; ok {
+			// Generate data URL
+			contentType := t.parser.GetImageType(binaryID)
+			dataURL := fmt.Sprintf("data:%s;base64,%s",
+				contentType,
+				base64.StdEncoding.EncodeToString(data))
+			href = dataURL
+		}
+	} else {
+		// When not using Data URLs, use the binary ID as the href
+		// This ensures it matches the resource ID in the OEB book
+		href = binaryID
 	}
-	// If no image data found, keep original href (for external images)
+	// If no image data found and not local reference, keep original href (for external images)
 
 	// Always include alt attribute (empty if not specified) for EPUB compliance
 	alt := ""
@@ -454,7 +518,28 @@ func (t *Transformer) renderImage(img Image) string {
 		titleAttr = fmt.Sprintf(" title=\"%s\"", htmlEscape(img.Title))
 	}
 
+	if t.MOBIMode {
+		// MOBI 6 uses <img> tag with recindex:NNNNN
+		return fmt.Sprintf("<img src=\"%s\"%s%s/>\n", href, altAttr, titleAttr)
+	}
+
 	return fmt.Sprintf("<img src=\"%s\"%s%s/>\n", href, altAttr, titleAttr)
+}
+
+// renderCoverPage renders the cover page
+func (t *Transformer) renderCoverPage(cover Coverpage) string {
+	img := Image{
+		Href: cover.PrimaryImage.Href,
+		Alt:  "Cover",
+	}
+
+	if t.MOBIMode {
+		// Just the image, centered by parent or simple p
+		return fmt.Sprintf("<p align=\"center\">%s</p>\n", t.renderImage(img))
+	}
+
+	// Render the image centered and with a page break after
+	return fmt.Sprintf("<div style=\"text-align: center; page-break-after: always;\">\n%s</div>\n", t.renderImage(img))
 }
 
 // getHeadingLevel determines the heading level (h1-h6) based on nesting
