@@ -302,6 +302,11 @@ func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 		opts.CompressionType = mobi.NoCompression
 	}
 
+	// Pass cover image from book metadata if available
+	if book.Metadata.Cover != nil {
+		opts.CoverImage = book.Metadata.Cover
+	}
+
 	return mobi.ConvertOEBToMOBIWithOptions(book, output, opts)
 }
 

@@ -73,6 +73,16 @@ func (b *OEBBook) GetManifestIDs() []string {
 	return ids
 }
 
+// HasImages returns true if the book has any image resources
+func (b *OEBBook) HasImages() bool {
+	for _, res := range b.Manifest {
+		if len(res.MediaType) >= 6 && res.MediaType[0:5] == "image" {
+			return true
+		}
+	}
+	return false
+}
+
 // Metadata represents OPF metadata
 type Metadata struct {
 	Title       string

@@ -79,8 +79,21 @@ func (w *Writer) Write(output io.Writer) error {
 	recordCount := CalculateRecordCount(uncompressedSize)
 	lastTextRecord := firstTextRecord + recordCount - 1
 
+	// Calculate first image index (after text records)
+	// If cover exists, it will be at firstTextRecord + recordCount
+	// Otherwise, it's after all text records
+	hasCover := w.options.CoverImage != nil
+	hasImages := w.book.HasImages()
+	firstImageIndex := uint32(0xFFFFFFFF)   // Default: no images
+	firstNonBookIndex := uint32(0xFFFFFFFF) // Default: no non-book records
+
+	if hasCover || hasImages {
+		firstImageIndex = uint32(firstTextRecord + recordCount)
+		firstNonBookIndex = uint32(firstTextRecord + recordCount)
+	}
+
 	// Create MOBI header with correct record indices
-	mobiHeaderRecord, err := w.createMOBIHeaderRecord(len(w.book.Content), firstTextRecord, lastTextRecord)
+	mobiHeaderRecord, err := w.createMOBIHeaderRecord(len(w.book.Content), firstTextRecord, lastTextRecord, firstImageIndex, firstNonBookIndex)
 	if err != nil {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
@@ -95,6 +108,7 @@ func (w *Writer) Write(output io.Writer) error {
 		recordIndex++
 	}
 
+	// Add cover image if present
 	if w.options.CoverImage != nil {
 		coverRecord := w.createImageRecord(w.options.CoverImage, "cover.jpg")
 		palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex))
@@ -103,6 +117,16 @@ func (w *Writer) Write(output io.Writer) error {
 
 	// Add other images from manifest
 	w.addImages(palmWriter, &recordIndex)
+
+	// Generate thumbnail if cover exists (simple resize to thumbnail dimensions)
+	if w.options.CoverImage != nil {
+		thumbnailData := w.generateThumbnail(w.options.CoverImage)
+		if thumbnailData != nil {
+			thumbnailRecord := w.createImageRecord(thumbnailData, "thumb.jpg")
+			palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex))
+			recordIndex++
+		}
+	}
 
 	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
 		tocINDX, err := w.GenerateTOCIndex(w.book.Content, textRecords)
@@ -139,7 +163,7 @@ func (w *Writer) getBookName() string {
 }
 
 // createMOBIHeaderRecord creates the MOBI header record
-func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int) ([]byte, error) {
+func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex uint32) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Calculate record count
@@ -154,6 +178,12 @@ func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec 
 
 	// Set compression type to match actual compression
 	mobiHeader.Compression = uint16(w.options.CompressionType)
+
+	// Set first image index
+	mobiHeader.FirstImageIndex = firstImageIndex
+
+	// Set first non-book index (first image or other non-text record)
+	mobiHeader.FirstNonBookIndex = firstNonBookIndex
 
 	// Set title
 	bookName := w.getBookName()
@@ -179,25 +209,39 @@ func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec 
 			w.book.Metadata.Rights,
 		)
 
-		// Write EXTH to buffer
-		exthData := bytes.NewBuffer(nil)
-		if _, err := exthWriter.Write(exthData); err != nil {
-			return nil, fmt.Errorf("failed to write EXTH: %w", err)
+		// Add cover-related EXTH records if cover image is present
+		if w.options.CoverImage != nil {
+			// Cover offset: 0 means first image is the cover
+			exthWriter.AddCoverOffset(0)
+			// Thumbnail offset: 1 means second image is the thumbnail
+			exthWriter.AddThumbnailOffset(1)
+			// Has fake cover: 0 means real cover
+			exthWriter.AddHasFakeCover(0)
+			// K8 cover image identifier
+			exthWriter.AddK8CoverImage("kindle:embed:0001")
+			// Update EXTH flags to include cover bit (0x40 | 0x10 = 0x50)
+			mobiHeader.EXTHFlags = mobiHeader.EXTHFlags | 0x10
 		}
 
-		// Set full name offset (PalmDOC header 16 + MOBI header 232 = 248)
-		mobiHeader.FullNameOffset = 248
+		// Get EXTH length for calculating full name offset
+		exthLength := exthWriter.GetTotalLength()
 
-		// Write MOBI header
+		// Calculate full name offset: PalmDOC header (16) + MOBI header (232) + EXTH length
+		// Note: mobiHeader.Write() writes 248 bytes total (including PalmDOC)
+		mobiHeader.FullNameOffset = uint32(248 + exthLength)
+
+		// Write MOBI header first
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}
 
-		// Write full name string
-		buf.WriteString(bookName)
+		// Write EXTH after MOBI header (before full name)
+		if _, err := exthWriter.Write(&buf); err != nil {
+			return nil, fmt.Errorf("failed to write EXTH: %w", err)
+		}
 
-		// Write EXTH after full name
-		buf.Write(exthData.Bytes())
+		// Write full name string after EXTH
+		buf.WriteString(bookName)
 	} else {
 		// Set full name offset (PalmDOC header 16 + MOBI header 232 = 248)
 		mobiHeader.FullNameOffset = 248
@@ -233,6 +277,16 @@ func (w *Writer) splitTextRecords(data []byte) [][]byte {
 // createImageRecord creates an image record
 func (w *Writer) createImageRecord(data []byte, filename string) []byte {
 	return data
+}
+
+// generateThumbnail creates a thumbnail from cover image
+// For now, returns the original image as thumbnail (simplified approach)
+// A full implementation would resize to thumbnail dimensions (e.g., 154x240)
+func (w *Writer) generateThumbnail(coverData []byte) []byte {
+	// Simplified: return the same image as thumbnail
+	// In a full implementation, this would resize the image to thumbnail dimensions
+	// using an image processing library
+	return coverData
 }
 
 // addImages adds images from the OEB book manifest

@@ -10,33 +10,34 @@ import (
 
 // EXTH record type constants
 const (
-	EXTHAuthor        = 100
-	EXTHPublisher     = 101
-	EXTHImprint       = 102
-	EXTHDescription   = 103
-	EXTHISBN          = 104
-	EXTHSubject       = 105
-	EXTHPublishedDate = 106
-	EXTHReview        = 107
-	EXTHContributor   = 108
-	EXTHRights        = 109
-	EXTHSubjectCode   = 110
-	EXTHType          = 111
-	EXTHSource        = 112
-	EXTHASIN          = 113
-	EXTHVersion       = 114
-	EXTHSample        = 115
-	EXTHStartReading  = 116
-	EXTHAdultRating   = 117
-	EXTHRetailPrice   = 118
-	EXTHCurrency      = 119
-	EXTHKF8Bounded    = 121
-	EXTHResourceCount = 125
-	EXTHCoverURI      = 202
-	EXTHThumbOffset   = 203
-	EXTHHasFakeCover   = 204
+	EXTHAuthor          = 100
+	EXTHPublisher       = 101
+	EXTHImprint         = 102
+	EXTHDescription     = 103
+	EXTHISBN            = 104
+	EXTHSubject         = 105
+	EXTHPublishedDate   = 106
+	EXTHReview          = 107
+	EXTHContributor     = 108
+	EXTHRights          = 109
+	EXTHSubjectCode     = 110
+	EXTHType            = 111
+	EXTHSource          = 112
+	EXTHASIN            = 113
+	EXTHVersion         = 114
+	EXTHSample          = 115
+	EXTHStartReading    = 116
+	EXTHAdultRating     = 117
+	EXTHRetailPrice     = 118
+	EXTHCurrency        = 119
+	EXTHKF8Bounded      = 121
+	EXTHResourceCount   = 125
 	EXTHCreatorSoftware = 200
-	EXTHTitle         = 503
+	EXTHCoverOffset     = 201
+	EXTHThumbOffset     = 202
+	EXTHHasFakeCover    = 203
+	EXTHK8CoverImage    = 129
+	EXTHTitle           = 503
 	EXTHMajorMajor      = 501
 	EXTHMajorMinor      = 502
 	EXTHMinorCount      = 503
@@ -50,7 +51,7 @@ type EXTHRecord struct {
 
 // EXTHHeader represents the EXTH header structure
 type EXTHHeader struct {
-	Identifier [4]byte // Should be "EXTH"
+	Identifier   [4]byte // Should be "EXTH"
 	HeaderLength uint32
 	RecordCount  uint32
 }
@@ -131,7 +132,26 @@ func (w *EXTHWriter) AddSource(source string) {
 func (w *EXTHWriter) AddCoverOffset(offset uint32) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, offset)
-	w.addRecord(EXTHCoverURI, string(data))
+	w.addRecord(EXTHCoverOffset, string(data))
+}
+
+// AddThumbnailOffset adds a thumbnail offset record
+func (w *EXTHWriter) AddThumbnailOffset(offset uint32) {
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, offset)
+	w.addRecord(EXTHThumbOffset, string(data))
+}
+
+// AddHasFakeCover adds a has fake cover record
+func (w *EXTHWriter) AddHasFakeCover(hasFake uint32) {
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, hasFake)
+	w.addRecord(EXTHHasFakeCover, string(data))
+}
+
+// AddK8CoverImage adds a K8 cover image record
+func (w *EXTHWriter) AddK8CoverImage(imageID string) {
+	w.addRecord(EXTHK8CoverImage, imageID)
 }
 
 // AddCreatorSoftware adds a creator software record
@@ -216,7 +236,8 @@ func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 		if err := binary.Write(output, binary.BigEndian, record.RecordType); err != nil {
 			return 0, fmt.Errorf("failed to write EXTH record type: %w", err)
 		}
-		if err := binary.Write(output, binary.BigEndian, uint32(len(record.Data))); err != nil {
+		// Record length includes the 8 bytes for type and length fields, plus data
+		if err := binary.Write(output, binary.BigEndian, uint32(8+len(record.Data))); err != nil {
 			return 0, fmt.Errorf("failed to write EXTH record length: %w", err)
 		}
 		if _, err := output.Write(record.Data); err != nil {
