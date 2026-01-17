@@ -4,11 +4,14 @@
 *.dll
 *.so
 *.dylib
-fb2c
+/fb2c
 
 # Test binary, built with `go test -c`
 *.test
 testdata/
+
+# Temporary files
+*.tmp
 
 # Output of the go coverage tool
 *.out

@@ -25,6 +25,7 @@ type ConvertOptions struct {
 	// Content options
 	NoInlineTOC   bool // Don't generate inline TOC
 	ExtractImages bool // Extract embedded images
+	Debug         bool
 
 	// Metadata overrides
 	Title      string
@@ -69,6 +70,7 @@ func (c *Converter) SetOptions(options ConvertOptions) {
 
 // Convert converts an FB2 to supported formats
 func (c *Converter) Convert(inputPath, outputPath string) error {
+
 	fb2Data, err := os.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read FB2 file: %w", err)
@@ -315,6 +317,10 @@ func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 	opts := mobi.DefaultWriteOptions()
 	if !c.options.Compression {
 		opts.CompressionType = mobi.NoCompression
+	}
+
+	if c.options.Debug {
+		opts.Debug = true
 	}
 
 	// Pass cover image from book metadata if available

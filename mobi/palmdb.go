@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"strings"
 )
@@ -387,39 +388,48 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 
 	// Debug: trace offset calculation
 	if w.debug {
-		fmt.Printf("[DEBUG] PalmDBWriter.Write: calculating offsets\n")
-		fmt.Printf("[DEBUG]   dataOffset initial: %d\n", dataOffset)
-		fmt.Printf("[DEBUG]   numRecords: %d\n", len(w.records))
-		fmt.Printf("[DEBUG]   numEntries: %d\n", len(w.recordEntries))
-		fmt.Printf("[DEBUG]   Initial dataOffset cast to uint32: %d (0x%x)\n", uint32(dataOffset))
+		slog.Debug("PalmDBWriter.Write: calculating offsets",
+			"component", "PalmDBWriter",
+			"operation", "Write",
+			"dataOffset", dataOffset,
+			"numRecords", len(w.records),
+			"numEntries", len(w.recordEntries),
+			"dataOffsetUint32", uint32(dataOffset),
+			"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+		)
 	}
 
 	// Check for overflow - ensure dataOffset is within uint32 range
 	if dataOffset > 2147483647 { // Max safe value for adding 4096
 		if w.debug {
-			fmt.Printf("[ERROR] dataOffset overflow detected: %d > 2147483647\n", dataOffset)
+			slog.Error("dataOffset overflow detected",
+				"component", "PalmDBWriter",
+				"operation", "Write",
+				"dataOffset", dataOffset,
+				"maxSafeValue", 2147483647,
+			)
 		}
 		return fmt.Errorf("record offset overflow: %d", dataOffset)
 	}
 
 	// Update record entries with offsets
 	for i := range w.recordEntries {
-		oldOffset := w.recordEntries[i].Offset
 		w.recordEntries[i].Offset = uint32(dataOffset)
 		recordLen := len(w.records[i])
 		dataOffset += recordLen
-		if w.debug {
-			fmt.Printf("[DEBUG]   Entry[%d]: offset %d -> %d, adding %d bytes from records[%d]\n",
-				i, oldOffset, w.recordEntries[i].Offset, recordLen, i)
+		// Log final summary after all offsets are calculated
+		if w.debug && i == len(w.recordEntries)-1 {
+			finalOffsets := make(map[int]uint32, len(w.recordEntries))
+			for idx, entry := range w.recordEntries {
+				finalOffsets[idx] = entry.Offset
+			}
+			slog.Debug("final record offsets calculated",
+				"component", "PalmDBWriter",
+				"operation", "Write",
+				"totalRecords", len(w.recordEntries),
+				"finalOffsets", finalOffsets,
+			)
 		}
-	}
-
-	if w.debug {
-		fmt.Printf("[DEBUG] Final offsets: ")
-		for i, entry := range w.recordEntries {
-			fmt.Printf("[%d]=%d ", i, entry.Offset)
-		}
-		fmt.Println()
 	}
 
 	// Write header

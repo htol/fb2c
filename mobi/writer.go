@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,7 +22,7 @@ type WriteOptions struct {
 	Title           string
 	CoverImage      []byte
 	GenerateTOC     bool
-	debug           bool
+	Debug           bool
 }
 
 // DefaultWriteOptions returns default write options
@@ -30,7 +31,17 @@ func DefaultWriteOptions() WriteOptions {
 		CompressionType: NoCompression,
 		WithEXTH:        true,
 		GenerateTOC:     true,
-		debug:           false,
+		Debug:           false,
+	}
+}
+
+// SetDebug enables debug mode via PalmDBWriter
+func SetDebug(debug bool) WriteOptions {
+	return WriteOptions{
+		CompressionType: NoCompression,
+		WithEXTH:        true,
+		GenerateTOC:     true,
+		Debug:           debug,
 	}
 }
 
@@ -67,6 +78,18 @@ func (w *Writer) GetBookName() string {
 
 // Write writes the MOBI file
 func (w *Writer) Write(output io.Writer) error {
+
+	if w.options.Debug {
+		slog.Debug("starting MOBI file assembly",
+			"component", "MOBIWriter",
+			"operation", "Write",
+			"title", w.options.Title,
+			"hasTOC", w.options.GenerateTOC && len(w.book.TOC.Children) > 0,
+			"tocEntries", len(w.book.TOC.Children),
+			"compressionType", w.options.CompressionType,
+		)
+	}
+
 	// 1. Resolve image sources and calculate final text size
 	// We do this in two passes to get absolute record indices
 	hasTOC := w.options.GenerateTOC && len(w.book.TOC.Children) > 0
@@ -85,6 +108,15 @@ func (w *Writer) Write(output io.Writer) error {
 	textData := []byte(resolvedContent)
 
 	uncompressedSize := len(textData)
+
+	if w.options.Debug {
+		slog.Debug("processing text data",
+			"component", "MOBIWriter",
+			"operation", "Write",
+			"uncompressedSize", uncompressedSize,
+			"compressionEnabled", w.options.CompressionType == PalmDOCCompression,
+		)
+	}
 
 	// Split and compress records
 	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
@@ -108,7 +140,17 @@ func (w *Writer) Write(output io.Writer) error {
 		}
 	}
 
-	palmWriter := NewPalmDBWriter(w.getBookName(), false) // Disable debug
+	if w.options.Debug {
+		slog.Debug("creating PalmDBWriter with records",
+			"component", "MOBIWriter",
+			"operation", "Write",
+			"textRecordCount", len(textRecords),
+			"bookName", w.getBookName(),
+			"debugMode", w.options.Debug,
+		)
+	}
+
+	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.Debug)
 
 	// Calculate record information before creating header
 	// Record count is exact number of records we generated
