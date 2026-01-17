@@ -30,6 +30,7 @@ func DefaultWriteOptions() WriteOptions {
 		CompressionType: NoCompression,
 		WithEXTH:        true,
 		GenerateTOC:     true,
+		debug:           false,
 	}
 }
 
@@ -107,7 +108,7 @@ func (w *Writer) Write(output io.Writer) error {
 		}
 	}
 
-	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.debug)
+	palmWriter := NewPalmDBWriter(w.getBookName(), false) // Disable debug
 
 	// Calculate record information before creating header
 	// Record count is exact number of records we generated

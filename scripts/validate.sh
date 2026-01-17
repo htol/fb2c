@@ -213,11 +213,23 @@ for fb2_file in "${TEST_FILES[@]}"; do
     fi
 
     # Check for MOBI header
-    mobi_magic=$(dd if="$FB2C_DIR/${basename}.mobi" bs=1 skip=78 count=4 2>/dev/null | tr -d '\0')
-    if [ "$mobi_magic" = "MOBI" ]; then
-        echo "  ✓ MOBI header found"
+    # MOBI header is at: PalmDB header (78) + record index (8 * numRecords) + MOBI marker offset within record (16)
+    # Read numRecords (2 bytes at offset 76, big-endian)
+    num_high=$(dd if="$FB2C_DIR/${basename}.mobi" bs=1 skip=76 count=1 2>/dev/null | od -A none -t u1 | tr -d ' ')
+    num_low=$(dd if="$FB2C_DIR/${basename}.mobi" bs=1 skip=77 count=1 2>/dev/null | od -A none -t u1 | tr -d ' ')
+    if [ -n "$num_high" ] && [ -n "$num_low" ]; then
+        num_records=$((num_high * 256 + num_low))
+        record_index_size=$((num_records * 8))
+        mobi_offset=$((78 + record_index_size + 16))
+        mobi_magic=$(dd if="$FB2C_DIR/${basename}.mobi" bs=1 skip="$mobi_offset" count=4 2>/dev/null | tr -d '\0')
+        if [ "$mobi_magic" = "MOBI" ]; then
+            echo "  ✓ MOBI header found at offset $mobi_offset"
+        else
+            echo_err "  MOBI header not found at offset $mobi_offset (got '$mobi_magic')"
+            errors=$((errors + 1))
+        fi
     else
-        echo_err "  MOBI header not found at offset 78"
+        echo_err "  Could not read numRecords from PalmDB header"
         errors=$((errors + 1))
     fi
 

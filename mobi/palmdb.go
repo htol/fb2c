@@ -373,6 +373,7 @@ func (w *PalmDBWriter) AddRecord(data []byte, attributes uint8, uniqueID uint32)
 func (w *PalmDBWriter) SetRecord(index int, data []byte) {
 	if index >= 0 && index < len(w.records) {
 		w.records[index] = data
+		// Note: record entry offset is not updated here; it's recalculated in Write()
 	}
 }
 
@@ -384,10 +385,41 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 	// Calculate record offsets (header + index + offset after them)
 	dataOffset := PalmDBHeaderSize + (len(w.recordEntries) * 8)
 
+	// Debug: trace offset calculation
+	if w.debug {
+		fmt.Printf("[DEBUG] PalmDBWriter.Write: calculating offsets\n")
+		fmt.Printf("[DEBUG]   dataOffset initial: %d\n", dataOffset)
+		fmt.Printf("[DEBUG]   numRecords: %d\n", len(w.records))
+		fmt.Printf("[DEBUG]   numEntries: %d\n", len(w.recordEntries))
+		fmt.Printf("[DEBUG]   Initial dataOffset cast to uint32: %d (0x%x)\n", uint32(dataOffset))
+	}
+
+	// Check for overflow - ensure dataOffset is within uint32 range
+	if dataOffset > 2147483647 { // Max safe value for adding 4096
+		if w.debug {
+			fmt.Printf("[ERROR] dataOffset overflow detected: %d > 2147483647\n", dataOffset)
+		}
+		return fmt.Errorf("record offset overflow: %d", dataOffset)
+	}
+
 	// Update record entries with offsets
 	for i := range w.recordEntries {
+		oldOffset := w.recordEntries[i].Offset
 		w.recordEntries[i].Offset = uint32(dataOffset)
-		dataOffset += len(w.records[i])
+		recordLen := len(w.records[i])
+		dataOffset += recordLen
+		if w.debug {
+			fmt.Printf("[DEBUG]   Entry[%d]: offset %d -> %d, adding %d bytes from records[%d]\n",
+				i, oldOffset, w.recordEntries[i].Offset, recordLen, i)
+		}
+	}
+
+	if w.debug {
+		fmt.Printf("[DEBUG] Final offsets: ")
+		for i, entry := range w.recordEntries {
+			fmt.Printf("[%d]=%d ", i, entry.Offset)
+		}
+		fmt.Println()
 	}
 
 	// Write header
