@@ -106,8 +106,8 @@ func TestINDXAddEntry(t *testing.T) {
 
 	indx.AddEntry(1000, 0, tagValues)
 
-	if indx.Header.RecordCount != 1 {
-		t.Errorf("RecordCount = %d, want 1", indx.Header.RecordCount)
+	if indx.Header.Count != 1 {
+		t.Errorf("RecordCount = %d, want 1", indx.Header.Count)
 	}
 
 	if len(indx.IDXT) != 1 {
@@ -158,10 +158,10 @@ func TestCalculateRecordOffset(t *testing.T) {
 
 	// Set up text records (4 records of varying sizes)
 	records := [][]byte{
-		make([]byte, 100),  // Record 0: 0-99
-		make([]byte, 200),  // Record 1: 100-299
-		make([]byte, 150),  // Record 2: 300-449
-		make([]byte, 300),  // Record 3: 450-749
+		make([]byte, 100), // Record 0: 0-99
+		make([]byte, 200), // Record 1: 100-299
+		make([]byte, 150), // Record 2: 300-449
+		make([]byte, 300), // Record 3: 450-749
 	}
 	builder.SetTextRecords(records)
 
@@ -170,19 +170,19 @@ func TestCalculateRecordOffset(t *testing.T) {
 		wantRecordIndex  int
 		wantRecordOffset uint32
 	}{
-		{0, 0, 0},       // Start of first record
-		{50, 0, 50},     // Middle of first record
-		{99, 0, 99},     // Last byte of first record
-		{100, 1, 0},     // Start of second record
-		{200, 1, 100},   // Middle of second record
-		{299, 1, 199},   // Last byte of second record
-		{300, 2, 0},     // Start of third record
-		{400, 2, 100},   // Middle of third record
-		{449, 2, 149},   // Last byte of third record
-		{450, 3, 0},     // Start of fourth record
-		{600, 3, 150},   // Middle of fourth record
-		{749, 3, 299},   // Last byte of fourth record
-		{1000, 3, 250},  // Beyond all records (offset - total length = 1000 - 750)
+		{0, 0, 0},      // Start of first record
+		{50, 0, 50},    // Middle of first record
+		{99, 0, 99},    // Last byte of first record
+		{100, 1, 0},    // Start of second record
+		{200, 1, 100},  // Middle of second record
+		{299, 1, 199},  // Last byte of second record
+		{300, 2, 0},    // Start of third record
+		{400, 2, 100},  // Middle of third record
+		{449, 2, 149},  // Last byte of third record
+		{450, 3, 0},    // Start of fourth record
+		{600, 3, 150},  // Middle of fourth record
+		{749, 3, 299},  // Last byte of fourth record
+		{1000, 3, 250}, // Beyond all records (offset - total length = 1000 - 750)
 	}
 
 	for _, tt := range tests {

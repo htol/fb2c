@@ -158,20 +158,18 @@ func (w *Writer) Write(output io.Writer) error {
 
 	recordIndex := 0
 	firstTextRecord := 1 // After MOBI header record 0
+	// lastTextRecord is approximated here for the wrapper, but real value is set later
 	lastTextRecord := firstTextRecord + recordCount - 1
 
 	// Calculate first image index (after text records)
 	// If cover exists, it will be at firstTextRecord + recordCount
 	// Otherwise, it's after all text records
-	hasCover := w.options.CoverImage != nil
-	hasImages := w.book.HasImages()
-	firstImageIndex := uint32(0xFFFFFFFF)   // Default: no images
-	firstNonBookIndex := uint32(0xFFFFFFFF) // Default: no non-book records
-
-	if hasCover || hasImages {
-		firstImageIndex = uint32(firstTextRecord + recordCount)
-		firstNonBookIndex = uint32(firstTextRecord + recordCount)
-	}
+	// hasCover := w.options.CoverImage != nil
+	// hasImages := w.book.HasImages()
+	// FirstNonBookIndex should point to the first record that is NOT content (e.g. INDX, Images)
+	// We'll determine it dynamically.
+	firstImageIndex := uint32(0xFFFFFFFF)
+	firstNonBookIndex := uint32(0xFFFFFFFF)
 
 	// Create MOBI header with correct record indices
 	// Use uncompressedSize for header
@@ -180,14 +178,20 @@ func (w *Writer) Write(output io.Writer) error {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
 
-	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex))
+	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex)*2)
 	recordIndex++
 
 	// 2. Add text records
 	for _, rec := range textRecords {
-		palmWriter.AddRecord(rec, 0, uint32(recordIndex))
+		palmWriter.AddRecord(rec, 0, uint32(recordIndex)*2)
 		recordIndex++
 	}
+
+	// Correctly set LastContentRec to the last text record added
+	lastContentRec := uint32(recordIndex - 1)
+
+	// FirstNonBookIndex starts here (next record)
+	firstNonBookIndex = uint32(recordIndex)
 
 	// 3. Add TOC Index Record (NCX) - Standard place is after text
 	var tocIndexOffset uint32 = 0xFFFFFFFF
@@ -204,7 +208,7 @@ func (w *Writer) Write(output io.Writer) error {
 		}
 
 		tocIndexOffset = uint32(recordIndex)
-		palmWriter.AddRecord(indxData, 0, tocIndexOffset)
+		palmWriter.AddRecord(indxData, 0, tocIndexOffset*2)
 		recordIndex++
 	}
 
@@ -220,14 +224,14 @@ func (w *Writer) Write(output io.Writer) error {
 		// 1. Add cover image if present
 		if w.options.CoverImage != nil {
 			coverRecord := w.createImageRecord(w.options.CoverImage, "cover.jpg")
-			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex))
+			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex)*2)
 			recordIndex++
 
 			// 2. Add thumbnail immediately after cover
 			thumbnailData := w.generateThumbnail(w.options.CoverImage)
 			if thumbnailData != nil {
 				thumbnailRecord := w.createImageRecord(thumbnailData, "thumb.jpg")
-				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex))
+				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex)*2)
 				recordIndex++
 			}
 		}
@@ -236,31 +240,32 @@ func (w *Writer) Write(output io.Writer) error {
 		w.addImagesFiltered(palmWriter, &recordIndex, coverID)
 	}
 
-	// lastContentRec should include images for visibility in some readers (now safe due to decoupled count)
-	lastContentRec := uint32(recordIndex - 1)
+	// lastContentRec is already set correctly after text records.
+	// Do not Overwrite it.
 
 	// 5. Add Mandatory Structural Records (FLIS, FCIS, EOF)
 	flisIndex := uint32(recordIndex)
-	palmWriter.AddRecord(createFLISRecord(), 0, flisIndex)
+	palmWriter.AddRecord(createFLISRecord(), 0, flisIndex*2)
 	recordIndex++
 
 	fcisIndex := uint32(recordIndex)
-	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex)
+	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex*2)
 	recordIndex++
 
 	// EOF record (4 zero bytes)
-	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex))
+	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex)*2)
 	recordIndex++
 
 	// Refactoring createMOBIHeaderRecord call to include FLIS/FCIS/INDX
 	mobiHeaderRecord, err = w.createMOBIHeaderRecordExtended(uncompressedSize,
-		recordCount, // Valid text record count for Record 0
+		len(textRecords), // Text record count MUST match the number of text records
 		firstTextRecord, int(lastContentRec),
 		firstImageIndex, firstNonBookIndex,
 		flisIndex, fcisIndex, tocIndexOffset)
 	if err != nil {
 		return fmt.Errorf("failed to create extended MOBI header: %w", err)
 	}
+	fmt.Printf("DEBUG: mobiHeaderRecord size before SetRecord(0): %d\n", len(mobiHeaderRecord))
 	palmWriter.SetRecord(0, mobiHeaderRecord)
 
 	if err := palmWriter.Write(output); err != nil {
@@ -312,6 +317,9 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.FLISIndex = flisIndex
 	mobiHeader.INDXRecordOffset = indxOffset // Point to TOC index
 
+	// Set IndexKeys to 0xFFFFFFFF (no index keys) to match reference/standard simple MOBI
+	mobiHeader.IndexKeys = 0xFFFFFFFF
+
 	// Set compression type
 	mobiHeader.Compression = uint16(w.options.CompressionType)
 
@@ -342,6 +350,15 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			w.book.Metadata.Language,
 		)
 
+		// Critical for Kindle: CDEType=PDOC (safer than EBOK for sideloading)
+		exthWriter.AddType("PDOC")
+
+		// Add ASIN (Type 113) - Use standard format
+		exthWriter.AddASIN("B00TEST001")
+
+		// Remove StartReading for now to eliminate potential bad offset issues
+		// exthWriter.AddStartReading(0)
+
 		if w.options.CoverImage != nil {
 			exthWriter.AddCoverOffset(0)
 			exthWriter.AddThumbnailOffset(1)
@@ -351,7 +368,10 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		}
 
 		exthLength := exthWriter.GetTotalLength()
-		mobiHeader.FullNameOffset = uint32(248 + exthLength)
+		// FullNameOffset = PalmDOC Header (16) + MOBI Header (264 usually) + EXTH Length
+		// Use the constant to be safe
+		mobiHeaderOffset := uint32(16 + MOBIHeaderSize)
+		mobiHeader.FullNameOffset = mobiHeaderOffset + uint32(exthLength)
 
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
@@ -362,7 +382,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		}
 		buf.WriteString(bookName)
 	} else {
-		mobiHeader.FullNameOffset = 248
+		mobiHeader.FullNameOffset = uint32(16 + MOBIHeaderSize)
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}
@@ -386,7 +406,7 @@ func (w *Writer) addImagesFiltered(palmWriter *PalmDBWriter, recordIndex *int, s
 			continue
 		}
 
-		palmWriter.AddRecord(res.Data, 0, uint32(*recordIndex))
+		palmWriter.AddRecord(res.Data, 0, uint32(*recordIndex)*2)
 		(*recordIndex)++
 	}
 }

@@ -206,6 +206,13 @@ func (w *EXTHWriter) addStringList(recordType uint32, strings []string) {
 	w.addRecord(recordType, combined)
 }
 
+// AddStartReading adds a start reading record
+func (w *EXTHWriter) AddStartReading(offset uint32) {
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, offset)
+	w.addRecord(EXTHStartReading, string(data))
+}
+
 // Write writes the EXTH header and records
 func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 	if len(w.records) == 0 {

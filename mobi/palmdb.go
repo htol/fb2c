@@ -414,9 +414,18 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 
 	// Update record entries with offsets
 	for i := range w.recordEntries {
+		if i == 0 {
+			fmt.Printf("DEBUG: PalmDBWriter Write Rec 0 Size: %d\n", len(w.records[0]))
+		}
 		w.recordEntries[i].Offset = uint32(dataOffset)
 		recordLen := len(w.records[i])
 		dataOffset += recordLen
+		if i == 0 {
+			fmt.Printf("DEBUG: Rec 0 Offset: %d, Len: %d\n", w.recordEntries[0].Offset, recordLen)
+		}
+		if i == 1 {
+			fmt.Printf("DEBUG: Rec 1 Offset: %d\n", w.recordEntries[1].Offset)
+		}
 		// Log final summary after all offsets are calculated
 		if w.debug && i == len(w.recordEntries)-1 {
 			finalOffsets := make(map[int]uint32, len(w.recordEntries))

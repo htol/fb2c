@@ -40,10 +40,8 @@ func compressRecord(data []byte) []byte {
 	for pos < len(data) {
 		// Try LZ77 compression first (look for 3-10 byte repeats within 2047 bytes)
 		if match := findLZMatch(data, pos); match.length >= 3 {
-			// Encode as: 0x8000 + ((distance & 0x3FFF) << 3) + (length - 3)
-			code := uint16(0x8000)
-			code |= uint16((match.distance & 0x3FFF) << 3)
-			code |= uint16(match.length - 3)
+			// Encoding: bit 15=1, bits 14-4=distance (11 bits), bits 2-0=length-3 (3 bits)
+			code := uint16(0x8000) | uint16((match.distance&0x07FF)<<3) | uint16(match.length-3)
 
 			// Write big-endian
 			output.WriteByte(byte(code >> 8))

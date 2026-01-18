@@ -48,7 +48,26 @@ func main() {
 			printUsage()
 			os.Exit(1)
 		}
-		options := mobi.DefaultWriteOptions()
+
+		// Check environment variable for compression setting
+		// FB2C_COMPRESSION=1 or empty means enabled (default)
+		// FB2C_COMPRESSION=0 means disabled
+		compressionEnabled := true // Default is enabled
+		if env := os.Getenv("FB2C_COMPRESSION"); env == "0" {
+			compressionEnabled = false
+		}
+
+		// Create write options with proper compression setting
+		// Note: We create options manually instead of using SetDebug()
+		// because SetDebug() would reset CompressionType to default
+		options := mobi.WriteOptions{
+			CompressionType: mobi.NoCompression,
+			WithEXTH:        true,
+			GenerateTOC:     true,
+		}
+		if compressionEnabled {
+			options.CompressionType = mobi.PalmDOCCompression
+		}
 
 		for i := 3; i < len(args); i++ {
 			switch args[i] {
@@ -58,7 +77,7 @@ func main() {
 		}
 
 		if debugMode {
-			options = mobi.SetDebug(true)
+			options.Debug = true
 		}
 
 		convertCmd(args[1], args[2], options)
@@ -95,9 +114,13 @@ func convertCmd(inputPath, outputPath string, options mobi.WriteOptions) {
 		}
 	}
 
+	// Determine compression setting from mobi options
+	// If compressionType is PalmDOC, enable compression; otherwise disable
+	compressionEnabled := options.CompressionType == mobi.PalmDOCCompression
+
 	err := fb2c.ConvertFileWithOptions(inputPath, outputPath, fb2c.ConvertOptions{
 		MobiType:    "old",
-		Compression: options.CompressionType != mobi.NoCompression,
+		Compression: compressionEnabled,
 		NoInlineTOC: !options.GenerateTOC,
 		Debug:       options.Debug,
 	})

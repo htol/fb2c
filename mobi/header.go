@@ -8,7 +8,7 @@ import (
 
 const (
 	// MOBI header constants
-	MOBIHeaderSize = 232 // MOBI header size (from MOBI marker to end)
+	MOBIHeaderSize = 264 // MOBI header size (from MOBI marker to end)
 	MOBIVersion    = 6   // MOBI 6
 
 	// Compression types
@@ -89,6 +89,12 @@ type MOBIHeader struct {
 	Unknown236          uint32   // 0xEC (+0xDC): Unknown (use 0xFFFFFFFF)
 	ExtraRecordFlags    uint32   // 0xF0 (+0xE0): Extra record data flags (0 = no extra data)
 	INDXRecordOffset    uint32   // 0xF4 (+0xE4): INDX record offset (0xFFFFFFFF if none)
+	// Padding to reach 264 bytes (0x108) standard header length
+	// Struct has 16 bytes PalmDOC + 232 bytes MOBI fixed + Padding
+	// We want MOBI part to be 264 bytes.
+	// So Padding = 264 - 232 = 32 bytes.
+	// Total struct size = 16 + 264 = 280 bytes.
+	Padding [32]byte
 }
 
 // NewMOBIHeader creates a new MOBI header with default values
@@ -105,7 +111,7 @@ func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
 
 		// MOBI header
 		MOBIMarker:          [4]byte{'M', 'O', 'B', 'I'},
-		HeaderLength:        232, // MOBI header size (0xE8) including previous 4 bytes - up to Unknown236
+		HeaderLength:        264, // Extended header standard (0x108)
 		MOBIType:            2,   // MOBI type 2 = book
 		TextEncoding:        UTF8Encoding,
 		UniqueID:            generateRandomID(),
@@ -154,6 +160,7 @@ func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
 		Unknown236:          0xFFFFFFFF,
 		ExtraRecordFlags:    0,
 		INDXRecordOffset:    0xFFFFFFFF,
+		Padding:             [32]byte{},
 	}
 
 	return h
