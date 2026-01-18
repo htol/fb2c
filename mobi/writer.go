@@ -526,6 +526,14 @@ func (w *Writer) GenerateTOCIndex(htmlContent string, textRecords [][]byte) (*in
 		// Calculate offset from HTML by scanning for entry.Href
 		offset := builder.FindOffsetForHref(htmlContent, entry.Href)
 
+		if w.options.Debug {
+			slog.Debug("TOC entry offset",
+				"label", entry.Label,
+				"href", entry.Href,
+				"offset", offset,
+			)
+		}
+
 		// Add entry with calculated offset
 		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset)
 	}

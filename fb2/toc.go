@@ -46,12 +46,8 @@ func (p *Parser) extractSectionTOC(section *Section, parent *TOCEntry, level int
 		entry.ID = section.ID
 		entry.Href = "#" + section.ID
 	} else {
-		// Generate a unique ID based on title or position
-		if entry.Label != "" {
-			entry.ID = sanitizeID(entry.Label)
-		} else {
-			entry.ID = fmt.Sprintf("section_%d", len(toc.Entries)+1)
-		}
+		// Use same ID generation as transformer.go renderSection
+		entry.ID = fmt.Sprintf("section_%d", len(toc.Entries)+1)
 		entry.Href = "#" + entry.ID
 	}
 

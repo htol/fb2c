@@ -336,11 +336,19 @@ func (b *TOCIndexBuilder) Build() (*INDX, error) {
 func (b *TOCIndexBuilder) FindOffsetForHref(html, href string) uint32 {
 	// Simplified regex search
 	targetID := strings.TrimPrefix(href, "#")
-	pattern := fmt.Sprintf(`id=['"]%s['"]`, regexp.QuoteMeta(targetID))
-	re := regexp.MustCompile(pattern)
-	loc := re.FindStringIndex(html)
-	if loc != nil {
-		return uint32(loc[0])
+
+	// Try matching both id="..." and name="..." attributes
+	patterns := []string{
+		fmt.Sprintf(`id=['"]%s['"]`, regexp.QuoteMeta(targetID)),
+		fmt.Sprintf(`name=['"]%s['"]`, regexp.QuoteMeta(targetID)),
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		loc := re.FindStringIndex(html)
+		if loc != nil {
+			return uint32(loc[0])
+		}
 	}
 	return 0
 }

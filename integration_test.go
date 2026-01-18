@@ -13,7 +13,7 @@ import (
 
 // TestConvertSimpleFB2 tests end-to-end conversion of a simple FB2 file
 func TestConvertSimpleFB2(t *testing.T) {
-	testFile := "testdata/simple.fb2"
+	testFile := "testdata/src_ref.fb2"
 
 	// Parse FB2
 	parser := fb2.NewParser()
@@ -120,7 +120,7 @@ func TestConvertSimpleFB2(t *testing.T) {
 
 // TestConvertFB2WithCover tests conversion with cover image
 func TestConvertFB2WithCover(t *testing.T) {
-	testFile := "testdata/with_coverpage.fb2"
+	testFile := "testdata/src.fb2"
 
 	// Read the file
 	fb2Data, err := os.ReadFile(testFile)
@@ -164,7 +164,7 @@ func TestConverterEndToEnd(t *testing.T) {
 	converter := NewConverter()
 
 	// Convert simple FB2
-	inputFile := "testdata/simple.fb2"
+	inputFile := "testdata/src_ref.fb2"
 	outputFile := filepath.Join(os.TempDir(), "test_output.mobi")
 	defer os.Remove(outputFile)
 
@@ -237,7 +237,7 @@ func TestConverterOptions(t *testing.T) {
 			converter := NewConverter()
 			converter.SetOptions(tt.options)
 
-			inputFile := "testdata/simple.fb2"
+			inputFile := "testdata/src_ref.fb2"
 			outputFile := filepath.Join(os.TempDir(), "test_opts.mobi")
 			defer os.Remove(outputFile)
 
@@ -270,13 +270,13 @@ func TestMetadataExtraction(t *testing.T) {
 		wantSeries string
 	}{
 		{
-			file:       "testdata/simple.fb2",
+			file:       "testdata/src.fb2",
 			wantTitle:  "Голубой адепт",
 			wantAuthor: "Пирс Энтони",
 			wantSeries: "Начинающий адепт",
 		},
 		{
-			file:       "testdata/with_cover.fb2",
+			file:       "testdata/src.fb2",
 			wantTitle:  "Голубой адепт",
 			wantAuthor: "Пирс Энтони",
 			wantSeries: "Начинающий адепт",
@@ -321,11 +321,11 @@ func TestValidateFB2(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			file:    "testdata/simple.fb2",
+			file:    "testdata/src.fb2",
 			wantErr: false,
 		},
 		{
-			file:    "testdata/with_cover.fb2",
+			file:    "testdata/src_ref.fb2",
 			wantErr: false,
 		},
 		{
@@ -346,7 +346,7 @@ func TestValidateFB2(t *testing.T) {
 
 // BenchmarkConversion benchmarks the conversion process
 func BenchmarkConversion(b *testing.B) {
-	testFile := "testdata/simple.fb2"
+	testFile := "testdata/src.fb2"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
