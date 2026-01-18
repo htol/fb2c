@@ -191,9 +191,7 @@ func (t *Transformer) getDisplayTitle(fb2 *FictionBook) string {
 func (t *Transformer) generateTOC(sections []Section, depth int) string {
 	var buf strings.Builder
 
-	if !t.MOBIMode {
-		buf.WriteString("<ul>\n")
-	}
+	buf.WriteString("<ul>\n")
 
 	for i, section := range sections {
 		// Generate section title
@@ -214,32 +212,18 @@ func (t *Transformer) generateTOC(sections []Section, depth int) string {
 			id = fmt.Sprintf("section_%d", i+1)
 		}
 
-		if t.MOBIMode {
-			indent := ""
-			if depth > 1 {
-				indent = strings.Repeat("&nbsp;&nbsp;", depth-1)
-			}
-			buf.WriteString(fmt.Sprintf("<p>%s<a href=\"#%s\">%s</a></p>\n", indent, id, htmlEscape(title)))
-		} else {
-			buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, htmlEscape(title)))
-		}
+		buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, htmlEscape(title)))
 
 		// Recurse for subsections
 		if len(section.Sections) > 0 {
-			if !t.MOBIMode {
-				buf.WriteString("\n")
-			}
+			buf.WriteString("\n")
 			buf.WriteString(t.generateTOC(section.Sections, depth+1))
 		}
 
-		if !t.MOBIMode {
-			buf.WriteString("</li>\n")
-		}
+		buf.WriteString("</li>\n")
 	}
 
-	if !t.MOBIMode {
-		buf.WriteString("</ul>\n")
-	}
+	buf.WriteString("</ul>\n")
 
 	return buf.String()
 }

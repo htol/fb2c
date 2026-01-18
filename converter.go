@@ -4,6 +4,7 @@ package fb2c
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -315,12 +316,19 @@ func (c *Converter) writeEPUB(book *opf.OEBBook, output io.Writer) error {
 // writeMOBI6 writes MOBI 6 format
 func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 	opts := mobi.DefaultWriteOptions()
-	if !c.options.Compression {
-		opts.CompressionType = mobi.NoCompression
+	// Properly set compression based on options
+	if c.options.Compression {
+		opts.CompressionType = mobi.PalmDOCCompression // Type 2
+	} else {
+		opts.CompressionType = mobi.NoCompression // Type 1
 	}
 
 	if c.options.Debug {
 		opts.Debug = true
+		slog.Debug("writeMOBI6 calling ConvertOEBToMOBIWithOptions",
+			"component", "converter.go",
+			"Compression", c.options.Compression,
+			"CompressionType", opts.CompressionType)
 	}
 
 	// Pass cover image from book metadata if available
