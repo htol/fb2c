@@ -268,7 +268,7 @@ func (t *Transformer) renderSection(section Section, index int) string {
 	}
 
 	if t.MOBIMode {
-		buf.WriteString(fmt.Sprintf("<a name=\"%s\"></a>\n", id))
+		buf.WriteString(fmt.Sprintf("<a id=\"%s\"></a>\n", id))
 	} else {
 		buf.WriteString(fmt.Sprintf("<div id=\"%s\">\n", id))
 	}

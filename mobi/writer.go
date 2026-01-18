@@ -105,6 +105,8 @@ func (w *Writer) Write(output io.Writer) error {
 
 	// Pass 2: Final resolution with relative indices (1st image = 1)
 	resolvedContent := w.resolveImageSources(w.book.Content, 0)
+	// Convert href="#ID" to filepos=OFFSET for Kindle internal navigation
+	resolvedContent = resolveFileposLinks(resolvedContent)
 	textData := []byte(resolvedContent)
 
 	uncompressedSize := len(textData)
@@ -612,6 +614,40 @@ func (w *Writer) resolveImageSources(content string, baseIndex uint32) string {
 			// Calibre replaces src with recindex attribute
 			return fmt.Sprintf("recindex=%c%05d%c", quote, finalIndex, quote)
 		}
+		return match
+	})
+}
+
+// resolveFileposLinks replaces href="#ID" with filepos=OFFSET for Kindle internal navigation
+// This is a two-pass process:
+// 1. Find all <a id="X"> anchors and record their byte positions
+// 2. Replace all href="#X" with filepos=NNNNNNNNNN (10-digit zero-padded offset)
+func resolveFileposLinks(content string) string {
+	// Pass 1: Build anchor position map
+	anchorMap := make(map[string]int)
+
+	// Find all <a id="..."> or <a id='...'> anchors
+	anchorRe := regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
+	for _, match := range anchorRe.FindAllStringSubmatchIndex(content, -1) {
+		if len(match) >= 4 {
+			anchorID := content[match[2]:match[3]]
+			position := match[0] // byte position of the anchor tag
+			anchorMap[anchorID] = position
+		}
+	}
+
+	// Pass 2: Replace href="#ID" with filepos=OFFSET
+	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
+	return hrefRe.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the anchor ID (after the #)
+		quote := match[5]
+		anchorID := match[7 : len(match)-1]
+
+		if pos, ok := anchorMap[anchorID]; ok {
+			// Return filepos with 10-digit zero-padded offset
+			return fmt.Sprintf("filepos=%c%010d%c", quote, pos, quote)
+		}
+		// If anchor not found, return original (will be a dead link)
 		return match
 	})
 }
