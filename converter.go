@@ -23,9 +23,6 @@ type ConvertOptions struct {
 	MobiType    string // "old" (MOBI 6), "new" (KF8), "both" (joint)
 	Compression bool   // Enable PalmDOC compression
 
-	// Content options
-	ExtractImages bool // Extract embedded images
-
 	// Metadata overrides
 	Title      string
 	Authors    []string
@@ -42,8 +39,7 @@ type ConvertOptions struct {
 func DefaultConvertOptions() ConvertOptions {
 	return ConvertOptions{
 		MobiType:        "old", // MOBI 6 format
-		Compression:     true,
-		ExtractImages:   true,
+		Compression:     false,
 		EnableChunking:  true,
 		TargetChunkSize: 4096,
 		Logger:          slog.Default(),
