@@ -375,6 +375,12 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		buf.WriteString(bookName)
 	}
 
+	// Pad with zeros to ensure 4-byte alignment
+	// This helps with some readers/tools that expect aligned records (e.g. mobitool)
+	if padding := buf.Len() % 4; padding > 0 {
+		buf.Write(make([]byte, 4-padding))
+	}
+
 	return buf.Bytes(), nil
 }
 

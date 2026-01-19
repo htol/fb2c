@@ -59,20 +59,6 @@ func compressRecord(data []byte) []byte {
 			continue
 		}
 
-		// Check for binary sequences
-		if seq := findBinarySequence(data, pos); seq.length > 0 {
-			// Encode as: 0x8001 + ((length - 1) << 8) + byte
-			code := uint16(0x8001)
-			code |= uint16(seq.length-1) << 8
-			code |= uint16(seq.byteValue)
-
-			output.WriteByte(byte(code >> 8))
-			output.WriteByte(byte(code & 0xFF))
-
-			pos += seq.length
-			continue
-		}
-
 		// Literal byte
 		output.WriteByte(data[pos])
 		pos++
@@ -154,46 +140,7 @@ func findLZMatch(data []byte, pos int) lzMatch {
 	return lzMatch{}
 }
 
-// binarySeq represents a binary sequence match
-type binarySeq struct {
-	length    int
-	byteValue byte
-}
 
-// findBinarySequence looks for repeated binary sequences
-func findBinarySequence(data []byte, pos int) binarySeq {
-	// Binary sequences: 0x00-0x07 or 0x80-0xFF repeated
-	// Encoded as: length 2-8, then the byte value
-
-	const (
-		minLen = 2
-		maxLen = 8
-	)
-
-	if pos >= len(data) {
-		return binarySeq{}
-	}
-
-	firstByte := data[pos]
-
-	// Check if it's a binary sequence byte (0x00-0x07 or 0x80-0xFF)
-	if (firstByte <= 0x07) || (firstByte >= 0x80) {
-		// Count repeats
-		length := 1
-		for pos+length < len(data) && data[pos+length] == firstByte && length < maxLen {
-			length++
-		}
-
-		if length >= minLen {
-			return binarySeq{
-				length:    length,
-				byteValue: firstByte,
-			}
-		}
-	}
-
-	return binarySeq{}
-}
 
 // DecompressPalmDOC decompresses PalmDOC-compressed data
 // Note: This is a simplified implementation for testing
@@ -224,17 +171,6 @@ func DecompressPalmDOC(data []byte) []byte {
 				}
 				// This is a placeholder - full decompression would be more complex
 				output.WriteByte('?')
-			} else if code == 0x8001 {
-				// Binary sequence - need next byte
-				if pos >= len(data) {
-					break
-				}
-				length := int((code >> 8) & 0x3F)
-				val := data[pos]
-				pos++
-				for i := 0; i < length; i++ {
-					output.WriteByte(val)
-				}
 			} else if byte1&0x80 != 0 && byte2 != 0x00 {
 				// Space + char compression: char ^ 0x80
 				output.WriteByte(' ')

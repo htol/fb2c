@@ -39,7 +39,7 @@ type ConvertOptions struct {
 func DefaultConvertOptions() ConvertOptions {
 	return ConvertOptions{
 		MobiType:        "old", // MOBI 6 format
-		Compression:     false,
+		Compression:     false, // Compression is currently broken, do not enable
 		EnableChunking:  true,
 		TargetChunkSize: 4096,
 		Logger:          slog.Default(),
