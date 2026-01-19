@@ -108,7 +108,7 @@ func TestINDXAddEntry(t *testing.T) {
 		2: {200},
 	}
 
-	indx.AddEntry(1000, 0, tagValues)
+	indx.AddEntry("entry0", 1000, 0, tagValues)
 
 	if indx.Header.Count != 1 {
 		t.Errorf("RecordCount = %d, want 1", indx.Header.Count)

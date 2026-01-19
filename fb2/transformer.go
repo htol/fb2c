@@ -103,7 +103,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		if fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
 			// Cover reference with hardcoded filepos=0 for FBReader compatibility
 			buf.WriteString("<guide>\n")
-			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"0000000000\" />\n")
+			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"1111111111\" />\n")
 			buf.WriteString("</guide>\n")
 		}
 		buf.WriteString("</head>\n")

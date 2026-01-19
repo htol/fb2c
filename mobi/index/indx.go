@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/htol/fb2c/varint"
 )
 
 // INDXHeaderSize is the size of the INDX header
@@ -41,6 +43,7 @@ type INDX struct {
 
 // IDXTEntry represents an entry in the index
 type IDXTEntry struct {
+	Label       string              // Entry label/key text (required for MOBI index)
 	Offset      uint32              // Target offset in the book
 	Size        uint32              // Size of the entry (calculated during write)
 	TagValues   map[uint32][]uint32 // Map of tag ID to values
@@ -65,8 +68,9 @@ func NewINDX(encoding, language uint32) *INDX {
 }
 
 // AddEntry adds an index entry with offset tracking
-func (i *INDX) AddEntry(offset uint32, recordIndex int, tagValues map[uint32][]uint32) {
+func (i *INDX) AddEntry(label string, offset uint32, recordIndex int, tagValues map[uint32][]uint32) {
 	i.IDXT = append(i.IDXT, IDXTEntry{
+		Label:       label,
 		Offset:      offset,
 		TagValues:   tagValues,
 		RecordIndex: recordIndex,
@@ -111,39 +115,38 @@ func (i *INDX) Encode() ([]byte, error) {
 	}
 
 	// 4. Construct IDXT Block (The Table of Offsets)
-	// Format: "IDXT" (4) + Length(2) + Type(2) + Offsets(N*2)
-	idxtHeaderSize := 8 // 4 + 2 + 2
-	idxtTableSize := idxtHeaderSize + (len(entryBuffers) * 2)
-
+	// Format: "IDXT" (4) + Offsets(N*2)
 	idxtBuf := new(bytes.Buffer)
 	idxtBuf.WriteString("IDXT")
-	if err := binary.Write(idxtBuf, binary.BigEndian, uint16(idxtTableSize)); err != nil {
-		return nil, fmt.Errorf("failed to write IDXT size: %w", err)
-	}
-	if err := binary.Write(idxtBuf, binary.BigEndian, uint16(0)); err != nil { // Type/Unused
-		return nil, fmt.Errorf("failed to write IDXT type: %w", err)
-	}
 
-	// Calculate offsets relative to the END of the IDXT block (start of entries)
-	// Ref: "The IDXT tag... contains the offsets of the index entries."
-	// Standard behavior is relative to IDXT block start.
-	currentOffset := uint16(idxtTableSize)
+	// Calculate offsets relative to the start of the INDX record
+	// Layout: Header (192) | TAGX | CNCX | Entries | IDXT
+	// Standard MOBI puts entries BEFORE IDXT block
+	entriesStartOffset := INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData))
+
+	currentOffset := entriesStartOffset
 	for _, entryBuf := range entryBuffers {
-		if err := binary.Write(idxtBuf, binary.BigEndian, currentOffset); err != nil {
+		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil {
 			return nil, fmt.Errorf("failed to write IDXT offset: %w", err)
 		}
-		currentOffset += uint16(len(entryBuf))
+		currentOffset += uint32(len(entryBuf))
 	}
 	idxtData := idxtBuf.Bytes()
 
 	// 5. Update Header Fields
-	// Layout: Header | TAGX | CNCX | IDXT | Entries
+	// Layout: Header | TAGX | CNCX | Entries | IDXT
 	i.Header.Count = uint32(len(entryBuffers))
 	i.Header.TotalRecordCount = uint32(len(entryBuffers))
 	i.Header.CNCXCount = uint32(len(i.CNCX))
 
-	// IDXTOffset points to the IDXT block
-	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData))
+	// Calculate total entries size
+	var totalEntriesSize uint32
+	for _, entryBuf := range entryBuffers {
+		totalEntriesSize += uint32(len(entryBuf))
+	}
+
+	// IDXTOffset points to the IDXT block (after entries)
+	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData)) + totalEntriesSize
 
 	// 6. Write Header
 	if err := i.writeHeader(&buf); err != nil {
@@ -156,13 +159,13 @@ func (i *INDX) Encode() ([]byte, error) {
 	// 8. Write CNCX
 	buf.Write(cncxData)
 
-	// 9. Write IDXT Block
-	buf.Write(idxtData)
-
-	// 10. Write Entries
+	// 9. Write Entries (BEFORE IDXT in standard MOBI)
 	for _, entryBuf := range entryBuffers {
 		buf.Write(entryBuf)
 	}
+
+	// 10. Write IDXT Block
+	buf.Write(idxtData)
 
 	return buf.Bytes(), nil
 }
@@ -208,34 +211,10 @@ func (i *INDX) encodeCNCX() ([]byte, error) {
 }
 
 // encodeVarint encodes a uint32 as a variable length integer (MOBI format)
+// Uses forward encoding where the MSB is set on the last byte
+// This allows sequential reading from start of data
 func encodeVarint(val uint32) []byte {
-	// 7 bits per byte, little endian? No, usually high bit check.
-	// MOBI (Palm) varint:
-	// A sequence of bytes, each containing 7 bits of data.
-	// The high bit is set in the last byte.
-	// Low bits first? Or high bits first?
-	// MOBI typically uses forward encoding.
-	// Actually, CNCX uses a specific varint.
-	// Let's use the standard "stop bit" varint.
-
-	// Simplest implementation for short strings (<128):
-	if val < 128 {
-		return []byte{byte(val | 0x80)} // Set high bit to indicate end
-	}
-	// For now support only small strings for safety
-	// Or implement proper varint
-
-	// Proper:
-	// Reverse order chunks of 7 bits.
-	// Last chunk gets 0x80.
-
-	// Simplified loop
-	// We need to write from MSB to LSB? Or LSB to MSB?
-	// "The variable width integer... stores the integer 7 bits at a time... the high bit is set on the last byte."
-	// Usually Big Endian style.
-
-	// Let's use the simple <128 optimization for filenames.
-	return []byte{byte(val | 0x80)}
+	return varint.EncodeForward(val)
 }
 
 // TAGXEntry represents a single tag definition
@@ -292,34 +271,44 @@ func (t *TAGX) Encode() ([]byte, error) {
 }
 
 // encodeIDXTEntry encodes a single index entry
+// MOBI format: <label_length> <label_text> <control_byte> <tag_values...>
 func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// Based on standard MOBI behavior for these tags:
-	var controlByte byte = 0x00
+	// 1. Write label (length-prefixed string)
+	// Label length is 1 byte for labels up to 255 chars
+	label := entry.Label
+	if len(label) > 255 {
+		label = label[:255]
+	}
+	buf.WriteByte(byte(len(label)))
+	buf.WriteString(label)
 
-	// Write Control Byte
+	// 2. Write control byte placeholder
+	controlBytePos := buf.Len()
 	buf.WriteByte(0) // Placeholder for control byte
 
-	// Tag 1: Offset (Position 0 in control byte usually)
+	// 3. Write tag values based on TAGX definition
+	var controlByte byte = 0x00
+
+	// Tag 1: Offset (Mask 0x01)
 	if val, ok := entry.TagValues[1]; ok && len(val) > 0 {
 		controlByte |= 0x01
 		buf.Write(encodeVarint(val[0]))
 	} else if entry.Offset > 0 {
-		// Implicit tag 1
 		controlByte |= 0x01
-		buf.Write(encodeVarint(entry.Offset)) // Fallback uses Entry.Offset
+		buf.Write(encodeVarint(entry.Offset))
 	}
 
-	// Tag 6: Name Index (Position 1 in control byte usually)
+	// Tag 6: Name Index in CNCX (Mask 0x02)
 	if val, ok := entry.TagValues[6]; ok && len(val) > 0 {
 		controlByte |= 0x02
 		buf.Write(encodeVarint(val[0]))
 	}
 
-	// Update control byte
+	// 4. Update control byte in buffer
 	data := buf.Bytes()
-	data[0] = controlByte
+	data[controlBytePos] = controlByte
 
 	return data, nil
 }
@@ -411,7 +400,7 @@ func (b *TOCIndexBuilder) GetEntries() []TOCEntry {
 
 // Build returns the built INDX record
 func (b *TOCIndexBuilder) Build() (*INDX, error) {
-	for _, entry := range b.entries {
+	for i, entry := range b.entries {
 		// Add title to CNCX
 		nameIdx := b.INDX.AddString(entry.Label)
 
@@ -421,7 +410,9 @@ func (b *TOCIndexBuilder) Build() (*INDX, error) {
 			6: {uint32(nameIdx)},
 		}
 
-		b.INDX.AddEntry(entry.Offset, -1, tags)
+		// Use sequential numeric label (standard MOBI format: "0000", "0001", etc.)
+		entryLabel := fmt.Sprintf("%04d", i)
+		b.INDX.AddEntry(entryLabel, entry.Offset, -1, tags)
 	}
 	return b.INDX, nil
 }
