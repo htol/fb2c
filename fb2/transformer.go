@@ -103,9 +103,9 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		buf.WriteString("<html>\n<head>\n")
 		// Add guide for TOC if generated
 		if !t.NoInlineTOC && fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
-			// Note: filepos will be resolved by the reader or binary TOC
+			// Cover reference uses href - will be converted to filepos by resolveFileposLinks
 			buf.WriteString("<guide>\n")
-			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"0000000000\" />\n")
+			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" href=\"#cover_page\" />\n")
 			buf.WriteString("</guide>\n")
 		}
 		buf.WriteString("</head>\n")
@@ -518,8 +518,8 @@ func (t *Transformer) renderCoverPage(cover Coverpage) string {
 	}
 
 	if t.MOBIMode {
-		// Just the image, centered by parent or simple p
-		return fmt.Sprintf("<p align=\"center\">%s</p>\n", t.renderImage(img))
+		// Add anchor for guide reference, then the image centered
+		return fmt.Sprintf("<a id=\"cover_page\"></a><p align=\"center\">%s</p>\n", t.renderImage(img))
 	}
 
 	// Render the image centered and with a page break after

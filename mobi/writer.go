@@ -619,35 +619,49 @@ func (w *Writer) resolveImageSources(content string, baseIndex uint32) string {
 }
 
 // resolveFileposLinks replaces href="#ID" with filepos=OFFSET for Kindle internal navigation
-// This is a two-pass process:
-// 1. Find all <a id="X"> anchors and record their byte positions
-// 2. Replace all href="#X" with filepos=NNNNNNNNNN (10-digit zero-padded offset)
+// This is a multi-pass process to ensure correct offset calculation after string length changes
 func resolveFileposLinks(content string) string {
-	// Pass 1: Build anchor position map
-	anchorMap := make(map[string]int)
+	// Pass 1: Collect all href="#ID" matches and their anchor IDs
+	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
+	hrefMatches := hrefRe.FindAllStringSubmatch(content, -1)
+	if len(hrefMatches) == 0 {
+		return content
+	}
 
-	// Find all <a id="..."> or <a id='...'> anchors
+	// Pass 2: Replace all href="#X" with placeholder "filepos=Q0000000000Q" (same length for any anchor ID)
+	// We use placeholder value 0 first, which keeps consistent length
+	placeholderContent := hrefRe.ReplaceAllStringFunc(content, func(match string) string {
+		quote := match[5]
+		return fmt.Sprintf("filepos=%c%010d%c", quote, 0, quote)
+	})
+
+	// Pass 3: Find anchor positions in the modified content
 	anchorRe := regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
-	for _, match := range anchorRe.FindAllStringSubmatchIndex(content, -1) {
+	anchorMap := make(map[string]int)
+	for _, match := range anchorRe.FindAllStringSubmatchIndex(placeholderContent, -1) {
 		if len(match) >= 4 {
-			anchorID := content[match[2]:match[3]]
-			position := match[0] // byte position of the anchor tag
+			anchorID := placeholderContent[match[2]:match[3]]
+			position := match[0]
 			anchorMap[anchorID] = position
 		}
 	}
 
-	// Pass 2: Replace href="#ID" with filepos=OFFSET
-	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
-	return hrefRe.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the anchor ID (after the #)
-		quote := match[5]
-		anchorID := match[7 : len(match)-1]
+	// Pass 4: Replace placeholder filepos values with actual positions
+	fileposRe := regexp.MustCompile(`filepos=["']0000000000["']`)
+	idx := 0
+	result := fileposRe.ReplaceAllStringFunc(placeholderContent, func(match string) string {
+		if idx >= len(hrefMatches) {
+			return match
+		}
+		anchorID := hrefMatches[idx][1]
+		idx++
 
+		quote := match[8]
 		if pos, ok := anchorMap[anchorID]; ok {
-			// Return filepos with 10-digit zero-padded offset
 			return fmt.Sprintf("filepos=%c%010d%c", quote, pos, quote)
 		}
-		// If anchor not found, return original (will be a dead link)
 		return match
 	})
+
+	return result
 }
