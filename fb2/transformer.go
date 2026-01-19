@@ -38,6 +38,29 @@ func NewTransformer() *Transformer {
 	}
 }
 
+// SetParser sets the parser instance to use
+func (t *Transformer) SetParser(p *Parser) {
+	t.parser = p
+}
+
+// Transform converts an already parsed FB2 book to HTML
+func (t *Transformer) Transform(fb2 *FictionBook) (string, string, *Metadata, error) {
+	// Extract metadata
+	metadata, err := t.parser.ExtractMetadata(fb2)
+	if err != nil {
+		return "", "", nil, err
+	}
+	t.Metadata = metadata
+
+	// Process stylesheets (if any)
+	t.processStylesheets(fb2)
+
+	// Generate HTML
+	html := t.transformToHTML(fb2)
+
+	return html, t.cssContent, metadata, nil
+}
+
 // Convert converts an FB2 file to HTML
 func (t *Transformer) Convert(input io.Reader) (string, string, *Metadata, error) {
 	data, err := io.ReadAll(input)

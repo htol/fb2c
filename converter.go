@@ -107,7 +107,10 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 		transformer.MOBIMode = true
 	}
 
-	html, _, _, err := transformer.ConvertBytes(fb2Data)
+	// Share parser state to avoid re-parsing
+	transformer.SetParser(c.parser)
+
+	html, _, _, err := transformer.Transform(fb2Doc)
 	if err != nil {
 		return fmt.Errorf("failed to transform FB2: %w", err)
 	}
@@ -177,7 +180,10 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 	// Stream usually defaults to MOBI unless extension known (not known here)
 	transformer.MOBIMode = true
 
-	html, _, _, err := transformer.ConvertBytes(data)
+	// Share parser state to avoid re-parsing
+	transformer.SetParser(c.parser)
+
+	html, _, _, err := transformer.Transform(fb2Doc)
 	if err != nil {
 		return fmt.Errorf("failed to transform FB2: %w", err)
 	}
