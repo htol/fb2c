@@ -28,27 +28,27 @@ func TestChunkHTML(t *testing.T) {
 	skel := NewSkeleton()
 
 	tests := []struct {
-		name    string
-		html    string
-		wantErr bool
+		name      string
+		html      string
+		wantErr   bool
 		minChunks int
 	}{
 		{
-			name:    "empty",
-			html:    "",
-			wantErr: false,
+			name:      "empty",
+			html:      "",
+			wantErr:   false,
 			minChunks: 0,
 		},
 		{
-			name:    "small",
-			html:    "<html><body>Hello World</body></html>",
-			wantErr: false,
+			name:      "small",
+			html:      "<html><body>Hello World</body></html>",
+			wantErr:   false,
 			minChunks: 1,
 		},
 		{
-			name:    "large",
-			html:    generateLargeHTML(20000),
-			wantErr: false,
+			name:      "large",
+			html:      generateLargeHTML(20000),
+			wantErr:   false,
 			minChunks: 2,
 		},
 	}
@@ -99,7 +99,10 @@ func TestGenerateAID(t *testing.T) {
 
 func TestGetChunkByAID(t *testing.T) {
 	skel := NewSkeleton()
-	skel.ChunkHTML("<html><body>Test</body></html>")
+	err := skel.ChunkHTML("<html><body>Test</body></html>")
+	if err != nil {
+		t.Fatalf("ChunkHTML() error = %v", err)
+	}
 
 	if len(skel.Chunks) == 0 {
 		t.Fatal("No chunks generated")
@@ -125,7 +128,10 @@ func TestGetChunkByAID(t *testing.T) {
 
 func TestGetChunkByOffset(t *testing.T) {
 	skel := NewSkeleton()
-	skel.ChunkHTML("<html><body>Test content here</body></html>")
+	err := skel.ChunkHTML("<html><body>Test content here</body></html>")
+	if err != nil {
+		t.Fatalf("ChunkHTML() error = %v", err)
+	}
 
 	if len(skel.Chunks) == 0 {
 		t.Fatal("No chunks generated")
@@ -152,7 +158,10 @@ func TestGetChunkByOffset(t *testing.T) {
 
 func TestBuildHierarchy(t *testing.T) {
 	skel := NewSkeleton()
-	skel.ChunkHTML(generateLargeHTML(20000))
+	err := skel.ChunkHTML(generateLargeHTML(20000))
+	if err != nil {
+		t.Fatalf("ChunkHTML() error = %v", err)
+	}
 
 	skel.BuildHierarchy()
 

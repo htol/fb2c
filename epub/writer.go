@@ -19,11 +19,12 @@ var idRegex = regexp.MustCompile(`id=["']([^"']+)["']`)
 
 // EPUBWriter writes EPUB files
 type EPUBWriter struct {
-	book       *opf.OEBBook
-	bookID     string
-	uuid       string
-	ocfPath    string // Default: OEBPS
+	book         *opf.OEBBook
+	bookID       string
+	uuid         string
+	ocfPath      string   // Default: OEBPS
 	tocFragments []string // Fragment IDs generated for TOC entries
+	playOrder    int      // Counter for NCX playOrder
 }
 
 // NewEPUBWriter creates a new EPUB writer
@@ -220,12 +221,12 @@ func (w *EPUBWriter) writeManifest(buf *bytes.Buffer) {
 `)
 
 	// NCX (navigation) - must use application/x-dtbncx+xml for EPUB 2.0
-	buf.WriteString(fmt.Sprintf(`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-`))
+	buf.WriteString(`    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+`)
 
 	// Content
-	buf.WriteString(fmt.Sprintf(`    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
-`))
+	buf.WriteString(`    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+`)
 
 	// Resources (images, etc.)
 	ids := w.book.GetManifestIDs()
@@ -334,11 +335,9 @@ func (w *EPUBWriter) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, dep
 `)
 }
 
-var playOrderCounter int = 0
-
 func (w *EPUBWriter) getNextPlayOrder() int {
-	playOrderCounter++
-	return playOrderCounter
+	w.playOrder++
+	return w.playOrder
 }
 
 // rewriteDuplicateIDs finds and rewrites duplicate IDs in HTML content

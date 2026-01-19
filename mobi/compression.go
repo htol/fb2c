@@ -177,7 +177,7 @@ func findBinarySequence(data []byte, pos int) binarySeq {
 	firstByte := data[pos]
 
 	// Check if it's a binary sequence byte (0x00-0x07 or 0x80-0xFF)
-	if (firstByte >= 0x00 && firstByte <= 0x07) || (firstByte >= 0x80 && firstByte <= 0xFF) {
+	if (firstByte <= 0x07) || (firstByte >= 0x80) {
 		// Count repeats
 		length := 1
 		for pos+length < len(data) && data[pos+length] == firstByte && length < maxLen {

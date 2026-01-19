@@ -148,11 +148,11 @@ func TestCalculateRecordCount(t *testing.T) {
 func TestConvertOEBToMOBI(t *testing.T) {
 	book := opf.NewOEBBook()
 	book.Metadata = opf.Metadata{
-		Title:       "Test Book",
-		Language:    "en",
-		Publisher:   "Test Publisher",
-		ISBN:        "978-0-123456-78-9",
-		Annotation:  "Test annotation",
+		Title:      "Test Book",
+		Language:   "en",
+		Publisher:  "Test Publisher",
+		ISBN:       "978-0-123456-78-9",
+		Annotation: "Test annotation",
 	}
 	book.Metadata.Authors = []opf.Author{
 		opf.NewAuthor("John", "", "Doe", ""),
@@ -244,7 +244,7 @@ func TestEXTHWriter(t *testing.T) {
 
 func TestPalmDOCCompression(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
 	}{
 		{"empty", ""},

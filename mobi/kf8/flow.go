@@ -17,34 +17,41 @@ const (
 	FlowTypeImage
 )
 
+const (
+	ResourceTypeCSS   = "css"
+	ResourceTypeImage = "image"
+	ResourceTypeSVG   = "svg"
+	ResourceTypeFont  = "font"
+)
+
 // Flow represents a content flow in KF8
 type Flow struct {
-	ID          string
-	Type        FlowType
-	Content     string
-	Resources   []*ResourceRef
-	Index       int // Flow index number
+	ID        string
+	Type      FlowType
+	Content   string
+	Resources []*ResourceRef
+	Index     int // Flow index number
 }
 
 // ResourceRef represents a reference to a resource in a flow
 type ResourceRef struct {
-	ID       string // Resource ID
-	Href     string // Original href
+	ID        string // Resource ID
+	Href      string // Original href
 	KindleRef string // Converted reference (kindle:embed: or kindle:flow:)
 }
 
 // FlowManager manages multiple flows in a KF8 document
 type FlowManager struct {
-	flows     []*Flow
-	flowMap   map[string]*Flow // ID -> Flow
+	flows         []*Flow
+	flowMap       map[string]*Flow // ID -> Flow
 	resourceIndex int
 }
 
 // NewFlowManager creates a new flow manager
 func NewFlowManager() *FlowManager {
 	return &FlowManager{
-		flows:   make([]*Flow, 0),
-		flowMap: make(map[string]*Flow),
+		flows:         make([]*Flow, 0),
+		flowMap:       make(map[string]*Flow),
 		resourceIndex: 1,
 	}
 }
@@ -92,8 +99,8 @@ func (fm *FlowManager) AddResourceToFlow(flowID, resourceID, href string) error 
 	}
 
 	ref := &ResourceRef{
-		ID:       resourceID,
-		Href:     href,
+		ID:        resourceID,
+		Href:      href,
 		KindleRef: fm.convertResourceRef(resourceID),
 	}
 
@@ -112,13 +119,13 @@ func (fm *FlowManager) convertResourceRef(resourceID string) string {
 func (fm *FlowManager) ConvertLinks() {
 	for _, flow := range fm.flows {
 		if flow.Type == FlowTypeHTML {
-			flow.Content = fm.convertHTMLLinks(flow.Content, flow.ID)
+			flow.Content = fm.convertHTMLLinks(flow.Content)
 		}
 	}
 }
 
 // convertHTMLLinks converts href links to Kindle format
-func (fm *FlowManager) convertHTMLLinks(html, flowID string) string {
+func (fm *FlowManager) convertHTMLLinks(html string) string {
 	// Convert href links to kindle:flow: or kindle:embed:
 	// This is a simplified implementation
 
@@ -199,9 +206,9 @@ func (ft *FlowTable) AddEntry(flowID string, flowNum int, content string) {
 // GenerateResourceLinks generates kindle:embed: and kindle:flow: links
 func GenerateResourceLinks(resourceID, resourceType string) string {
 	switch resourceType {
-	case "css", "stylesheet":
+	case ResourceTypeCSS, "stylesheet":
 		return fmt.Sprintf("kindle:flow:%s", resourceID)
-	case "image", "font":
+	case ResourceTypeImage, ResourceTypeFont:
 		return fmt.Sprintf("kindle:embed:%s", resourceID)
 	default:
 		return resourceID
@@ -212,18 +219,18 @@ func GenerateResourceLinks(resourceID, resourceType string) string {
 func ParseResourceType(href string) string {
 	ext := strings.ToLower(href)
 	if strings.HasSuffix(ext, ".css") {
-		return "css"
+		return ResourceTypeCSS
 	}
 	if strings.HasSuffix(ext, ".jpg") || strings.HasSuffix(ext, ".jpeg") ||
-	   strings.HasSuffix(ext, ".png") || strings.HasSuffix(ext, ".gif") {
-		return "image"
+		strings.HasSuffix(ext, ".png") || strings.HasSuffix(ext, ".gif") {
+		return ResourceTypeImage
 	}
 	if strings.HasSuffix(ext, ".ttf") || strings.HasSuffix(ext, ".otf") ||
-	   strings.HasSuffix(ext, ".woff") {
-		return "font"
+		strings.HasSuffix(ext, ".woff") {
+		return ResourceTypeFont
 	}
 	if strings.HasSuffix(ext, ".svg") {
-		return "svg"
+		return ResourceTypeSVG
 	}
 	return "unknown"
 }

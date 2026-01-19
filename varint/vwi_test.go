@@ -96,72 +96,36 @@ func TestEncodeBackward(t *testing.T) {
 	}
 }
 
-func TestDecodeForward(t *testing.T) {
-	tests := []struct {
-		name      string
-		data      []byte
-		wantValue uint32
-		wantBytes int
-		wantErr   bool
-	}{
-		{
-			name:      "zero",
-			data:      []byte{0x80},
-			wantValue: 0,
-			wantBytes: 1,
-		},
-		{
-			name:      "small value",
-			data:      []byte{0xFF},
-			wantValue: 0x7F,
-			wantBytes: 1,
-		},
-		{
-			name:      "0x11111",
-			data:      []byte{0x04, 0x22, 0x91},
-			wantValue: 0x11111,
-			wantBytes: 3,
-		},
-		{
-			name:      "two bytes",
-			data:      []byte{0x01, 0x80},
-			wantValue: 0x80,
-			wantBytes: 2,
-		},
-		{
-			name:    "empty",
-			data:    []byte{},
-			wantErr: true,
-		},
-	}
+type decodeTestCase struct {
+	name      string
+	data      []byte
+	wantValue uint32
+	wantBytes int
+	wantErr   bool
+}
 
+func runDecodeTest(t *testing.T, tests []decodeTestCase, decodeFunc func([]byte) (uint32, int, error)) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotValue, gotBytes, err := DecodeForward(tt.data)
+			gotValue, gotBytes, err := decodeFunc(tt.data)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("DecodeForward(%v) error = %v, wantErr %v", tt.data, err, tt.wantErr)
+				t.Errorf("Decode error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
 				if gotValue != tt.wantValue {
-					t.Errorf("DecodeForward(%v) value = %#x, want %#x", tt.data, gotValue, tt.wantValue)
+					t.Errorf("Decode value = %#x, want %#x", gotValue, tt.wantValue)
 				}
 				if gotBytes != tt.wantBytes {
-					t.Errorf("DecodeForward(%v) bytes = %d, want %d", tt.data, gotBytes, tt.wantBytes)
+					t.Errorf("Decode bytes = %d, want %d", gotBytes, tt.wantBytes)
 				}
 			}
 		})
 	}
 }
 
-func TestDecodeBackward(t *testing.T) {
-	tests := []struct {
-		name      string
-		data      []byte
-		wantValue uint32
-		wantBytes int
-		wantErr   bool
-	}{
+func getCommonDecodeTests() []decodeTestCase {
+	return []decodeTestCase{
 		{
 			name:      "zero",
 			data:      []byte{0x80},
@@ -175,41 +139,51 @@ func TestDecodeBackward(t *testing.T) {
 			wantBytes: 1,
 		},
 		{
-			name:      "0x11111",
-			data:      []byte{0x84, 0x22, 0x11},
-			wantValue: 0x11111,
-			wantBytes: 3,
-		},
-		{
-			name:      "two bytes",
-			data:      []byte{0x81, 0x00},
-			wantValue: 0x80,
-			wantBytes: 2,
-		},
-		{
 			name:    "empty",
 			data:    []byte{},
 			wantErr: true,
 		},
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotValue, gotBytes, err := DecodeBackward(tt.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DecodeBackward(%v) error = %v, wantErr %v", tt.data, err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				if gotValue != tt.wantValue {
-					t.Errorf("DecodeBackward(%v) value = %#x, want %#x", tt.data, gotValue, tt.wantValue)
-				}
-				if gotBytes != tt.wantBytes {
-					t.Errorf("DecodeBackward(%v) bytes = %d, want %d", tt.data, gotBytes, tt.wantBytes)
-				}
-			}
-		})
-	}
+func TestDecodeForward(t *testing.T) {
+	tests := getCommonDecodeTests()
+	tests = append(tests,
+		decodeTestCase{
+			name:      "0x11111",
+			data:      []byte{0x04, 0x22, 0x91},
+			wantValue: 0x11111,
+			wantBytes: 3,
+		},
+		decodeTestCase{
+			name:      "two bytes",
+			data:      []byte{0x01, 0x80},
+			wantValue: 0x80,
+			wantBytes: 2,
+		},
+	)
+
+	runDecodeTest(t, tests, DecodeForward)
+}
+
+func TestDecodeBackward(t *testing.T) {
+	tests := getCommonDecodeTests()
+	tests = append(tests,
+		decodeTestCase{
+			name:      "0x11111",
+			data:      []byte{0x84, 0x22, 0x11},
+			wantValue: 0x11111,
+			wantBytes: 3,
+		},
+		decodeTestCase{
+			name:      "two bytes",
+			data:      []byte{0x81, 0x00},
+			wantValue: 0x80,
+			wantBytes: 2,
+		},
+	)
+
+	runDecodeTest(t, tests, DecodeBackward)
 }
 
 func TestRoundTripForward(t *testing.T) {

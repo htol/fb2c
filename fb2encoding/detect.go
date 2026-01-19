@@ -34,12 +34,12 @@ var encodingAliases = map[string]string{
 	"iso-ir-58":         "gbk",
 	"ascii":             "utf-8",
 	// Windows codepages
-	"windows-1250":      "cp1250",
-	"windows-1251":      "cp1251",
-	"windows-1252":      "cp1252",
-	"cp1250":            "cp1250",
-	"cp1251":            "cp1251",
-	"cp1252":            "cp1252",
+	"windows-1250": "cp1250",
+	"windows-1251": "cp1251",
+	"windows-1252": "cp1252",
+	"cp1250":       "cp1250",
+	"cp1251":       "cp1251",
+	"cp1252":       "cp1252",
 }
 
 // BOM markers for different encodings
@@ -47,17 +47,17 @@ var boms = []struct {
 	bom      []byte
 	encoding string
 }{
-	{[]byte{0xEF, 0xBB, 0xBF}, "utf-8"},        // UTF-8
-	{[]byte{0xFF, 0xFE}, "utf-16le"},          // UTF-16 LE
-	{[]byte{0xFE, 0xFF}, "utf-16be"},          // UTF-16 BE
+	{[]byte{0xEF, 0xBB, 0xBF}, "utf-8"},          // UTF-8
+	{[]byte{0xFF, 0xFE}, "utf-16le"},             // UTF-16 LE
+	{[]byte{0xFE, 0xFF}, "utf-16be"},             // UTF-16 BE
 	{[]byte{0xFF, 0xFE, 0x00, 0x00}, "utf-32le"}, // UTF-32 LE
 	{[]byte{0x00, 0x00, 0xFE, 0xFF}, "utf-32be"}, // UTF-32 BE
 }
 
 // Regex patterns for encoding declarations
 var encodingPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`<\?[^<>]+encoding\s*=\s*['"]([^'"]+)['"][^<>]*\?>`), // XML declaration
-	regexp.MustCompile(`(?i)<meta\s+charset=['"]([^'"]+)['"][^<>]*>`),         // HTML5 charset
+	regexp.MustCompile(`<\?[^<>]+encoding\s*=\s*['"]([^'"]+)['"][^<>]*\?>`),                                   // XML declaration
+	regexp.MustCompile(`(?i)<meta\s+charset=['"]([^'"]+)['"][^<>]*>`),                                         // HTML5 charset
 	regexp.MustCompile(`(?i)<meta\s+?[^<>]*?content\s*=\s*['"][^'"]*?charset=([^'\">]+)[^'\">]*?['"][^<>]*>`), // HTML4 pragma
 }
 
@@ -130,7 +130,7 @@ func normalizeEncoding(enc string) string {
 	// Normalize common variations
 	enc = strings.ReplaceAll(enc, "utf8", "utf-8")
 	enc = strings.ReplaceAll(enc, "utf16", "utf-16")
-	enc = strings.ReplaceAll(enc, "_", "-")  // Standardize on hyphens
+	enc = strings.ReplaceAll(enc, "_", "-") // Standardize on hyphens
 
 	return enc
 }
@@ -183,7 +183,7 @@ func looksLikeUTF16LE(data []byte) bool {
 			nullCount++
 		}
 	}
-	return float64(nullCount)/float64(min(len(data), 100)/2) > 0.7
+	return float64(nullCount)/float64(encMin(len(data), 100)/2) > 0.7
 }
 
 // looksLikeUTF16BE checks if data looks like UTF-16 Big Endian.
@@ -201,7 +201,7 @@ func looksLikeUTF16BE(data []byte) bool {
 			nullCount++
 		}
 	}
-	return float64(nullCount)/float64(min(len(data), 100)/2) > 0.7
+	return float64(nullCount)/float64(encMin(len(data), 100)/2) > 0.7
 }
 
 // ToUTF8 converts raw bytes to a UTF-8 string using the detected encoding.
@@ -325,7 +325,7 @@ func ReplaceEncodingInDeclaration(data string, newEncoding string) (string, bool
 		newData := pat.ReplaceAllStringFunc(data, func(match string) string {
 			// Check if encoding is different
 			matches := pat.FindStringSubmatch(match)
-			if len(matches) > 1 && strings.ToLower(matches[1]) != strings.ToLower(newEncoding) {
+			if len(matches) > 1 && !strings.EqualFold(matches[1], newEncoding) {
 				changed = true
 				return strings.Replace(match, matches[1], newEncoding, 1)
 			}
@@ -362,8 +362,8 @@ func FindXMLEncoding(data []byte) string {
 	return ""
 }
 
-// min returns the minimum of two integers.
-func min(a, b int) int {
+// encMin returns the minimum of two integers.
+func encMin(a, b int) int {
 	if a < b {
 		return a
 	}

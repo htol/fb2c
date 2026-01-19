@@ -6,7 +6,8 @@ import (
 
 // TestNewINDX tests INDX creation
 func TestNewINDX(t *testing.T) {
-	indx := NewINDX(0)
+	// TestNewINDX now uses 65001 explicitly
+	indx := NewINDX(65001, 1033)
 
 	if indx.Header.HeaderLength != INDXHeaderSize {
 		t.Errorf("HeaderLength = %d, want %d", indx.Header.HeaderLength, INDXHeaderSize)
@@ -64,21 +65,24 @@ func TestTAGXEncode(t *testing.T) {
 		t.Fatalf("Encode() failed: %v", err)
 	}
 
-	// TAGX: 4 bytes header + N * 4 bytes entries
-	expectedLen := 4 + 2*4
+	// TAGX: 12 bytes header (TAGX + Len + Ctrl) + N * 4 bytes entries
+	// Header: 12 bytes
+	// Entries: 2 * 4 = 8 bytes
+	// Total: 20 bytes
+	expectedLen := 12 + 2*4
 	if len(data) != expectedLen {
 		t.Errorf("Encoded length = %d, want %d", len(data), expectedLen)
 	}
 
-	// First 4 bytes should be number of tags (2)
-	if data[0] != 0 || data[1] != 0 || data[2] != 0 || data[3] != 2 {
-		t.Errorf("Header = %v, want [0, 0, 0, 2]", data[:4])
+	// First 4 bytes should be "TAGX"
+	if string(data[:4]) != "TAGX" {
+		t.Errorf("Header = %v, want TAGX", data[:4])
 	}
 }
 
 // TestINDXAddString tests CNCX string addition
 func TestINDXAddString(t *testing.T) {
-	indx := NewINDX(0)
+	indx := NewINDX(0, 0)
 
 	idx1 := indx.AddString("Chapter 1")
 	if idx1 != 0 {
@@ -97,7 +101,7 @@ func TestINDXAddString(t *testing.T) {
 
 // TestINDXAddEntry tests IDXT entry addition
 func TestINDXAddEntry(t *testing.T) {
-	indx := NewINDX(0)
+	indx := NewINDX(0, 0)
 
 	tagValues := map[uint32][]uint32{
 		1: {100},
@@ -182,7 +186,7 @@ func TestCalculateRecordOffset(t *testing.T) {
 		{450, 3, 0},    // Start of fourth record
 		{600, 3, 150},  // Middle of fourth record
 		{749, 3, 299},  // Last byte of fourth record
-		{1000, 3, 250}, // Beyond all records (offset - total length = 1000 - 750)
+		{1000, 3, 550}, // Beyond all records (offset - start of last record = 1000 - 450)
 	}
 
 	for _, tt := range tests {
@@ -304,10 +308,10 @@ func TestFindOffsetForHref(t *testing.T) {
 		wantOffset  uint32
 		description string
 	}{
-		{"#title", 15, "ID attribute"},
-		{"#chapter1", 65, "First chapter"},
-		{"#chapter2", 117, "Second chapter"},
-		{"#anchor1", 174, "Name attribute"},
+		{"#title", 19, "ID attribute"},
+		{"#chapter1", 69, "First chapter"},
+		{"#chapter2", 121, "Second chapter"},
+		{"#anchor1", 177, "Name attribute"},
 		{"#nonexistent", 0, "Non-existent ID (should return 0)"},
 	}
 

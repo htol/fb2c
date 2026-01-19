@@ -24,7 +24,7 @@ func (p *Parser) ExtractTOC(fb2 *FictionBook) (*TOCData, error) {
 }
 
 // extractSectionTOC recursively extracts TOC from sections
-func (p *Parser) extractSectionTOC(section *Section, parent *TOCEntry, level int, toc *TOCData) {
+func (p *Parser) extractSectionTOC(section *Section, _ *TOCEntry, level int, toc *TOCData) {
 	entry := &TOCEntry{
 		Level:   level,
 		Section: section,
@@ -74,28 +74,4 @@ type TOCEntry struct {
 	Level   int
 	Section *Section
 	Parent  *TOCEntry
-}
-
-// sanitizeID converts a title to a valid HTML ID
-func sanitizeID(title string) string {
-	// Convert to lowercase
-	id := strings.ToLower(title)
-
-	// Replace spaces with hyphens
-	id = strings.ReplaceAll(id, " ", "-")
-
-	// Remove invalid characters
-	var result strings.Builder
-	for _, r := range id {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			result.WriteRune(r)
-		}
-	}
-
-	// Ensure it's not empty
-	if result.Len() == 0 {
-		return "section"
-	}
-
-	return result.String()
 }

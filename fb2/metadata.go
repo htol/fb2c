@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+
+	// Register image decoders
 	_ "image/jpeg"
 	_ "image/png"
 	"strings"
@@ -31,12 +33,12 @@ type Metadata struct {
 	Comments    string // Alias for annotation
 
 	// Cover image
-	Cover     []byte
-	CoverExt  string // jpg, png, etc.
-	CoverID   string // Binary ID
+	Cover    []byte
+	CoverExt string // jpg, png, etc.
+	CoverID  string // Binary ID
 
 	// Additional metadata
-	FilePath  string
+	FilePath string
 }
 
 // ExtractMetadata extracts metadata from an FB2 document
@@ -130,7 +132,7 @@ func (p *Parser) ExtractMetadata(fb2 *FictionBook) (*Metadata, error) {
 
 	// Cover image
 	if ti.Coverpage.PrimaryImage.Href != "" || ti.Coverpage.PrimaryImage.LHref != "" ||
-	   ti.Coverpage.PrimaryImage.LHref2 != "" || len(ti.Coverpage.PrimaryImage.AnyAttr) > 0 {
+		ti.Coverpage.PrimaryImage.LHref2 != "" || len(ti.Coverpage.PrimaryImage.AnyAttr) > 0 {
 		href := ti.Coverpage.PrimaryImage.Href
 
 		// Try local href if regular href is empty
@@ -147,7 +149,7 @@ func (p *Parser) ExtractMetadata(fb2 *FictionBook) (*Metadata, error) {
 		if href == "" && len(ti.Coverpage.PrimaryImage.AnyAttr) > 0 {
 			for _, attr := range ti.Coverpage.PrimaryImage.AnyAttr {
 				if (attr.Name.Local == "href" && (attr.Name.Space == "l" || attr.Name.Space == "xlink")) ||
-				   attr.Name.Local == "l:href" || attr.Name.Local == "xlink:href" {
+					attr.Name.Local == "l:href" || attr.Name.Local == "xlink:href" {
 					href = attr.Value
 					break
 				}

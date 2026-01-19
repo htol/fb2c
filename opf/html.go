@@ -15,8 +15,8 @@ type HTMLProcessor struct {
 	Indent      string
 
 	// Note/cite link resolution
-	Notes     map[string]string // ID -> content
-	Cites     map[string]string // ID -> content
+	Notes map[string]string // ID -> content
+	Cites map[string]string // ID -> content
 }
 
 // NewHTMLProcessor creates a new HTML processor

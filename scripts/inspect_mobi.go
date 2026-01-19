@@ -26,6 +26,13 @@ type PDBHeader struct {
 	NumRecords         uint16
 }
 
+const (
+	// Magic Identifiers
+	FCISIdentifier = "FCIS"
+	FLISIdentifier = "FLIS"
+	INDXIdentifier = "INDX"
+)
+
 type RecordEntry struct {
 	Offset     uint32
 	Attributes byte
@@ -275,7 +282,7 @@ func main() {
 				fcisData := data[fcisRec.Offset:]
 				if len(fcisData) > 44 {
 					fmt.Printf("\n=== FCIS Record (%d) ===\n", mobiHeader.FCISIndex)
-					if string(fcisData[:4]) == "FCIS" {
+					if string(fcisData[:4]) == FCISIdentifier {
 						fmt.Printf("Signature: FCIS\n")
 						fmt.Printf("TextLength: %d\n", binary.BigEndian.Uint32(fcisData[20:24]))
 					} else {
@@ -310,7 +317,7 @@ func main() {
 						if len(indxData) > 20 {
 							fmt.Printf("\n=== INDX Record (%d) ===\n", indxRecIdx)
 							fmt.Printf("Record Size: %d bytes\n", len(indxData))
-							if string(indxData[:4]) == "INDX" {
+							if string(indxData[:4]) == INDXIdentifier {
 								fmt.Printf("Signature: INDX\n")
 								fmt.Printf("Length: %d\n", binary.BigEndian.Uint32(indxData[4:8]))
 								fmt.Printf("Type: %d\n", binary.BigEndian.Uint32(indxData[8:12]))
@@ -349,11 +356,11 @@ func main() {
 								fmt.Printf("Record %d: Len %d\n", i, len(recData))
 								if len(recData) > 4 {
 									fmt.Printf("  Signature: %X %X %X %X\n", recData[0], recData[1], recData[2], recData[3])
-									if string(recData[:4]) == "INDX" {
+									if string(recData[:4]) == INDXIdentifier {
 										fmt.Println("  Type: INDX")
-									} else if string(recData[:4]) == "FLIS" {
+									} else if string(recData[:4]) == FLISIdentifier {
 										fmt.Println("  Type: FLIS")
-									} else if string(recData[:4]) == "FCIS" {
+									} else if string(recData[:4]) == FCISIdentifier {
 										fmt.Println("  Type: FCIS")
 									}
 								}

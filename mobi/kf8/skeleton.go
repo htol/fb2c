@@ -9,10 +9,10 @@ import (
 
 const (
 	// KF8 constants
-	KF8Version        = 8
-	TargetChunkSize   = 8192  // Target size for HTML chunks (~8KB)
-	MaxChunkSize      = 10240 // Maximum chunk size (10KB)
-	MinChunkSize      = 6144  // Minimum chunk size (6KB)
+	KF8Version      = 8
+	TargetChunkSize = 8192  // Target size for HTML chunks (~8KB)
+	MaxChunkSize    = 10240 // Maximum chunk size (10KB)
+	MinChunkSize    = 6144  // Minimum chunk size (6KB)
 
 	// AID (Anchor ID) format
 	AIDBase32 = "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -20,31 +20,31 @@ const (
 
 // Chunk represents a chunk of HTML content
 type Chunk struct {
-	ID        int    // Sequential chunk number
-	AID       string // Anchor ID (base32 encoded)
-	Offset    int    // Byte offset in original HTML
-	Length    int    // Length of this chunk
-	Content   string // HTML content
-	Parent    *Chunk // Parent chunk (if nested)
-	Children  []*Chunk // Child chunks
+	ID        int           // Sequential chunk number
+	AID       string        // Anchor ID (base32 encoded)
+	Offset    int           // Byte offset in original HTML
+	Length    int           // Length of this chunk
+	Content   string        // HTML content
+	Parent    *Chunk        // Parent chunk (if nested)
+	Children  []*Chunk      // Child chunks
 	OpenTags  []TagPosition // Tags opened in this chunk
 	CloseTags []TagPosition // Tags closed in this chunk
 }
 
 // TagPosition represents a tag position within a chunk
 type TagPosition struct {
-	Tag      string // Tag name (e.g., "div", "p")
-	Position int    // Position within chunk
-	IsOpen   bool   // True for opening, false for closing
-	SelfClose bool // True for self-closing tags
+	Tag       string // Tag name (e.g., "div", "p")
+	Position  int    // Position within chunk
+	IsOpen    bool   // True for opening, false for closing
+	SelfClose bool   // True for self-closing tags
 }
 
 // Skeleton represents the chunked HTML structure
 type Skeleton struct {
-	Chunks       []*Chunk
-	TotalLength  int
-	MaxDepth     int
-	AIDCounter   int
+	Chunks      []*Chunk
+	TotalLength int
+	MaxDepth    int
+	AIDCounter  int
 }
 
 // NewSkeleton creates a new skeleton
@@ -80,12 +80,12 @@ func (s *Skeleton) ChunkHTML(html string) error {
 
 		// Create chunk
 		chunk := &Chunk{
-			ID:       len(s.Chunks),
-			AID:      s.generateAID(),
-			Offset:   currentOffset,
-			Length:   breakPoint - currentOffset,
-			Content:  html[currentOffset:breakPoint],
-			OpenTags: make([]TagPosition, 0),
+			ID:        len(s.Chunks),
+			AID:       s.generateAID(),
+			Offset:    currentOffset,
+			Length:    breakPoint - currentOffset,
+			Content:   html[currentOffset:breakPoint],
+			OpenTags:  make([]TagPosition, 0),
 			CloseTags: make([]TagPosition, 0),
 		}
 
@@ -143,7 +143,7 @@ func parseHTMLTags(html string) ([]TagPosition, error) {
 		tagStart := match[0]
 		_ = match[1] // tagEnd
 
-			// Extract tag name
+		// Extract tag name
 		tagNameStart := match[2]
 		tagNameEnd := match[3]
 		tagName := html[tagNameStart:tagNameEnd]
@@ -166,7 +166,7 @@ func parseHTMLTags(html string) ([]TagPosition, error) {
 }
 
 // findBreakPoint finds a good place to break the HTML
-func findBreakPoint(html string, start, end int, positions []TagPosition, openTags map[string]int) int {
+func findBreakPoint(html string, start, end int, positions []TagPosition, _ map[string]int) int {
 	// If we're at the end, return length
 	if end >= len(html) {
 		return len(html)
@@ -310,11 +310,9 @@ func (s *Skeleton) AssignAIDAttributes() string {
 		tagStart := strings.Index(content, "<")
 		if tagStart >= 0 && !strings.HasPrefix(content[tagStart:], "</") {
 			// Skip DOCTYPE, comments, etc.
-			if strings.HasPrefix(content[tagStart:], "<!DOCTYPE") ||
-				strings.HasPrefix(content[tagStart:], "<!--") ||
-				strings.HasPrefix(content[tagStart:], "<?xml") {
-				// Don't add aid to these tags
-			} else {
+			if !strings.HasPrefix(content[tagStart:], "<!DOCTYPE") &&
+				!strings.HasPrefix(content[tagStart:], "<!--") &&
+				!strings.HasPrefix(content[tagStart:], "<?xml") {
 				// Find the tag name end
 				tagEnd := strings.Index(content[tagStart:], " ")
 				if tagEnd < 0 {

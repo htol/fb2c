@@ -26,10 +26,10 @@ type OEBBook struct {
 
 // Resource represents a file in the publication
 type Resource struct {
-	ID       string
-	Href     string
+	ID        string
+	Href      string
 	MediaType string
-	Data     []byte
+	Data      []byte
 }
 
 // NewOEBBook creates a new OEBBook
@@ -85,29 +85,29 @@ func (b *OEBBook) HasImages() bool {
 
 // Metadata represents OPF metadata
 type Metadata struct {
-	Title       string
-	Authors     []Author
-	Translator  []Author // For translated works
+	Title        string
+	Authors      []Author
+	Translator   []Author // For translated works
 	Contributors []string
-	Publisher   string
-	ISBN        string
-	ASIN        string // Amazon ASIN
-	DOI         string
-	Year        string
-	PubDate     time.Time
-	Language    string
-	Languages   []string
-	Series      string
-	SeriesIndex int
-	Genres      []string
-	Keywords    []string
-	Annotation  string
-	Comments    string
+	Publisher    string
+	ISBN         string
+	ASIN         string // Amazon ASIN
+	DOI          string
+	Year         string
+	PubDate      time.Time
+	Language     string
+	Languages    []string
+	Series       string
+	SeriesIndex  int
+	Genres       []string
+	Keywords     []string
+	Annotation   string
+	Comments     string
 
 	// Cover image
-	Cover     []byte
-	CoverID   string // Resource ID in manifest
-	CoverExt  string // jpg, png, etc.
+	Cover    []byte
+	CoverID  string // Resource ID in manifest
+	CoverExt string // jpg, png, etc.
 
 	// Additional metadata
 	Source      string // Original file path
@@ -125,8 +125,8 @@ type Author struct {
 	Role       string // e.g., "aut", "trl"
 
 	// Formatted names
-	FullName    string // "First Middle Last"
-	SortName    string // "Last, First Middle"
+	FullName string // "First Middle Last"
+	SortName string // "Last, First Middle"
 }
 
 // NewAuthor creates an author from name parts
@@ -209,14 +209,14 @@ func (e *TOCEntry) MaxDepth() int {
 	if len(e.Children) == 0 {
 		return e.Level
 	}
-	max := e.Level
+	maxDepth := e.Level
 	for _, child := range e.Children {
 		d := child.MaxDepth()
-		if d > max {
-			max = d
+		if d > maxDepth {
+			maxDepth = d
 		}
 	}
-	return max
+	return maxDepth
 }
 
 // joinNonEmpty joins non-empty strings with a separator

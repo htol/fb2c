@@ -146,7 +146,9 @@ func (w *KF8Writer) addResourcesToFlows() {
 
 		// Add to appropriate flow
 		if flowID != "" {
-			w.flowManager.AddResourceToFlow(flowID, id, res.Href)
+			if err := w.flowManager.AddResourceToFlow(flowID, id, res.Href); err != nil {
+				w.options.Logger.Warn("Failed to add resource to flow", "flowID", flowID, "resourceID", id, "error", err)
+			}
 		}
 	}
 }
@@ -154,9 +156,9 @@ func (w *KF8Writer) addResourcesToFlows() {
 // getFlowForResourceType returns the flow ID for a resource type
 func getFlowForResourceType(resType string) string {
 	switch resType {
-	case "css":
+	case ResourceTypeCSS:
 		return "styles"
-	case "svg":
+	case ResourceTypeSVG:
 		return "svg"
 	case "font":
 		return "fonts"
@@ -200,7 +202,7 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 	originalContent := w.book.Content
 
 	// Create a single PalmDB writer for the joint file
-	palmWriter := mobi.NewPalmDBWriter(w.mobiWriter.GetBookName(), false)
+	palmWriter := mobi.NewPalmDBWriter(w.mobiWriter.GetBookName(), w.options.Logger)
 
 	recordIndex := 0
 
@@ -257,6 +259,9 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 		if err := w.fdst.Write(&fdstBuf); err == nil {
 			palmWriter.AddRecord(fdstBuf.Bytes(), 0, uint32(recordIndex))
 			recordIndex++
+			_ = recordIndex // Suppress ineffassign (future-proofing)
+		} else {
+			w.options.Logger.Warn("Failed to write FDST record", "error", err)
 		}
 	}
 

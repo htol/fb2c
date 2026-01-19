@@ -322,27 +322,27 @@ func TestHTMLProcessor(t *testing.T) {
 	processor := NewHTMLProcessor()
 
 	tests := []struct {
-		name     string
-		input    string
-		contains []string
+		name        string
+		input       string
+		contains    []string
 		notContains []string
 	}{
 		{
-			name: "remove XML declaration",
-			input: `<?xml version="1.0"?><html><body>Test</body></html>`,
-			contains: []string{"<html>", "Test"},
+			name:        "remove XML declaration",
+			input:       `<?xml version="1.0"?><html><body>Test</body></html>`,
+			contains:    []string{"<html>", "Test"},
 			notContains: []string{"<?xml"},
 		},
 		{
-			name: "convert paragraph divs",
-			input: `<div class="paragraph">Test paragraph</div>`,
-			contains: []string{`<p>Test paragraph</p>`},
+			name:        "convert paragraph divs",
+			input:       `<div class="paragraph">Test paragraph</div>`,
+			contains:    []string{`<p>Test paragraph</p>`},
 			notContains: []string{`<div class="paragraph">`},
 		},
 		{
-			name: "remove empty elements and convert div to p",
-			input: `<p></p><div>Content</div><p></p>`,
-			contains: []string{`<p>Content</p>`},
+			name:        "remove empty elements and convert div to p",
+			input:       `<p></p><div>Content</div><p></p>`,
+			contains:    []string{`<p>Content</p>`},
 			notContains: []string{`<p></p>`, `<div>Content</div>`},
 		},
 	}

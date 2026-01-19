@@ -317,7 +317,9 @@ func (p *Parser) ParseBytes(data []byte) (*FictionBook, error) {
 
 	// Extract embedded content (images, etc.)
 	if p.ExtractImages {
-		p.extractEmbeddedContent(&fb2)
+		if err := p.extractEmbeddedContent(&fb2); err != nil {
+			return nil, fmt.Errorf("failed to extract embedded content: %w", err)
+		}
 	}
 
 	return &fb2, nil
@@ -397,11 +399,9 @@ func (p *Parser) extractEmbeddedContent(fb2 *FictionBook) error {
 		p.imageData[binary.ID] = data
 
 		// Store content-type for data URL generation
+		p.imageTypes[binary.ID] = "image/jpeg"
 		if binary.ContentType != "" {
 			p.imageTypes[binary.ID] = binary.ContentType
-		} else {
-			// Default to jpeg if unknown
-			p.imageTypes[binary.ID] = "image/jpeg"
 		}
 	}
 
@@ -454,22 +454,4 @@ func sanitizeFilename(name string) string {
 	}
 
 	return name
-}
-
-// extensionFromMIME returns a file extension for a MIME type
-func extensionFromMIME(mime string) string {
-	switch mime {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	case "image/svg+xml":
-		return ".svg"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ""
-	}
 }

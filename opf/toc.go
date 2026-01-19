@@ -11,25 +11,25 @@ import (
 
 // NCXDoc represents a Navigation Control XML (NCX) document
 type NCXDoc struct {
-	XMLName   xml.Name `xml:"ncx"`
-	Version   string   `xml:"version,attr"`
-	XMLNS     string   `xml:"xmlns,attr"`
-	Head      NCXHead `xml:"head"`
-	DocTitle  NCXText `xml:"docTitle"`
-	NavMap    NCXNavMap `xml:"navMap"`
+	XMLName  xml.Name  `xml:"ncx"`
+	Version  string    `xml:"version,attr"`
+	XMLNS    string    `xml:"xmlns,attr"`
+	Head     NCXHead   `xml:"head"`
+	DocTitle NCXText   `xml:"docTitle"`
+	NavMap   NCXNavMap `xml:"navMap"`
 }
 
 // NCXHead contains NCX metadata
 type NCXHead struct {
-	XMLName    xml.Name `xml:"head"`
+	XMLName   xml.Name  `xml:"head"`
 	MetaItems []NCXMeta `xml:"meta"`
 }
 
 // NCXMeta represents a meta element in NCX head
 type NCXMeta struct {
 	XMLName xml.Name `xml:"meta"`
-	Name    string `xml:"name,attr"`
-	Content string `xml:"content,attr"`
+	Name    string   `xml:"name,attr"`
+	Content string   `xml:"content,attr"`
 }
 
 // NCXText represents text content
@@ -44,10 +44,10 @@ type NCXNavMap struct {
 
 // NCXNavPoint represents a navigation point (TOC entry)
 type NCXNavPoint struct {
-	ID    string   `xml:"id,attr"`
-	PlayOrder int  `xml:"playOrder,attr"`
-	NavLabel  NCXText `xml:"navLabel>text"`
-	Content   NCXContent `xml:"content"`
+	ID        string        `xml:"id,attr"`
+	PlayOrder int           `xml:"playOrder,attr"`
+	NavLabel  NCXText       `xml:"navLabel>text"`
+	Content   NCXContent    `xml:"content"`
 	Children  []NCXNavPoint `xml:"navPoint"`
 }
 
@@ -71,7 +71,7 @@ func (b *OEBBook) GenerateNCX() ([]byte, error) {
 		Head: NCXHead{
 			MetaItems: []NCXMeta{
 				{Name: "dtb:uid", Content: "book_id"},
-				{Name: "dtb:depth", Content: fmt.Sprintf("%d", b.TOC.MaxDepth() + 1)},
+				{Name: "dtb:depth", Content: fmt.Sprintf("%d", b.TOC.MaxDepth()+1)},
 				{Name: "dtb:totalPageCount", Content: "0"},
 				{Name: "dtb:maxPageNumber", Content: "0"},
 			},
@@ -107,7 +107,7 @@ func (b *OEBBook) buildNCXNavMap(toc *TOCEntry, flatEntries []*TOCEntry) NCXNavM
 }
 
 // buildNCXNavPoints recursively builds navigation points
-func (b *OEBBook) buildNCXNavPoints(toc *TOCEntry, playOrder *int, flatEntries []*TOCEntry) []NCXNavPoint {
+func (b *OEBBook) buildNCXNavPoints(toc *TOCEntry, playOrder *int, _ []*TOCEntry) []NCXNavPoint {
 	points := []NCXNavPoint{}
 
 	// Only add non-root entries or root if it has a real label
@@ -296,9 +296,9 @@ func MergeTOCs(tocs ...TOCEntry) TOCEntry {
 	}
 
 	root := TOCEntry{
-		ID:    "merged_root",
-		Label: "Contents",
-		Level: 0,
+		ID:       "merged_root",
+		Label:    "Contents",
+		Level:    0,
 		Children: make([]*TOCEntry, 0),
 	}
 

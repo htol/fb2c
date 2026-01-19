@@ -10,32 +10,32 @@ import (
 
 // OPFPackage represents an OPF package document
 type OPFPackage struct {
-	XMLName   xml.Name `xml:"package"`
-	Version   string   `xml:"version,attr"`
-	XMLNS     string   `xml:"xmlns,attr"`
-	UniqueID  string   `xml:"unique-identifier,attr"`
-	Metadata  OPFMetadata `xml:"metadata"`
-	Manifest  OPFManifest `xml:"manifest"`
-	Spine     OPFSpine `xml:"spine"`
-	Guide     *OPFGuide `xml:"guide,omitempty"`
+	XMLName  xml.Name    `xml:"package"`
+	Version  string      `xml:"version,attr"`
+	XMLNS    string      `xml:"xmlns,attr"`
+	UniqueID string      `xml:"unique-identifier,attr"`
+	Metadata OPFMetadata `xml:"metadata"`
+	Manifest OPFManifest `xml:"manifest"`
+	Spine    OPFSpine    `xml:"spine"`
+	Guide    *OPFGuide   `xml:"guide,omitempty"`
 }
 
 // OPFMetadata contains Dublin Core metadata
 type OPFMetadata struct {
-	XMLName      xml.Name `xml:"metadata"`
-	XMLNSDC      string   `xml:"xmlns:dc,attr"`
-	XMLNSOPF     string   `xml:"xmlns:opf,attr"`
-	DCTitle      string   `xml:"dc:title"`
-	DCCreators   []OPFDCreator `xml:"dc:creator"`
-	DCContributors []string `xml:"dc:contributor"`
-	DCPublisher  string   `xml:"dc:publisher,omitempty"`
-	DCIdentifier OPFIdentifier `xml:"dc:identifier"`
-	DCDate       OPFDate `xml:"dc:date"`
-	DCLanguage   string   `xml:"dc:language"`
-	DCSubject    []string `xml:"dc:subject"`
-	DCDescription string  `xml:"dc:description,omitempty"`
-	DCRights     string   `xml:"dc:rights,omitempty"`
-	Meta         []OPFMeta `xml:"meta"`
+	XMLName        xml.Name      `xml:"metadata"`
+	XMLNSDC        string        `xml:"xmlns:dc,attr"`
+	XMLNSOPF       string        `xml:"xmlns:opf,attr"`
+	DCTitle        string        `xml:"dc:title"`
+	DCCreators     []OPFDCreator `xml:"dc:creator"`
+	DCContributors []string      `xml:"dc:contributor"`
+	DCPublisher    string        `xml:"dc:publisher,omitempty"`
+	DCIdentifier   OPFIdentifier `xml:"dc:identifier"`
+	DCDate         OPFDate       `xml:"dc:date"`
+	DCLanguage     string        `xml:"dc:language"`
+	DCSubject      []string      `xml:"dc:subject"`
+	DCDescription  string        `xml:"dc:description,omitempty"`
+	DCRights       string        `xml:"dc:rights,omitempty"`
+	Meta           []OPFMeta     `xml:"meta"`
 }
 
 // OPFDCreator represents a creator (author, translator, etc.)
@@ -70,8 +70,8 @@ type OPFMeta struct {
 
 // OPFManifest contains all resources
 type OPFManifest struct {
-	XMLName  xml.Name `xml:"manifest"`
-	Items    []OPFItem `xml:"item"`
+	XMLName xml.Name  `xml:"manifest"`
+	Items   []OPFItem `xml:"item"`
 }
 
 // OPFItem represents a resource in the manifest
@@ -83,20 +83,20 @@ type OPFItem struct {
 
 // OPFSpine defines the reading order
 type OPFSpine struct {
-	XMLName xml.Name `xml:"spine"`
-	TOC     string   `xml:"toc,attr"`
+	XMLName  xml.Name     `xml:"spine"`
+	TOC      string       `xml:"toc,attr"`
 	ItemRefs []OPFItemRef `xml:"itemref"`
 }
 
 // OPFItemRef references a manifest item in the spine
 type OPFItemRef struct {
-	IDREF      string `xml:"idref,attr"`
-	Linear     string `xml:"linear,attr,omitempty"`
+	IDREF  string `xml:"idref,attr"`
+	Linear string `xml:"linear,attr,omitempty"`
 }
 
 // OPFGuide contains special locations (cover, TOC, etc.)
 type OPFGuide struct {
-	XMLName xml.Name `xml:"guide"`
+	XMLName xml.Name      `xml:"guide"`
 	Refs    []OPFGuideRef `xml:"reference"`
 }
 
@@ -142,14 +142,14 @@ func (b *OEBBook) GenerateOPF() ([]byte, error) {
 // buildOPFMetadata builds OPF metadata from book metadata
 func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 	m := OPFMetadata{
-		XMLNSDC:      "http://purl.org/dc/elements/1.1/",
-		XMLNSOPF:     "http://www.idpf.org/2007/opf",
-		DCTitle:      b.Metadata.Title,
-		DCLanguage:   b.Metadata.Language,
-		DCPublisher:  b.Metadata.Publisher,
+		XMLNSDC:       "http://purl.org/dc/elements/1.1/",
+		XMLNSOPF:      "http://www.idpf.org/2007/opf",
+		DCTitle:       b.Metadata.Title,
+		DCLanguage:    b.Metadata.Language,
+		DCPublisher:   b.Metadata.Publisher,
 		DCDescription: b.Metadata.Annotation,
-		DCRights:     b.Metadata.Rights,
-		DCSubject:    b.Metadata.Genres,
+		DCRights:      b.Metadata.Rights,
+		DCSubject:     b.Metadata.Genres,
 	}
 
 	// Creators (authors, translators, etc.)
@@ -165,10 +165,7 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 		m.DCCreators = append(m.DCCreators, creator)
 	}
 
-	// Contributors
-	for _, contributor := range b.Metadata.Contributors {
-		m.DCContributors = append(m.DCContributors, contributor)
-	}
+	m.DCContributors = append(m.DCContributors, b.Metadata.Contributors...)
 
 	// Identifier (ISBN or UUID)
 	identifier := OPFIdentifier{

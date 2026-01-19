@@ -348,16 +348,16 @@ type PalmDBWriter struct {
 	header        *PalmDBHeader
 	records       [][]byte
 	recordEntries []RecordIndexEntry
-	debug         bool
+	logger        *slog.Logger
 }
 
 // NewPalmDBWriter creates a new PalmDB writer
-func NewPalmDBWriter(name string, debug bool) *PalmDBWriter {
+func NewPalmDBWriter(name string, logger *slog.Logger) *PalmDBWriter {
 	return &PalmDBWriter{
 		name:          name,
 		records:       make([][]byte, 0),
 		recordEntries: make([]RecordIndexEntry, 0),
-		debug:         debug,
+		logger:        logger,
 	}
 }
 
@@ -386,53 +386,72 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 	// Calculate record offsets (header + index + offset after them)
 	dataOffset := PalmDBHeaderSize + (len(w.recordEntries) * 8)
 
-	// Debug: trace offset calculation
-	if w.debug {
-		slog.Debug("PalmDBWriter.Write: calculating offsets",
-			"component", "PalmDBWriter",
-			"operation", "Write",
-			"dataOffset", dataOffset,
-			"numRecords", len(w.records),
-			"numEntries", len(w.recordEntries),
-			"dataOffsetUint32", uint32(dataOffset),
-			"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
-		)
-	}
+	w.logger.Debug("PalmDBWriter.Write: calculating offsets",
+		"component", "PalmDBWriter",
+		"operation", "Write",
+		"dataOffset", dataOffset,
+		"numRecords", len(w.records),
+		"numEntries", len(w.recordEntries),
+		"dataOffsetUint32", uint32(dataOffset),
+		"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+	)
 
 	// Check for overflow - ensure dataOffset is within uint32 range
 	if dataOffset > 2147483647 { // Max safe value for adding 4096
-		if w.debug {
-			slog.Error("dataOffset overflow detected",
-				"component", "PalmDBWriter",
-				"operation", "Write",
-				"dataOffset", dataOffset,
-				"maxSafeValue", 2147483647,
-			)
-		}
+		w.logger.Error("dataOffset overflow detected",
+			"component", "PalmDBWriter",
+			"operation", "Write",
+			"dataOffset", dataOffset,
+			"maxSafeValue", 2147483647,
+		)
 		return fmt.Errorf("record offset overflow: %d", dataOffset)
 	}
 
 	// Update record entries with offsets
 	for i := range w.recordEntries {
 		if i == 0 {
-			fmt.Printf("DEBUG: PalmDBWriter Write Rec 0 Size: %d\n", len(w.records[0]))
+			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
+				"component", "PalmDBWriter",
+				"operation", "Write",
+				"dataOffset", dataOffset,
+				"numRecords", len(w.records),
+				"numEntries", len(w.recordEntries),
+				"dataOffsetUint32", uint32(dataOffset),
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+			)
 		}
 		w.recordEntries[i].Offset = uint32(dataOffset)
 		recordLen := len(w.records[i])
 		dataOffset += recordLen
 		if i == 0 {
-			fmt.Printf("DEBUG: Rec 0 Offset: %d, Len: %d\n", w.recordEntries[0].Offset, recordLen)
+			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
+				"component", "PalmDBWriter",
+				"operation", "Write",
+				"dataOffset", dataOffset,
+				"numRecords", len(w.records),
+				"numEntries", len(w.recordEntries),
+				"dataOffsetUint32", uint32(dataOffset),
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+			)
 		}
 		if i == 1 {
-			fmt.Printf("DEBUG: Rec 1 Offset: %d\n", w.recordEntries[1].Offset)
+			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
+				"component", "PalmDBWriter",
+				"operation", "Write",
+				"dataOffset", dataOffset,
+				"numRecords", len(w.records),
+				"numEntries", len(w.recordEntries),
+				"dataOffsetUint32", uint32(dataOffset),
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+			)
 		}
 		// Log final summary after all offsets are calculated
-		if w.debug && i == len(w.recordEntries)-1 {
+		if i == len(w.recordEntries)-1 {
 			finalOffsets := make(map[int]uint32, len(w.recordEntries))
 			for idx, entry := range w.recordEntries {
 				finalOffsets[idx] = entry.Offset
 			}
-			slog.Debug("final record offsets calculated",
+			w.logger.Debug("final record offsets calculated",
 				"component", "PalmDBWriter",
 				"operation", "Write",
 				"totalRecords", len(w.recordEntries),

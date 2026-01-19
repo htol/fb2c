@@ -8,9 +8,9 @@ import (
 
 // Validator validates MOBI file structure
 type Validator struct {
-	data      []byte
-	errors    []string
-	warnings  []string
+	data     []byte
+	errors   []string
+	warnings []string
 }
 
 // NewValidator creates a new MOBI validator
@@ -67,7 +67,7 @@ func (v *Validator) validatePalmDBHeader() {
 	}
 
 	creator := string(v.data[typeOffset+4 : typeOffset+8])
-	if creator != "MOBI" {
+	if creator != MOBIIdentifier {
 		v.addError(fmt.Sprintf("Invalid creator: %s (expected 'MOBI')", creator))
 	}
 }
@@ -85,7 +85,7 @@ func (v *Validator) validateMOBIHeader() {
 
 	// Find "MOBI" after the PalmDB header
 	// Skip the first occurrence if it's the creator field
-	mobiOffset := bytes.Index(v.data[searchStart:], []byte("MOBI"))
+	mobiOffset := bytes.Index(v.data[searchStart:], []byte(MOBIIdentifier))
 	if mobiOffset == -1 {
 		v.addError("MOBI header not found")
 		return
@@ -107,7 +107,7 @@ func (v *Validator) validateMOBIHeader() {
 		}
 
 		// Try to find next "MOBI"
-		next := bytes.Index(v.data[mobiOffset+4:], []byte("MOBI"))
+		next := bytes.Index(v.data[mobiOffset+4:], []byte(MOBIIdentifier))
 		if next == -1 {
 			v.addError("MOBI header not found")
 			return
@@ -152,7 +152,7 @@ func (v *Validator) validateMOBIHeader() {
 // validateEXTH validates EXTH header
 func (v *Validator) validateEXTH() {
 	// Find MOBI header first
-	mobiOffset := bytes.Index(v.data, []byte("MOBI"))
+	mobiOffset := bytes.Index(v.data, []byte(MOBIIdentifier))
 	if mobiOffset == -1 {
 		return // Already reported in validateMOBIHeader
 	}
@@ -172,7 +172,7 @@ func (v *Validator) validateEXTH() {
 
 	// Check for EXTH magic
 	exthMagic := string(v.data[exthOffset : exthOffset+4])
-	if exthMagic != "EXTH" {
+	if exthMagic != EXTHIdentifier {
 		v.addWarning("No EXTH header found (metadata may be limited)")
 		return
 	}

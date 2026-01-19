@@ -47,7 +47,7 @@ func createMinimalMOBI() []byte {
 	}
 
 	// MOBI header starts after PalmDB header (offset 80+)
-	buf.Write([]byte("MOBI"))                      // Magic
+	buf.Write([]byte("MOBI")) // Magic
 
 	// Header length (4 bytes)
 	headerLen := make([]byte, 4)
@@ -96,19 +96,19 @@ func createMOBIWithEXTH() []byte {
 	buf.Write(mobi[:exthStart])
 
 	// EXTH header
-	buf.Write([]byte("EXTH"))                      // Magic
+	buf.Write([]byte("EXTH")) // Magic
 	exthLength := make([]byte, 4)
-	binary.BigEndian.PutUint32(exthLength, 100)    // Length (including header)
+	binary.BigEndian.PutUint32(exthLength, 100) // Length (including header)
 	buf.Write(exthLength)
-	buf.Write([]byte{0, 0, 0, 1})                 // Record count
+	buf.Write([]byte{0, 0, 0, 1}) // Record count
 
 	// Author record (100)
 	author := "Test Author"
-	buf.Write([]byte{0, 0, 0, 100})               // Record type
+	buf.Write([]byte{0, 0, 0, 100}) // Record type
 	authorLen := make([]byte, 4)
 	binary.BigEndian.PutUint32(authorLen, uint32(8+len(author))) // Length
 	buf.Write(authorLen)
-	buf.WriteString(author)                       // Author name
+	buf.WriteString(author) // Author name
 
 	// Padding to 100 bytes
 	for buf.Len()-exthStart < 100 {
