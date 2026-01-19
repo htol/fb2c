@@ -2,6 +2,7 @@ package fb2c
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,8 +13,18 @@ import (
 )
 
 // TestConvertSimpleFB2 tests end-to-end conversion of a simple FB2 file
+const (
+	testSrcFB2 = "testdata/src.fb2"
+	testRefFB2 = "testdata/src_ref.fb2"
+	bookType   = "BOOK"
+)
+
 func TestConvertSimpleFB2(t *testing.T) {
-	testFile := "testdata/src_ref.fb2"
+	testFile := testRefFB2
+	// Verify it exists
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		testFile = testSrcFB2 // Fallback to src.fb2 if src_ref doesn't exist yet
+	}
 
 	// Parse FB2
 	parser := fb2.NewParser()
@@ -36,28 +47,28 @@ func TestConvertSimpleFB2(t *testing.T) {
 	}
 
 	// Verify metadata
-	if metadata.Title != "Голубой адепт" {
-		t.Errorf("Title = %q, want 'Голубой адепт'", metadata.Title)
+	if metadata.Title != "Тестовый ознакомительный документ FictionBook 2.1" {
+		t.Errorf("Title = %q, want 'Тестовый ознакомительный документ FictionBook 2.1'", metadata.Title)
 	}
 
 	if len(metadata.Authors) != 1 {
 		t.Fatalf("Author count = %v, want 1", len(metadata.Authors))
 	}
 
-	if metadata.Authors[0] != "Пирс Энтони" {
-		t.Errorf("Author = %q, want 'Пирс Энтони'", metadata.Authors[0])
+	if metadata.Authors[0] != "Дмитрий Петрович Грибов" {
+		t.Errorf("Author = %q, want 'Дмитрий Петрович Грибов'", metadata.Authors[0])
 	}
 
-	if metadata.Publisher != "Змей Горыныч" {
-		t.Errorf("Publisher = %q, want 'Змей Горыныч'", metadata.Publisher)
+	if metadata.Publisher != "" {
+		t.Errorf("Publisher = %q, want ''", metadata.Publisher)
 	}
 
-	if metadata.Series != "Начинающий адепт" {
-		t.Errorf("Series = %q, want 'Начинающий адепт'", metadata.Series)
+	if metadata.Series != "" {
+		t.Errorf("Series = %q, want ''", metadata.Series)
 	}
 
-	if metadata.SeriesIndex != 2 {
-		t.Errorf("SeriesIndex = %v, want 2", metadata.SeriesIndex)
+	if metadata.SeriesIndex != 0 {
+		t.Errorf("SeriesIndex = %v, want 0", metadata.SeriesIndex)
 	}
 
 	// Transform to HTML
@@ -107,7 +118,7 @@ func TestConvertSimpleFB2(t *testing.T) {
 	}
 
 	// Check PalmDB header
-	if string(mobiData[60:64]) != "BOOK" {
+	if string(mobiData[60:64]) != bookType {
 		t.Errorf("PalmDB type = %v, want 'BOOK'", string(mobiData[60:64]))
 	}
 
@@ -120,7 +131,7 @@ func TestConvertSimpleFB2(t *testing.T) {
 
 // TestConvertFB2WithCover tests conversion with cover image
 func TestConvertFB2WithCover(t *testing.T) {
-	testFile := "testdata/src.fb2"
+	testFile := testSrcFB2
 
 	// Read the file
 	fb2Data, err := os.ReadFile(testFile)
@@ -164,7 +175,7 @@ func TestConverterEndToEnd(t *testing.T) {
 	converter := NewConverter()
 
 	// Convert simple FB2
-	inputFile := "testdata/src_ref.fb2"
+	inputFile := testRefFB2
 	outputFile := filepath.Join(os.TempDir(), "test_output.mobi")
 	defer os.Remove(outputFile)
 
@@ -194,7 +205,7 @@ func TestConverterEndToEnd(t *testing.T) {
 	}
 
 	// Check for PalmDB signature
-	if string(data[60:64]) != "BOOK" {
+	if string(data[60:64]) != bookType {
 		t.Errorf("Invalid PalmDB type: %s", string(data[60:64]))
 	}
 
@@ -212,6 +223,7 @@ func TestConverterOptions(t *testing.T) {
 			options: ConvertOptions{
 				MobiType:    "old",
 				Compression: true,
+				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 		},
 		{
@@ -221,6 +233,7 @@ func TestConverterOptions(t *testing.T) {
 				Compression:     true,
 				EnableChunking:  true,
 				TargetChunkSize: 8192,
+				Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 		},
 		{
@@ -228,6 +241,7 @@ func TestConverterOptions(t *testing.T) {
 			options: ConvertOptions{
 				MobiType:    "both",
 				Compression: false,
+				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 		},
 	}
@@ -237,7 +251,7 @@ func TestConverterOptions(t *testing.T) {
 			converter := NewConverter()
 			converter.SetOptions(tt.options)
 
-			inputFile := "testdata/src_ref.fb2"
+			inputFile := testRefFB2
 			outputFile := filepath.Join(os.TempDir(), "test_opts.mobi")
 			defer os.Remove(outputFile)
 

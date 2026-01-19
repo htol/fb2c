@@ -22,7 +22,7 @@ type WriteOptions struct {
 	Title           string
 	CoverImage      []byte
 	GenerateTOC     bool
-	Debug           bool
+	Logger          *slog.Logger
 }
 
 // DefaultWriteOptions returns default write options
@@ -31,17 +31,7 @@ func DefaultWriteOptions() WriteOptions {
 		CompressionType: NoCompression,
 		WithEXTH:        true,
 		GenerateTOC:     true,
-		Debug:           false,
-	}
-}
-
-// SetDebug enables debug mode via PalmDBWriter
-func SetDebug(debug bool) WriteOptions {
-	return WriteOptions{
-		CompressionType: NoCompression,
-		WithEXTH:        true,
-		GenerateTOC:     true,
-		Debug:           debug,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 }
 
@@ -79,46 +69,43 @@ func (w *Writer) GetBookName() string {
 // Write writes the MOBI file
 func (w *Writer) Write(output io.Writer) error {
 
-	if w.options.Debug {
-		slog.Debug("starting MOBI file assembly",
-			"component", "MOBIWriter",
-			"operation", "Write",
-			"title", w.options.Title,
-			"hasTOC", w.options.GenerateTOC && len(w.book.TOC.Children) > 0,
-			"tocEntries", len(w.book.TOC.Children),
-			"compressionType", w.options.CompressionType,
-		)
-	}
+	w.options.Logger.Debug("starting MOBI file assembly",
+		"component", "MOBIWriter",
+		"operation", "Write",
+		"title", w.options.Title,
+		"hasTOC", w.options.GenerateTOC && len(w.book.TOC.Children) > 0,
+		"tocEntries", len(w.book.TOC.Children),
+		"compressionType", w.options.CompressionType,
+	)
 
 	// 1. Resolve image sources and calculate final text size
 	// We do this in two passes to get absolute record indices
 	hasTOC := w.options.GenerateTOC && len(w.book.TOC.Children) > 0
 
 	// Pass 1: Dummy resolution to get final text size
-	dummyContent := w.resolveImageSources(w.book.Content, 0)
+	dummyContent := w.resolveImageSources(w.book.Content)
 	textRecordCount := (len(dummyContent) + 4095) / 4096
 	// firstImageRecord is 0-based absolute index: Header (0) + TextRecords + TOC (optional)
 	firstImageRecord := 1 + textRecordCount
 	if hasTOC {
 		firstImageRecord++
+		_ = firstImageRecord // Suppress ineffassign
 	}
 
 	// Pass 2: Final resolution with relative indices (1st image = 1)
-	resolvedContent := w.resolveImageSources(w.book.Content, 0)
+	resolvedContent := w.resolveImageSources(w.book.Content)
 	// Convert href="#ID" to filepos=OFFSET for Kindle internal navigation
 	resolvedContent = resolveFileposLinks(resolvedContent)
 	textData := []byte(resolvedContent)
 
 	uncompressedSize := len(textData)
 
-	if w.options.Debug {
-		slog.Debug("processing text data",
-			"component", "MOBIWriter",
-			"operation", "Write",
-			"uncompressedSize", uncompressedSize,
-			"compressionEnabled", w.options.CompressionType == PalmDOCCompression,
-		)
-	}
+	w.options.Logger.Debug("processing text data",
+		"component", "MOBIWriter",
+		"operation", "Write",
+		"uncompressedSize", uncompressedSize,
+		"compressionEnabled", w.options.CompressionType == PalmDOCCompression,
+	)
 
 	// Split and compress records
 	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
@@ -142,17 +129,14 @@ func (w *Writer) Write(output io.Writer) error {
 		}
 	}
 
-	if w.options.Debug {
-		slog.Debug("creating PalmDBWriter with records",
-			"component", "MOBIWriter",
-			"operation", "Write",
-			"textRecordCount", len(textRecords),
-			"bookName", w.getBookName(),
-			"debugMode", w.options.Debug,
-		)
-	}
+	w.options.Logger.Debug("creating PalmDBWriter with records",
+		"component", "MOBIWriter",
+		"operation", "Write",
+		"textRecordCount", len(textRecords),
+		"bookName", w.getBookName(),
+	)
 
-	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.Debug)
+	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.Logger)
 
 	// Calculate record information before creating header
 	// Record count is exact number of records we generated
@@ -225,14 +209,14 @@ func (w *Writer) Write(output io.Writer) error {
 
 		// 1. Add cover image if present
 		if w.options.CoverImage != nil {
-			coverRecord := w.createImageRecord(w.options.CoverImage, "cover.jpg")
+			coverRecord := w.options.CoverImage
 			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex)*2)
 			recordIndex++
 
 			// 2. Add thumbnail immediately after cover
 			thumbnailData := w.generateThumbnail(w.options.CoverImage)
 			if thumbnailData != nil {
-				thumbnailRecord := w.createImageRecord(thumbnailData, "thumb.jpg")
+				thumbnailRecord := thumbnailData
 				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex)*2)
 				recordIndex++
 			}
@@ -267,7 +251,7 @@ func (w *Writer) Write(output io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("failed to create extended MOBI header: %w", err)
 	}
-	fmt.Printf("DEBUG: mobiHeaderRecord size before SetRecord(0): %d\n", len(mobiHeaderRecord))
+	w.options.Logger.Debug("mobiHeaderRecord size before SetRecord(0)", "size", len(mobiHeaderRecord))
 	palmWriter.SetRecord(0, mobiHeaderRecord)
 
 	if err := palmWriter.Write(output); err != nil {
@@ -404,7 +388,8 @@ func (w *Writer) addImagesFiltered(palmWriter *PalmDBWriter, recordIndex *int, s
 			continue // Skip cover, already added
 		}
 		res, ok := w.book.GetResource(id)
-		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
+		const imageType = "image"
+		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != imageType {
 			continue
 		}
 
@@ -467,11 +452,6 @@ func (w *Writer) splitTextRecords(data []byte) [][]byte {
 	return records
 }
 
-// createImageRecord creates an image record
-func (w *Writer) createImageRecord(data []byte, filename string) []byte {
-	return data
-}
-
 // generateThumbnail creates a thumbnail from cover image
 // For now, returns the original image as thumbnail (simplified approach)
 // A full implementation would resize to thumbnail dimensions (e.g., 154x240)
@@ -480,12 +460,6 @@ func (w *Writer) generateThumbnail(coverData []byte) []byte {
 	// In a full implementation, this would resize the image to thumbnail dimensions
 	// using an image processing library
 	return coverData
-}
-
-// addImages is kept for backward compatibility but calls addImagesFiltered
-func (w *Writer) addImages(palmWriter *PalmDBWriter, recordIndex *int) map[string]int {
-	w.addImagesFiltered(palmWriter, recordIndex, "")
-	return nil
 }
 
 // CalculateRecordCount calculates the number of records for text
@@ -528,13 +502,11 @@ func (w *Writer) GenerateTOCIndex(htmlContent string, textRecords [][]byte) (*in
 		// Calculate offset from HTML by scanning for entry.Href
 		offset := builder.FindOffsetForHref(htmlContent, entry.Href)
 
-		if w.options.Debug {
-			slog.Debug("TOC entry offset",
-				"label", entry.Label,
-				"href", entry.Href,
-				"offset", offset,
-			)
-		}
+		w.options.Logger.Debug("TOC entry offset",
+			"label", entry.Label,
+			"href", entry.Href,
+			"offset", offset,
+		)
 
 		// Add entry with calculated offset
 		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset)
@@ -566,7 +538,7 @@ func SortManifestIDs(book *opf.OEBBook) []string {
 // resolveImageSources replaces src="filename" with src="recindex:N"
 // If baseIndex is 0, it uses relative indexing (1, 2, 3...)
 // If baseIndex is > 0, it uses absolute 1-based indexing (baseIndex + 1, baseIndex + 2...)
-func (w *Writer) resolveImageSources(content string, baseIndex uint32) string {
+func (w *Writer) resolveImageSources(content string) string {
 	imageMap := make(map[string]int)
 	coverID := w.book.Metadata.CoverID
 

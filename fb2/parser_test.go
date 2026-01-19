@@ -241,36 +241,6 @@ func TestTransformToHTML(t *testing.T) {
 	}
 }
 
-func TestTransformWithNoTOC(t *testing.T) {
-	fb2Data := `<?xml version="1.0" encoding="UTF-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
-	<description>
-		<title-info>
-			<book-title>Test Book</book-title>
-			<lang>en</lang>
-		</title-info>
-	</description>
-	<body>
-		<section>
-			<p>Content</p>
-		</section>
-	</body>
-</FictionBook>`
-
-	transformer := NewTransformer()
-	transformer.NoInlineTOC = true
-
-	html, _, _, err := transformer.ConvertBytes([]byte(fb2Data))
-	if err != nil {
-		t.Fatalf("ConvertBytes() error = %v", err)
-	}
-
-	if strings.Contains(html, "<ul>") {
-		// Should not have TOC
-		t.Error("HTML contains TOC when NoInlineTOC is true")
-	}
-}
-
 func TestHTMLEscape(t *testing.T) {
 	tests := []struct {
 		input string
@@ -318,23 +288,23 @@ func TestSanitizeFilename(t *testing.T) {
 func TestFormatAuthorName(t *testing.T) {
 	tests := []struct {
 		author Author
-		want    string
+		want   string
 	}{
 		{
 			author: Author{FirstName: "John", LastName: "Doe"},
-			want:    "John Doe",
+			want:   "John Doe",
 		},
 		{
 			author: Author{FirstName: "John", MiddleName: "Q", LastName: "Doe"},
-			want:    "John Q Doe",
+			want:   "John Q Doe",
 		},
 		{
 			author: Author{Nickname: "JDoe"},
-			want:    "JDoe",
+			want:   "JDoe",
 		},
 		{
 			author: Author{},
-			want:    "",
+			want:   "",
 		},
 	}
 
@@ -402,6 +372,7 @@ func TestImageDataToDataURL(t *testing.T) {
 </FictionBook>`
 
 	transformer := NewTransformer()
+	transformer.UseDataURLs = true
 	html, _, _, err := transformer.ConvertBytes([]byte(fb2Data))
 	if err != nil {
 		t.Fatalf("ConvertBytes() error = %v", err)

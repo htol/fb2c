@@ -15,7 +15,6 @@ type Transformer struct {
 	parser *Parser
 
 	// Options
-	NoInlineTOC bool
 	ProcessCSS  bool
 	UseDataURLs bool   // If true, images are embedded as data URLs. If false, href is used.
 	Title       string // Override title
@@ -33,10 +32,9 @@ type Transformer struct {
 // NewTransformer creates a new FB2 transformer
 func NewTransformer() *Transformer {
 	return &Transformer{
-		parser:      NewParser(),
-		NoInlineTOC: false,
-		ProcessCSS:  true,
-		MOBIMode:    true,
+		parser:     NewParser(),
+		ProcessCSS: true,
+		MOBIMode:   true,
 	}
 }
 
@@ -85,7 +83,7 @@ func (t *Transformer) ConvertFile(path string) (string, string, *Metadata, error
 }
 
 // processStylesheets extracts and processes CSS stylesheets
-func (t *Transformer) processStylesheets(fb2 *FictionBook) {
+func (t *Transformer) processStylesheets(_ *FictionBook) {
 	var css strings.Builder
 
 	// In a full implementation, we'd extract and process stylesheets
@@ -102,7 +100,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		// Minimalist MOBI HTML with mandatory head/guide
 		buf.WriteString("<html>\n<head>\n")
 		// Add guide for TOC if generated
-		if !t.NoInlineTOC && fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
+		if fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
 			// Cover reference with hardcoded filepos=0 for FBReader compatibility
 			buf.WriteString("<guide>\n")
 			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"0000000000\" />\n")
@@ -164,7 +162,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	}
 
 	// Table of Contents
-	if !t.NoInlineTOC && len(fb2.Bodies) > 0 {
+	if len(fb2.Bodies) > 0 {
 		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 1))
 		buf.WriteString("<hr/>\n")
 	}
@@ -537,7 +535,7 @@ func (t *Transformer) getHeadingLevel(section Section) int {
 }
 
 // countSectionDepth counts the nesting depth of a section
-func (t *Transformer) countSectionDepth(section Section) int {
+func (t *Transformer) countSectionDepth(_ Section) int {
 	// This is a simplified version - a full implementation would track parent hierarchy
 	// For now, we'll just use a heuristic
 	return 1 // Default to h2 for top-level sections under body
@@ -554,9 +552,8 @@ func htmlEscape(s string) string {
 }
 
 // ConvertFile is a convenience function to convert an FB2 file to HTML
-func ConvertFile(path string, noTOC bool) (string, string, *Metadata, error) {
+func ConvertFile(path string) (string, string, *Metadata, error) {
 	transformer := NewTransformer()
-	transformer.NoInlineTOC = noTOC
 
 	return transformer.ConvertFile(path)
 }

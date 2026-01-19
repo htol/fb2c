@@ -16,7 +16,7 @@ build: ## Build fb2c binary
 
 test: ## Run all tests
 	@echo "Running tests..."
-	go test ./... -v
+	go test ./...
 	@echo "✓ Tests complete"
 
 validate: build ## Validate converter against Calibre

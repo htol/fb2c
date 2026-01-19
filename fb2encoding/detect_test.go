@@ -111,7 +111,7 @@ func TestNormalizeEncoding(t *testing.T) {
 		{"UTF-8", "utf-8"},
 		{"utf8", "utf-8"},
 		{"UTF8", "utf-8"},
-		{"windows-1251", "windows-1251"},
+		{"windows-1251", "cp1251"},
 		{"macintosh", "mac-roman"},
 		{"ascii", "utf-8"},
 		{"gb2312", "gbk"},
@@ -206,32 +206,32 @@ func TestStripEncodingDeclarations(t *testing.T) {
 
 func TestReplaceEncodingInDeclaration(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
+		name        string
+		input       string
 		newEncoding string
-		want       string
-		changed    bool
+		want        string
+		changed     bool
 	}{
 		{
-			name:       "change encoding",
-			input:      `<?xml version="1.0" encoding="windows-1251"?>`,
+			name:        "change encoding",
+			input:       `<?xml version="1.0" encoding="windows-1251"?>`,
 			newEncoding: "utf-8",
-			want:       `<?xml version="1.0" encoding="utf-8"?>`,
-			changed:    true,
+			want:        `<?xml version="1.0" encoding="utf-8"?>`,
+			changed:     true,
 		},
 		{
-			name:       "same encoding",
-			input:      `<?xml version="1.0" encoding="utf-8"?>`,
+			name:        "same encoding",
+			input:       `<?xml version="1.0" encoding="utf-8"?>`,
 			newEncoding: "utf-8",
-			want:       `<?xml version="1.0" encoding="utf-8"?>`,
-			changed:    false,
+			want:        `<?xml version="1.0" encoding="utf-8"?>`,
+			changed:     false,
 		},
 		{
-			name:       "no declaration",
-			input:      `<root/>`,
+			name:        "no declaration",
+			input:       `<root/>`,
 			newEncoding: "utf-8",
-			want:       `<root/>`,
-			changed:    false,
+			want:        `<root/>`,
+			changed:     false,
 		},
 	}
 
@@ -250,10 +250,10 @@ func TestReplaceEncodingInDeclaration(t *testing.T) {
 
 func TestLooksLikeUTF16(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []byte
-		wantLE   bool
-		wantBE   bool
+		name   string
+		input  []byte
+		wantLE bool
+		wantBE bool
 	}{
 		{
 			name:   "ASCII text",

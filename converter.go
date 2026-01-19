@@ -24,9 +24,7 @@ type ConvertOptions struct {
 	Compression bool   // Enable PalmDOC compression
 
 	// Content options
-	NoInlineTOC   bool // Don't generate inline TOC
 	ExtractImages bool // Extract embedded images
-	Debug         bool
 
 	// Metadata overrides
 	Title      string
@@ -36,6 +34,8 @@ type ConvertOptions struct {
 	// KF8-specific options
 	EnableChunking  bool
 	TargetChunkSize int
+
+	Logger *slog.Logger
 }
 
 // DefaultConvertOptions returns default conversion options
@@ -43,12 +43,18 @@ func DefaultConvertOptions() ConvertOptions {
 	return ConvertOptions{
 		MobiType:        "old", // MOBI 6 format
 		Compression:     true,
-		NoInlineTOC:     false,
 		ExtractImages:   true,
 		EnableChunking:  true,
 		TargetChunkSize: 4096,
+		Logger:          slog.Default(),
 	}
 }
+
+const (
+	MobiTypeOld  = "old"
+	MobiTypeNew  = "new"
+	MobiTypeBoth = "both"
+)
 
 // Converter handles FB2 to MOBI conversion
 type Converter struct {
@@ -96,7 +102,6 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 
 	// Transform to HTML
 	transformer := fb2.NewTransformer()
-	transformer.NoInlineTOC = c.options.NoInlineTOC
 	// Enable MOBI mode for MOBI/KF8 output to ensure compatibility
 	if ext != ".epub" {
 		transformer.MOBIMode = true
@@ -126,18 +131,15 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	}
 	defer outputFile.Close()
 
-	// EPUB format
 	if ext == ".epub" {
 		return c.writeEPUB(book, outputFile)
 	}
-
-	// MOBI format (default)
 	switch c.options.MobiType {
-	case "old", "6":
+	case MobiTypeOld, "6":
 		return c.writeMOBI6(book, outputFile)
-	case "new", "8":
+	case MobiTypeNew, "8":
 		return c.writeKF8(book, outputFile)
-	case "both":
+	case MobiTypeBoth:
 		return c.writeJoint(book, outputFile)
 	default:
 		return fmt.Errorf("unknown MOBI type: %s", c.options.MobiType)
@@ -172,7 +174,6 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 
 	// Transform to HTML
 	transformer := fb2.NewTransformer()
-	transformer.NoInlineTOC = c.options.NoInlineTOC
 	// Stream usually defaults to MOBI unless extension known (not known here)
 	transformer.MOBIMode = true
 
@@ -186,11 +187,11 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 
 	// Write MOBI
 	switch c.options.MobiType {
-	case "old", "6":
+	case MobiTypeOld, "6":
 		return c.writeMOBI6(book, output)
-	case "new", "8":
+	case MobiTypeNew, "8":
 		return c.writeKF8(book, output)
-	case "both":
+	case MobiTypeBoth:
 		return c.writeJoint(book, output)
 	default:
 		return fmt.Errorf("unknown MOBI type: %s", c.options.MobiType)
@@ -323,13 +324,13 @@ func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 		opts.CompressionType = mobi.NoCompression // Type 1
 	}
 
-	if c.options.Debug {
-		opts.Debug = true
-		slog.Debug("writeMOBI6 calling ConvertOEBToMOBIWithOptions",
-			"component", "converter.go",
-			"Compression", c.options.Compression,
-			"CompressionType", opts.CompressionType)
-	}
+	// Propagate logger
+	opts.Logger = c.options.Logger
+
+	opts.Logger.Debug("writeMOBI6 calling ConvertOEBToMOBIWithOptions",
+		"component", "converter.go",
+		"Compression", c.options.Compression,
+		"CompressionType", opts.CompressionType)
 
 	// Pass cover image from book metadata if available
 	if book.Metadata.Cover != nil {
@@ -344,6 +345,7 @@ func (c *Converter) writeKF8(book *opf.OEBBook, output io.Writer) error {
 	opts := kf8.DefaultKF8WriteOptions()
 	opts.EnableChunking = c.options.EnableChunking
 	opts.TargetChunkSize = c.options.TargetChunkSize
+	opts.Logger = c.options.Logger
 
 	return kf8.ConvertOEBToKF8WithOptions(book, output, opts)
 }
@@ -357,19 +359,6 @@ func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
 	writer.SetOptions(opts)
 
 	return writer.WriteJointFile(output)
-}
-
-// ConvertFile is a convenience function to convert an FB2 file to MOBI
-func ConvertFile(inputPath, outputPath string) error {
-	converter := NewConverter()
-	return converter.Convert(inputPath, outputPath)
-}
-
-// ConvertFileWithOptions converts an FB2 file to MOBI with options
-func ConvertFileWithOptions(inputPath, outputPath string, options ConvertOptions) error {
-	converter := NewConverter()
-	converter.SetOptions(options)
-	return converter.Convert(inputPath, outputPath)
 }
 
 // ExtractMetadata extracts metadata from an FB2 file

@@ -23,6 +23,10 @@ const (
 	// Record sizes
 	StandardRecordSize = 4096       // Standard record size for MOBI 6
 	KF8JointRecordSize = 0x10000000 // Record size for KF8 joint files (bit mask)
+
+	// Magic strings
+	MOBIIdentifier = "MOBI"
+	EXTHIdentifier = "EXTH"
 )
 
 // MOBIHeader represents the MOBI header (MOBI 6 format, 232 bytes from MOBI marker)
@@ -107,7 +111,7 @@ func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
 
 		// MOBI header
 		MOBIMarker:          [4]byte{'M', 'O', 'B', 'I'},
-		HeaderLength:        264, // Extended header standard (0x108)
+		HeaderLength:        232, // Standard MOBI header length (0xE8)
 		MOBIType:            2,   // MOBI type 2 = book
 		TextEncoding:        UTF8Encoding,
 		UniqueID:            generateRandomID(),
