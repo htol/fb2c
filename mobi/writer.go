@@ -179,7 +179,7 @@ func (w *Writer) Write(output io.Writer) error {
 	// FirstNonBookIndex starts here (next record)
 	firstNonBookIndex = uint32(recordIndex)
 
-	// 3. Add TOC Index Record (NCX) - Standard place is after text
+	// 3. Add TOC Index Records (NCX) - Two-record structure for native Kindle TOC
 	var tocIndexOffset uint32 = 0xFFFFFFFF
 	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
 		// Use resolvedContent for accurate TOC offset calculation
@@ -439,7 +439,7 @@ func createFCISRecord(textSize uint32) []byte {
 	return data
 }
 
-// splitTextRecords splits text into 4KB records
+// splitTextRecords splits text into 4KB records and adds trailing bytes
 func (w *Writer) splitTextRecords(data []byte) [][]byte {
 	var records [][]byte
 
@@ -450,9 +450,11 @@ func (w *Writer) splitTextRecords(data []byte) [][]byte {
 			end = len(data)
 		}
 		record := data[i:end]
-		// In MOBI 6 with ExtraRecordFlags=0, we should NOT add trailers.
-		// If we ever support ExtraRecordFlags=1, we would add them here.
-		records = append(records, record)
+		// Add trailing bytes for ExtraRecordFlags=0x02
+		trailingRecord := make([]byte, len(record)+4)
+		copy(trailingRecord, record)
+		trailingRecord[len(record)+3] = 0x84
+		records = append(records, trailingRecord)
 	}
 
 	return records

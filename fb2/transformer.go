@@ -45,17 +45,14 @@ func (t *Transformer) SetParser(p *Parser) {
 
 // Transform converts an already parsed FB2 book to HTML
 func (t *Transformer) Transform(fb2 *FictionBook) (string, string, *Metadata, error) {
-	// Extract metadata
 	metadata, err := t.parser.ExtractMetadata(fb2)
 	if err != nil {
 		return "", "", nil, err
 	}
 	t.Metadata = metadata
 
-	// Process stylesheets (if any)
 	t.processStylesheets(fb2)
 
-	// Generate HTML
 	html := t.transformToHTML(fb2)
 
 	return html, t.cssContent, metadata, nil
@@ -73,23 +70,19 @@ func (t *Transformer) Convert(input io.Reader) (string, string, *Metadata, error
 
 // ConvertBytes converts FB2 bytes to HTML
 func (t *Transformer) ConvertBytes(data []byte) (string, string, *Metadata, error) {
-	// Parse FB2
 	fb2, err := t.parser.ParseBytes(data)
 	if err != nil {
 		return "", "", nil, err
 	}
 
-	// Extract metadata
 	metadata, err := t.parser.ExtractMetadata(fb2)
 	if err != nil {
 		return "", "", nil, err
 	}
 	t.Metadata = metadata
 
-	// Process stylesheets (if any)
 	t.processStylesheets(fb2)
 
-	// Generate HTML
 	html := t.transformToHTML(fb2)
 
 	return html, t.cssContent, metadata, nil
@@ -161,10 +154,8 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		buf.WriteString("</head>\n")
 	}
 
-	// Body content
 	buf.WriteString("<body>\n")
 
-	// Render cover page if present
 	if fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
 		buf.WriteString(t.renderCoverPage(fb2.Description.TitleInfo.Coverpage))
 		if t.MOBIMode {
@@ -174,7 +165,6 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		}
 	}
 
-	// Annotation
 	if fb2.Description.TitleInfo.Annotation != nil {
 		annotation := extractTextContent(fb2.Description.TitleInfo.Annotation)
 		if annotation != "" {
@@ -184,13 +174,11 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		}
 	}
 
-	// Table of Contents
 	if len(fb2.Bodies) > 0 {
 		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 1))
 		buf.WriteString("<hr/>\n")
 	}
 
-	// Body content
 	for _, body := range fb2.Bodies {
 		buf.WriteString(t.renderBody(body))
 	}

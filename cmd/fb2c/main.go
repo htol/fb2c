@@ -71,11 +71,7 @@ func main() {
 		}
 		extractMetadataCmd(args[0])
 
-	case "help", "-h", "--help":
-		printUsage()
-
 	default:
-		logger.Error("unknown command", "command", cmd)
 		printUsage()
 		os.Exit(1)
 	}

@@ -92,19 +92,16 @@ func (i *INDX) AddString(s string) int {
 func (i *INDX) Encode() ([]byte, error) {
 	var buf bytes.Buffer
 
-	// 1. Encode TAGX
 	tagxData, err := i.TAGX.Encode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode TAGX: %w", err)
 	}
 
-	// 2. Encode CNCX
 	cncxData, err := i.encodeCNCX()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode CNCX: %w", err)
 	}
 
-	// 3. Pre-encode Entries to calculate offsets and total size
 	var entryBuffers [][]byte
 	for _, entry := range i.IDXT {
 		data, err := i.encodeIDXTEntry(entry)

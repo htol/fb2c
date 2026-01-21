@@ -118,6 +118,9 @@ import "log/slog"
 - **Never**: Use fmt.Printf for debug output (use slog instead)
 - **Never**: Print raw bytes without context (include size, offset, purpose)
 - **Never**: Skip component/operation fields in debug logs
+- **Never**: Use 'git push' without explicit permission
+- **Never**: Use 'git reset --hard' without explicit permission
+- **Never**: Make useless obvious comments. Comments must add value, not just repeat code. Comment why not how.
 
 ## UNIQUE STYLES
 

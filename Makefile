@@ -1,7 +1,7 @@
 .PHONY: help build test validate clean benchmark
 
 # Default target
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := build
 
 help: ## Show this help message
 	@echo "fb2c - FB2 to MOBI Converter"

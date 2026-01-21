@@ -93,7 +93,6 @@ func Detect(raw []byte) *DetectResult {
 		prefix = prefix[:50*1024]
 	}
 
-	// Try to find XML/HTML encoding declaration
 	if enc := findEncodingDeclaration(prefix); enc != "" {
 		normalized := normalizeEncoding(enc)
 		return &DetectResult{
@@ -103,7 +102,6 @@ func Detect(raw []byte) *DetectResult {
 		}
 	}
 
-	// Fallback: try to detect heuristically
 	return detectHeuristic(raw)
 }
 
@@ -122,12 +120,10 @@ func findEncodingDeclaration(data []byte) string {
 func normalizeEncoding(enc string) string {
 	enc = strings.ToLower(strings.TrimSpace(enc))
 
-	// Check aliases first
 	if alias, ok := encodingAliases[enc]; ok {
 		return alias
 	}
 
-	// Normalize common variations
 	enc = strings.ReplaceAll(enc, "utf8", "utf-8")
 	enc = strings.ReplaceAll(enc, "utf16", "utf-16")
 	enc = strings.ReplaceAll(enc, "_", "-") // Standardize on hyphens
@@ -137,7 +133,6 @@ func normalizeEncoding(enc string) string {
 
 // detectHeuristic uses heuristics to detect encoding when no declaration is found.
 func detectHeuristic(raw []byte) *DetectResult {
-	// If all bytes are valid UTF-8, assume UTF-8
 	if utf8.Valid(raw) {
 		return &DetectResult{
 			Encoding:   "utf-8",
@@ -145,7 +140,6 @@ func detectHeuristic(raw []byte) *DetectResult {
 		}
 	}
 
-	// Check for UTF-16 LE/BE patterns
 	if looksLikeUTF16LE(raw) {
 		return &DetectResult{
 			Encoding:   "utf-16le",
@@ -160,7 +154,6 @@ func detectHeuristic(raw []byte) *DetectResult {
 		}
 	}
 
-	// Last resort: assume UTF-8 with replacement
 	return &DetectResult{
 		Encoding:   "utf-8",
 		Confidence: 0.3,
@@ -236,16 +229,13 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		}
 	}
 
-	// Handle UTF-8 directly
 	if enc == "utf-8" || enc == "utf8" {
 		if !utf8.Valid(raw) {
-			// Use replacement character for invalid UTF-8
 			return strings.ToValidUTF8(string(raw), "�"), nil
 		}
 		return string(raw), nil
 	}
 
-	// For UTF-16 variants, use Go's unicode package
 	switch enc {
 	case "utf-16le", "utf16le", "utf-16-le":
 		return decodeUTF16(raw, unicode.LittleEndian)
@@ -253,7 +243,6 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		return decodeUTF16(raw, unicode.BigEndian)
 	}
 
-	// Handle Windows codepages using charmap
 	var encoding encoding.Encoding
 	switch enc {
 	case "cp1250":
@@ -267,11 +256,9 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		return "", fmt.Errorf("unsupported encoding: %s (you may need to add encoding support)", enc)
 	}
 
-	// Decode using the selected encoding
 	decoder := encoding.NewDecoder()
 	result, err := decoder.Bytes(raw)
 	if err != nil {
-		// Try character-by-character conversion for better error recovery
 		return decodeWithReplacement(raw, decoder)
 	}
 
@@ -343,16 +330,11 @@ func FindXMLEncoding(data []byte) string {
 		prefix = prefix[:1024]
 	}
 
-	// Parse XML declaration
 	if len(prefix) > 5 && bytes.HasPrefix(prefix, []byte("<?xml")) {
-		// Find the end of the declaration
 		end := bytes.Index(prefix, []byte("?>"))
 		if end > 0 {
 			decl := string(prefix[:end+2])
-			// Try to parse as XML
 			_ = xml.NewDecoder(bytes.NewReader([]byte(decl)))
-			// The XML parser will handle the encoding declaration
-			// We just need to extract it
 			if enc := findEncodingDeclaration([]byte(decl)); enc != "" {
 				return normalizeEncoding(enc)
 			}

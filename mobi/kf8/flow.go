@@ -126,16 +126,8 @@ func (fm *FlowManager) ConvertLinks() {
 
 // convertHTMLLinks converts href links to Kindle format
 func (fm *FlowManager) convertHTMLLinks(html string) string {
-	// Convert href links to kindle:flow: or kindle:embed:
-	// This is a simplified implementation
-
-	// Convert CSS links (<link rel="stylesheet" href="...">)
 	html = convertCSSLinks(html)
-
-	// Convert image links (<img src="...">)
 	html = convertImageLinks(html)
-
-	// Convert anchor links (<a href="...">)
 	html = convertAnchorLinks(html)
 
 	return html

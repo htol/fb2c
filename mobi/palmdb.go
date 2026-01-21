@@ -396,7 +396,6 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 		"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
 	)
 
-	// Check for overflow - ensure dataOffset is within uint32 range
 	if dataOffset > 2147483647 { // Max safe value for adding 4096
 		w.logger.Error("dataOffset overflow detected",
 			"component", "PalmDBWriter",
@@ -465,12 +464,10 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 		return fmt.Errorf("failed to write PalmDB header: %w", err)
 	}
 
-	// Write record index
 	if err := WriteRecordIndex(output, w.recordEntries); err != nil {
 		return fmt.Errorf("failed to write record index: %w", err)
 	}
 
-	// Write records
 	for _, record := range w.records {
 		if _, err := output.Write(record); err != nil {
 			return fmt.Errorf("failed to write record: %w", err)

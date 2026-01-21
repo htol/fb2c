@@ -290,32 +290,26 @@ func (p *Parser) Parse(r io.Reader) (*FictionBook, error) {
 
 // ParseBytes parses FB2 data from bytes
 func (p *Parser) ParseBytes(data []byte) (*FictionBook, error) {
-	// Remove null bytes
 	data = bytes.ReplaceAll(data, []byte{0x00}, nil)
 
-	// Detect encoding and convert to UTF-8
 	text, _, err := fb2encoding.ToUTF8WithStrip(data, true)
 	if err != nil {
 		return nil, fmt.Errorf("fb2: encoding detection failed: %w", err)
 	}
 
-	// Fix common XML syntax errors
 	text = fixXMLErrors(text)
 
-	// Parse XML
 	var fb2 FictionBook
 	err = xml.Unmarshal([]byte(text), &fb2)
 	if err != nil {
 		return nil, fmt.Errorf("fb2: XML parse failed: %w", err)
 	}
 
-	// Ensure namespace
 	p.fbNamespace = fb2.XMLNS
 	if p.fbNamespace == "" {
 		p.fbNamespace = FB2NS
 	}
 
-	// Extract embedded content (images, etc.)
 	if p.ExtractImages {
 		if err := p.extractEmbeddedContent(&fb2); err != nil {
 			return nil, fmt.Errorf("failed to extract embedded content: %w", err)
@@ -332,7 +326,6 @@ func (p *Parser) ParseFile(path string) (*FictionBook, error) {
 		return nil, fmt.Errorf("fb2: failed to read file: %w", err)
 	}
 
-	// Check if it's a ZIP file (FBZ)
 	if bytes.HasPrefix(data, []byte{0x50, 0x4B, 0x03, 0x04}) ||
 		bytes.HasPrefix(data, []byte{0x50, 0x4B, 0x05, 0x06}) ||
 		bytes.HasPrefix(data, []byte{0x50, 0x4B, 0x07, 0x08}) {
@@ -344,14 +337,12 @@ func (p *Parser) ParseFile(path string) (*FictionBook, error) {
 
 // ParseFBZ parses a zipped FB2 file
 func (p *Parser) ParseFBZ(path string) (*FictionBook, error) {
-	// Open ZIP archive
 	r, err := zip.OpenReader(path)
 	if err != nil {
 		return nil, fmt.Errorf("fb2: failed to open ZIP: %w", err)
 	}
 	defer r.Close()
 
-	// Find .fb2 file in archive
 	var fb2File *zip.File
 	for _, f := range r.File {
 		if strings.HasSuffix(f.Name, ".fb2") {
@@ -364,7 +355,6 @@ func (p *Parser) ParseFBZ(path string) (*FictionBook, error) {
 		return nil, fmt.Errorf("fb2: no .fb2 file found in archive")
 	}
 
-	// Read FB2 content
 	rc, err := fb2File.Open()
 	if err != nil {
 		return nil, fmt.Errorf("fb2: failed to open file in ZIP: %w", err)
@@ -388,17 +378,13 @@ func (p *Parser) extractEmbeddedContent(fb2 *FictionBook) error {
 			continue
 		}
 
-		// Decode base64 data
 		data, err := b64.Decode([]byte(binary.Data))
 		if err != nil {
-			// Use robust decoder
 			continue
 		}
 
-		// Store decoded data in memory
 		p.imageData[binary.ID] = data
 
-		// Store content-type for data URL generation
 		p.imageTypes[binary.ID] = "image/jpeg"
 		if binary.ContentType != "" {
 			p.imageTypes[binary.ID] = binary.ContentType

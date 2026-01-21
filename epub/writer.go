@@ -39,36 +39,29 @@ func NewEPUBWriter(book *opf.OEBBook) *EPUBWriter {
 
 // Write writes the EPUB file to a writer
 func (w *EPUBWriter) Write(output io.Writer) error {
-	// Create ZIP writer
 	zipWriter := zip.NewWriter(output)
 	defer zipWriter.Close()
 
-	// 1. Write mimetype (must be first, uncompressed)
 	if err := w.writeMimetype(zipWriter); err != nil {
 		return fmt.Errorf("failed to write mimetype: %w", err)
 	}
 
-	// 2. Write META-INF/container.xml
 	if err := w.writeContainer(zipWriter); err != nil {
 		return fmt.Errorf("failed to write container.xml: %w", err)
 	}
 
-	// 3. Write content.opf
 	if err := w.writeOPF(zipWriter); err != nil {
 		return fmt.Errorf("failed to write content.opf: %w", err)
 	}
 
-	// 4. Write toc.ncx
 	if err := w.writeNCX(zipWriter); err != nil {
 		return fmt.Errorf("failed to write toc.ncx: %w", err)
 	}
 
-	// 5. Write content XHTML
 	if err := w.writeContent(zipWriter); err != nil {
 		return fmt.Errorf("failed to write content.xhtml: %w", err)
 	}
 
-	// 6. Write resources (images, etc.)
 	if err := w.writeResources(zipWriter); err != nil {
 		return fmt.Errorf("failed to write resources: %w", err)
 	}
@@ -76,11 +69,10 @@ func (w *EPUBWriter) Write(output io.Writer) error {
 	return nil
 }
 
-// writeMimetype writes the mimetype file (must be uncompressed, first in archive)
 func (w *EPUBWriter) writeMimetype(zipWriter *zip.Writer) error {
 	header := &zip.FileHeader{
 		Name:   "mimetype",
-		Method: zip.Store, // Uncompressed (required for mimetype)
+		Method: zip.Store,
 	}
 	writer, err := zipWriter.CreateHeader(header)
 	if err != nil {
