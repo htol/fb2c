@@ -23,6 +23,9 @@ type Transformer struct {
 	// CSS processing
 	cssContent string
 
+	// Internal
+	GlobalIDCounter int
+
 	// Output
 	HTML     string
 	CSS      string
@@ -111,20 +114,18 @@ func (t *Transformer) processStylesheets(_ *FictionBook) {
 // transformToHTML transforms FB2 to HTML
 func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	var buf bytes.Buffer
+	t.GlobalIDCounter = 0
 
 	if t.MOBIMode {
-		// Minimalist MOBI HTML with mandatory head/guide
 		buf.WriteString("<html>\n<head>\n")
-		// Add guide for TOC if generated
 		if fb2.Description.TitleInfo.Coverpage.PrimaryImage.Href != "" {
-			// Cover reference with hardcoded filepos=0 for FBReader compatibility
 			buf.WriteString("<guide>\n")
-			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" filepos=\"1111111111\" />\n")
+			buf.WriteString("  <reference type=\"cover\" title=\"Cover\" href=\"#cover\" />\n")
+			buf.WriteString("  <reference type=\"toc\" title=\"Table of Contents\" href=\"#toc\" />\n")
 			buf.WriteString("</guide>\n")
 		}
 		buf.WriteString("</head>\n")
 	} else {
-		// Modern HTML header
 		buf.WriteString(`<!DOCTYPE html>
 <html lang="` + fb2.Description.TitleInfo.Language + `">
 <head>
@@ -175,7 +176,8 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	}
 
 	if len(fb2.Bodies) > 0 {
-		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 1))
+		buf.WriteString("<a id=\"toc\"></a>\n")
+		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 0))
 		buf.WriteString("<hr/>\n")
 	}
 
@@ -271,9 +273,10 @@ func (t *Transformer) renderSection(section Section, index int) string {
 	var buf strings.Builder
 
 	// Section ID
+	t.GlobalIDCounter++
 	id := section.ID
 	if id == "" {
-		id = fmt.Sprintf("section_%d", index)
+		id = fmt.Sprintf("section_%d", t.GlobalIDCounter)
 	}
 
 	if t.MOBIMode {
@@ -527,8 +530,8 @@ func (t *Transformer) renderCoverPage(cover Coverpage) string {
 	}
 
 	if t.MOBIMode {
-		// Just the image, centered
-		return fmt.Sprintf("<p align=\"center\">%s</p>\n", t.renderImage(img))
+		// Just the image, centered, with anchor for guide reference
+		return fmt.Sprintf("<a id=\"cover\"></a>\n<p align=\"center\">%s</p>\n", t.renderImage(img))
 	}
 
 	// Render the image centered and with a page break after

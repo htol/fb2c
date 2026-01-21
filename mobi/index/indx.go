@@ -19,8 +19,8 @@ type INDXHeader struct {
 	ID               uint32    // 0x00: "INDX"
 	HeaderLength     uint32    // 0x04: Header length (usually 192)
 	Unknown1         uint32    // 0x08: 0
-	IndexType        uint32    // 0x0C: 0=normal, 2=inflection
-	UnknownOffset    uint32    // 0x10: 0
+	IndexType        uint32    // 0x0C: 0=Primary, 1=Secondary
+	UnknownOffset    uint32    // 0x10: Unknown (2 for primary, 0 for secondary)
 	IDXTOffset       uint32    // 0x14: Offset to IDXT table
 	Count            uint32    // 0x18: Number of entries
 	Encoding         uint32    // 0x1C: 1252 or 65001
@@ -35,16 +35,19 @@ type INDXHeader struct {
 
 // INDX represents a MOBI INDX record
 type INDX struct {
-	Header INDXHeader
-	TAGX   *TAGX
-	CNCX   []string    // String table
-	IDXT   []IDXTEntry // Index entries
+	Header    INDXHeader
+	TAGX      *TAGX
+	CNCX      []string    // String table
+	IDXT      []IDXTEntry // Index entries
+	RootTitle string      // Root title for NCX (author + title)
+	TotalSize uint32      // Total size of the text content
 }
 
 // IDXTEntry represents an entry in the index
 type IDXTEntry struct {
 	Label       string              // Entry label/key text (required for MOBI index)
 	Offset      uint32              // Target offset in the book
+	Length      uint32              // Length of the chapter/section in bytes
 	Size        uint32              // Size of the entry (calculated during write)
 	TagValues   map[uint32][]uint32 // Map of tag ID to values
 	RecordIndex int                 // Record index this entry points to (optional)
@@ -54,12 +57,13 @@ type IDXTEntry struct {
 func NewINDX(encoding, language uint32) *INDX {
 	return &INDX{
 		Header: INDXHeader{
-			ID:           0x494E4458, // "INDX"
-			HeaderLength: INDXHeaderSize,
-			Encoding:     encoding,
-			Language:     language,
-			IndexType:    0,
-			Padding:      [136]byte{},
+			ID:            0x494E4458, // "INDX"
+			HeaderLength:  INDXHeaderSize,
+			Encoding:      encoding,
+			Language:      language,
+			IndexType:     0,
+			UnknownOffset: 0,
+			Padding:       [136]byte{},
 		},
 		TAGX: NewTAGX(),
 		CNCX: make([]string, 0),
@@ -136,35 +140,414 @@ func (i *INDX) Encode() ([]byte, error) {
 	i.Header.TotalRecordCount = uint32(len(entryBuffers))
 	i.Header.CNCXCount = uint32(len(i.CNCX))
 
-	// Calculate total entries size
 	var totalEntriesSize uint32
 	for _, entryBuf := range entryBuffers {
 		totalEntriesSize += uint32(len(entryBuf))
 	}
 
-	// IDXTOffset points to the IDXT block (after entries)
 	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData)) + totalEntriesSize
 
-	// 6. Write Header
 	if err := i.writeHeader(&buf); err != nil {
 		return nil, err
 	}
 
-	// 7. Write TAGX
 	buf.Write(tagxData)
 
-	// 8. Write CNCX
 	buf.Write(cncxData)
 
-	// 9. Write Entries (BEFORE IDXT in standard MOBI)
 	for _, entryBuf := range entryBuffers {
 		buf.Write(entryBuf)
 	}
 
-	// 10. Write IDXT Block
 	buf.Write(idxtData)
 
 	return buf.Bytes(), nil
+}
+
+// NCXIndexResult contains primary, secondary INDX and CNCX records
+type NCXIndexResult struct {
+	PrimaryINDX   []byte // Meta INDX record (IndexType=2)
+	SecondaryINDX []byte // Data INDX record with actual entries
+	CNCXRecord    []byte // String table with chapter names
+	TotalEntries  int    // Number of TOC entries
+}
+
+// EncodeNCXIndex creates the three-record INDX structure for native NCX TOC
+// Returns primary (meta), secondary (data), and CNCX (strings) records
+func (i *INDX) EncodeNCXIndex() (*NCXIndexResult, error) {
+	if len(i.IDXT) == 0 {
+		return nil, fmt.Errorf("no INDX entries to encode")
+	}
+
+	// 1. Encode CNCX (string table) first
+	cncxData, err := i.encodeCNCXRecord()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode CNCX: %w", err)
+	}
+
+	// 2. Encode secondary INDX (actual data)
+	secondaryData, err := i.encodeSecondaryINDX()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode secondary INDX: %w", err)
+	}
+
+	// Calculate true total entries (including root entry in secondary INDX if present)
+	totalEntries := len(i.IDXT)
+	if i.RootTitle != "" {
+		totalEntries++
+	}
+
+	// 3. Encode primary INDX (meta) that points to secondary
+	primaryData, err := i.encodePrimaryINDX(totalEntries)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode primary INDX: %w", err)
+	}
+
+	return &NCXIndexResult{
+		PrimaryINDX:   primaryData,
+		SecondaryINDX: secondaryData,
+		CNCXRecord:    cncxData,
+		TotalEntries:  totalEntries,
+	}, nil
+}
+
+// encodeCNCXRecord creates the CNCX string table record
+func (i *INDX) encodeCNCXRecord() ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Write root title first if set
+	if i.RootTitle != "" {
+		// Length as forward varint
+		buf.Write(varint.EncodeForward(uint32(len(i.RootTitle))))
+		buf.WriteString(i.RootTitle)
+	}
+
+	// Write chapter names with length prefix
+	for _, s := range i.CNCX {
+		buf.Write(varint.EncodeForward(uint32(len(s))))
+		buf.WriteString(s)
+	}
+
+	// Pad to even boundary if needed (though CNCX usually doesn't require strict padding at end of strings,
+	// typically the record itself is padded by the writer if necessary)
+	if buf.Len()%2 != 0 {
+		buf.WriteByte(0)
+	}
+	return buf.Bytes(), nil
+}
+
+// encodePrimaryINDX creates the primary/meta INDX record (IndexType=2)
+// This record contains TAGX definitions and points to total entry count
+func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Create primary TAGX with NCX tag definitions
+	// These match Calibre's output: tags 1,2,3,4 with terminator
+	primaryTAGX := NewTAGX()
+	primaryTAGX.AddTag(1, 1, 0x01) // Tag 1: Offset
+	primaryTAGX.AddTag(2, 1, 0x02) // Tag 2: Size/Length
+	primaryTAGX.AddTag(3, 1, 0x04) // Tag 3: Label offset
+	primaryTAGX.AddTag(4, 1, 0x08) // Tag 4: Depth
+
+	tagxData, err := primaryTAGX.EncodeWithTerminator()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode primary TAGX: %w", err)
+	}
+
+	// Create a single entry that represents the whole secondary index
+	// Entry label is the count in hex format (e.g., "0E" for 14 entries)
+	entryLabel := fmt.Sprintf("%02X", totalEntries-1) // 0-based max index
+	entryData := []byte{byte(len(entryLabel))}
+	entryData = append(entryData, []byte(entryLabel)...)
+	entryData = append(entryData, 0x00) // Control byte (no tags for meta entry)
+
+	// Total count must be encoded as a standard VWI (Protobuf-style/Little Endian Varint)
+	// where MSB 1 means "more bytes" and MSB 0 means "stop".
+	//
+	// Reference (15): 0x0F (MSB 0 -> stop. Value 15).
+	// Our Failure (131): 0x83. Reader saw MSB 1, read next byte 0x00 (padding).
+	//                    0x83 & 0x7F = 3. 0x00 << 7 = 0. Total = 3.
+	//
+	// Solution: Encode 131 as 0x83 0x01 (131 = 3 + 128).
+	val := uint32(totalEntries)
+	for val >= 128 {
+		entryData = append(entryData, byte(val&0x7F)|0x80) // Set continuation bit
+		val >>= 7
+	}
+	entryData = append(entryData, byte(val))
+
+	entryData = append(entryData, 0x00, 0x00, 0x00) // Padding to match reference
+
+	// IDXT block
+	idxtBuf := new(bytes.Buffer)
+	idxtBuf.WriteString("IDXT")
+	// Offset to entry (after header + TAGX)
+	entryOffset := uint16(INDXHeaderSize + len(tagxData))
+	if err := binary.Write(idxtBuf, binary.BigEndian, entryOffset); err != nil {
+		return nil, err
+	}
+	// Padding to align
+	idxtBuf.Write([]byte{0x00, 0x00})
+
+	// Calculate layout
+	// Header (192) | TAGX | Entry | IDXT
+	idxtOffset := INDXHeaderSize + uint32(len(tagxData)) + uint32(len(entryData))
+
+	// Build header for primary INDX
+	header := INDXHeader{
+		ID:               0x494E4458, // "INDX"
+		HeaderLength:     INDXHeaderSize,
+		Unknown1:         0,
+		IndexType:        0, // Primary/meta index (0 matches Reference 364)
+		UnknownOffset:    2, // Unknown field (2 matches Reference 364)
+		IDXTOffset:       idxtOffset,
+		Count:            1, // One entry in this record
+		Encoding:         i.Header.Encoding,
+		Language:         0xFFFFFFFF,           // No specific language (match reference)
+		TotalRecordCount: uint32(totalEntries), // Total entries across all secondary records
+		ORDTOffset:       0,                    // Match reference (0, not 0xFFFFFFFF)
+		LIGTOffset:       0,
+		CountNeeded:      0,
+		CNCXCount:        1, // One secondary INDX record
+		Padding:          [136]byte{},
+	}
+
+	// Write header
+	if err := writeINDXHeader(&buf, header); err != nil {
+		return nil, err
+	}
+
+	// Write TAGX
+	buf.Write(tagxData)
+
+	// Write entry
+	buf.Write(entryData)
+
+	// Write IDXT
+	buf.Write(idxtBuf.Bytes())
+
+	return buf.Bytes(), nil
+}
+
+// encodeSecondaryINDX creates the secondary INDX record with actual TOC entries
+func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Pre-calculate CNCX byte offsets for each string
+	// Note: CNCX offsets are calculated from position 0
+	cncxOffsets := make([]uint32, len(i.CNCX))
+	currentCNCXOffset := uint32(0)
+
+	// Add root title at CNCX offset 0
+	if i.RootTitle != "" {
+		vLen := varint.EncodeForward(uint32(len(i.RootTitle)))
+		currentCNCXOffset += uint32(len(vLen) + len(i.RootTitle))
+	}
+
+	for idx, s := range i.CNCX {
+		cncxOffsets[idx] = currentCNCXOffset
+		vLen := varint.EncodeForward(uint32(len(s)))
+		currentCNCXOffset += uint32(len(vLen) + len(s))
+	}
+
+	// Secondary INDX has no TAGX, just entries
+	// Pre-encode all entries with correct CNCX offsets
+	var entryBuffers [][]byte
+
+	// Add root entry (entry 00) pointing to root title at CNCX offset 0
+	// This matches reference format where document root is entry 0
+	if i.RootTitle != "" {
+		// Root entry should cover the preamble (from 0 to first chapter offset)
+		// If it covers TotalSize, it overlaps with all chapters, which breaks the index
+		rootLength := i.TotalSize
+		if len(i.IDXT) > 0 {
+			rootLength = i.IDXT[0].Offset
+		}
+
+		// Root entry covers the preamble (Offset 0, Length = rootLength)
+		rootEntry := i.encodeSecondaryEntryWithOffset("00", 0, rootLength, 0, 0)
+		entryBuffers = append(entryBuffers, rootEntry)
+	}
+
+	// Add chapter entries starting at entry 01 (or 00 if no root title)
+	for idx, entry := range i.IDXT {
+		// Create entry with label - offset by 1 if root entry exists
+		entryIdx := idx
+		if i.RootTitle != "" {
+			entryIdx = idx + 1
+		}
+		entryLabel := fmt.Sprintf("%02X", entryIdx)
+
+		// Find CNCX offset for this entry's label
+		cncxOffset := uint32(0)
+		if idx < len(cncxOffsets) {
+			cncxOffset = cncxOffsets[idx]
+		}
+
+		// Get depth from tag values
+		depth := uint32(0)
+		if vals, ok := entry.TagValues[4]; ok && len(vals) > 0 {
+			depth = vals[0]
+		}
+
+		// Get length from tag values (not entry.Length which may be unset)
+		length := entry.Length
+		if vals, ok := entry.TagValues[2]; ok && len(vals) > 0 {
+			length = vals[0]
+		}
+
+		data := i.encodeSecondaryEntryWithOffset(entryLabel, entry.Offset, length, cncxOffset, depth)
+		entryBuffers = append(entryBuffers, data)
+	}
+
+	// Calculate layout: Header (192) | Entries | IDXT
+	entriesStartOffset := uint32(INDXHeaderSize)
+	var totalEntriesSize uint32
+	for _, eb := range entryBuffers {
+		totalEntriesSize += uint32(len(eb))
+	}
+	idxtOffset := entriesStartOffset + totalEntriesSize
+
+	// Build IDXT block
+	idxtBuf := new(bytes.Buffer)
+	idxtBuf.WriteString("IDXT")
+	currentOffset := entriesStartOffset
+	for _, eb := range entryBuffers {
+		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil {
+			return nil, err
+		}
+		currentOffset += uint32(len(eb))
+	}
+
+	// Build header for secondary INDX
+	header := INDXHeader{
+		ID:               0x494E4458, // "INDX"
+		HeaderLength:     INDXHeaderSize,
+		Unknown1:         0,
+		IndexType:        1, // Secondary/data index (1 matches Reference 365)
+		UnknownOffset:    0, // Unknown field (0 matches Reference 365)
+		IDXTOffset:       idxtOffset,
+		Count:            uint32(len(entryBuffers)),
+		Encoding:         0xFFFFFFFF, // No encoding for secondary (match reference)
+		Language:         0xFFFFFFFF, // No language for secondary (match reference)
+		TotalRecordCount: 0,          // Not used in secondary
+		ORDTOffset:       0,          // Match reference (0, not 0xFFFFFFFF)
+		LIGTOffset:       0,          // Match reference
+		CountNeeded:      0,
+		CNCXCount:        0,
+		Padding:          [136]byte{},
+	}
+
+	// Write header
+	if err := writeINDXHeader(&buf, header); err != nil {
+		return nil, err
+	}
+
+	// Write entries
+	for _, eb := range entryBuffers {
+		buf.Write(eb)
+	}
+
+	// Write IDXT
+	buf.Write(idxtBuf.Bytes())
+
+	return buf.Bytes(), nil
+}
+
+// encodeSecondaryEntryWithOffset encodes a single entry with explicit CNCX offset
+func (i *INDX) encodeSecondaryEntryWithOffset(label string, offset, length, cncxOffset, depth uint32) []byte {
+	var buf bytes.Buffer
+
+	// Write label
+	buf.WriteByte(byte(len(label)))
+	buf.WriteString(label)
+
+	// Control byte - indicates which tags are present
+	// For NCX: offset (0x01), length (0x02), label (0x04), depth (0x08)
+	controlByte := byte(0x0F) // All four tags present
+	buf.WriteByte(controlByte)
+
+	// Tag 1: Offset (position in text)
+	buf.Write(encodeVarint(offset))
+
+	// Tag 2: Length (size of chapter)
+	if length == 0 {
+		length = 1000 // Default fallback
+	}
+	buf.Write(encodeVarint(length))
+
+	// Tag 3: Label offset in CNCX (byte offset into CNCX record)
+	buf.Write(encodeVarint(cncxOffset))
+
+	// Tag 4: Depth
+	buf.Write(encodeVarint(depth))
+
+	return buf.Bytes()
+}
+
+// encodeSecondaryEntry encodes a single entry for the secondary INDX (legacy wrapper)
+func (i *INDX) encodeSecondaryEntry(label string, entry IDXTEntry) ([]byte, error) {
+	depth := uint32(0)
+	if vals, ok := entry.TagValues[4]; ok && len(vals) > 0 {
+		depth = vals[0]
+	}
+	return i.encodeSecondaryEntryWithOffset(label, entry.Offset, entry.Length, 0, depth), nil
+}
+
+// EncodeWithTerminator encodes TAGX with a terminator entry
+func (t *TAGX) EncodeWithTerminator() ([]byte, error) {
+	// Header: "TAGX" (4) + Length(4) + Control(4)
+	// Entries: N * 4 bytes + Terminator (4 bytes)
+	headerLen := 12
+	entriesLen := (len(t.Entries) + 1) * 4 // +1 for terminator
+	totalLen := headerLen + entriesLen
+
+	var buf bytes.Buffer
+	buf.WriteString("TAGX")
+	if err := binary.Write(&buf, binary.BigEndian, uint32(totalLen)); err != nil {
+		return nil, fmt.Errorf("failed to write header length: %w", err)
+	}
+	buf.Write([]byte{0, 0, 0, 1}) // 1 Control Byte
+
+	for _, entry := range t.Entries {
+		buf.WriteByte(entry.TagID)
+		buf.WriteByte(entry.NValues)
+		buf.WriteByte(entry.Mask)
+		buf.WriteByte(0) // End bit = 0
+	}
+
+	// Terminator entry: 0, 0, 0, 1
+	buf.Write([]byte{0, 0, 0, 1})
+
+	return buf.Bytes(), nil
+}
+
+// writeINDXHeader writes an INDX header to a buffer
+func writeINDXHeader(w *bytes.Buffer, h INDXHeader) error {
+	fields := []interface{}{
+		h.ID,
+		h.HeaderLength,
+		h.Unknown1,
+		h.IndexType,
+		h.UnknownOffset,
+		h.IDXTOffset,
+		h.Count,
+		h.Encoding,
+		h.Language,
+		h.TotalRecordCount,
+		h.ORDTOffset,
+		h.LIGTOffset,
+		h.CountNeeded,
+		h.CNCXCount,
+		h.Padding,
+	}
+
+	for _, field := range fields {
+		if err := binary.Write(w, binary.BigEndian, field); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeHeader writes the INDX header
@@ -199,19 +582,17 @@ func (i *INDX) writeHeader(w *bytes.Buffer) error {
 func (i *INDX) encodeCNCX() ([]byte, error) {
 	var buf bytes.Buffer
 	for _, s := range i.CNCX {
-		// Varint length prefix
-		lengthBytes := encodeVarint(uint32(len(s)))
-		buf.Write(lengthBytes)
 		buf.WriteString(s)
+		buf.WriteByte(0)
 	}
 	return buf.Bytes(), nil
 }
 
 // encodeVarint encodes a uint32 as a variable length integer (MOBI format)
-// Uses forward encoding where the MSB is set on the last byte
-// This allows sequential reading from start of data
+// Uses backward encoding where the MSB is set on the last byte
+// This matches the actual binary found in reference MOBI 6 INDX tags.
 func encodeVarint(val uint32) []byte {
-	return varint.EncodeForward(val)
+	return varint.EncodeBackward(val)
 }
 
 // TAGXEntry represents a single tag definition
@@ -269,6 +650,14 @@ func (t *TAGX) Encode() ([]byte, error) {
 
 // encodeIDXTEntry encodes a single index entry
 // MOBI format: <label_length> <label_text> <control_byte> <tag_values...>
+// NCX Tag IDs:
+//   - Tag 1: Offset/Position (Mask 0x01)
+//   - Tag 2: Length (Mask 0x02)
+//   - Tag 3: Name index in CNCX (Mask 0x04)
+//   - Tag 4: Depth/Level (Mask 0x08)
+//   - Tag 5: Parent index (Mask 0x10)
+//   - Tag 21: First child index (Mask 0x20)
+//   - Tag 22: Last child index (Mask 0x40)
 func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -281,14 +670,12 @@ func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 	buf.WriteByte(byte(len(label)))
 	buf.WriteString(label)
 
-	// 2. Write control byte placeholder
 	controlBytePos := buf.Len()
 	buf.WriteByte(0) // Placeholder for control byte
 
-	// 3. Write tag values based on TAGX definition
+	// 3. Write tag values based on TAGX definition (in order of tag ID)
 	var controlByte byte = 0x00
 
-	// Tag 1: Offset (Mask 0x01)
 	if val, ok := entry.TagValues[1]; ok && len(val) > 0 {
 		controlByte |= 0x01
 		buf.Write(encodeVarint(val[0]))
@@ -297,13 +684,45 @@ func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 		buf.Write(encodeVarint(entry.Offset))
 	}
 
-	// Tag 6: Name Index in CNCX (Mask 0x02)
-	if val, ok := entry.TagValues[6]; ok && len(val) > 0 {
+	// Tag 2: Length (Mask 0x02)
+	if val, ok := entry.TagValues[2]; ok && len(val) > 0 {
 		controlByte |= 0x02
+		buf.Write(encodeVarint(val[0]))
+	} else if entry.Length > 0 {
+		controlByte |= 0x02
+		buf.Write(encodeVarint(entry.Length))
+	}
+
+	// Tag 3: Name Index in CNCX (Mask 0x04)
+	if val, ok := entry.TagValues[3]; ok && len(val) > 0 {
+		controlByte |= 0x04
 		buf.Write(encodeVarint(val[0]))
 	}
 
-	// 4. Update control byte in buffer
+	// Tag 4: Depth/Level (Mask 0x08)
+	if val, ok := entry.TagValues[4]; ok && len(val) > 0 {
+		controlByte |= 0x08
+		buf.Write(encodeVarint(val[0]))
+	}
+
+	// Tag 5: Parent index (Mask 0x10)
+	if val, ok := entry.TagValues[5]; ok && len(val) > 0 {
+		controlByte |= 0x10
+		buf.Write(encodeVarint(val[0]))
+	}
+
+	// Tag 21: First child index (Mask 0x20)
+	if val, ok := entry.TagValues[21]; ok && len(val) > 0 {
+		controlByte |= 0x20
+		buf.Write(encodeVarint(val[0]))
+	}
+
+	// Tag 22: Last child index (Mask 0x40)
+	if val, ok := entry.TagValues[22]; ok && len(val) > 0 {
+		controlByte |= 0x40
+		buf.Write(encodeVarint(val[0]))
+	}
+
 	data := buf.Bytes()
 	data[controlBytePos] = controlByte
 
@@ -314,31 +733,34 @@ func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 type TOCEntry struct {
 	Label       string
 	Offset      uint32
-	Level       uint32 // Depth
+	Length      uint32 // Size of this chapter in bytes (calculated from next entry offset)
+	Level       uint32 // Depth (0=chapter, 1=section, 2=subsection, etc.)
 	ParentIndex int    // Index of parent in the entries list, -1 if root
+	FirstChild  int    // Index of first child, -1 if no children
+	LastChild   int    // Index of last child, -1 if no children
 	Reference   string // HREF or similar identifier
 }
 
 // TOCIndexBuilder helper for building TOCs
 type TOCIndexBuilder struct {
-	INDX        *INDX
-	entries     []TOCEntry
-	textRecords [][]byte
+	INDX          *INDX
+	entries       []TOCEntry
+	textRecords   [][]byte
+	totalTextSize uint32 // Total size of uncompressed text for length calculation
 }
 
 // NewTOCIndexBuilder creates a new TOC index builder
 func NewTOCIndexBuilder() *TOCIndexBuilder {
-	indx := NewINDX(65001, 1033) // Default to UTF-8 and English
+	// Default to 1252 (Windows-1252) like reference, even if using UTF-8 strings
+	// This seems to be the standard expectation for MOBI headers
+	indx := NewINDX(1252, 1033)
 
-	// Initialize default TAGX for TOC
-	// Tag 1: Offset, 1 value, Mask 0x01
-	indx.TAGX.AddTag(1, 1, 0x01)
-	// Tag 6: Name Offset, 1 value, Mask 0x02
-	indx.TAGX.AddTag(6, 1, 0x02)
-	// Tag 2: Level/Depth? usually present in NCX
-	indx.TAGX.AddTag(2, 1, 0x04)
-	// Tag 3: Parent?
-	indx.TAGX.AddTag(3, 1, 0x08)
+	// Initialize NCX TAGX tags for TOC navigation
+	// Match Reference (364) exactly: Tags 1, 2, 3, 4 only.
+	indx.TAGX.AddTag(1, 1, 0x01) // Tag 1: Offset/Position
+	indx.TAGX.AddTag(2, 1, 0x02) // Tag 2: Length
+	indx.TAGX.AddTag(3, 1, 0x04) // Tag 3: Name index in CNCX
+	indx.TAGX.AddTag(4, 1, 0x08) // Tag 4: Depth/Level
 
 	return &TOCIndexBuilder{
 		INDX:    indx,
@@ -377,12 +799,21 @@ func (b *TOCIndexBuilder) AddEntry(label, href string, level uint32, offset uint
 		Level:       level,
 		Reference:   href,
 		ParentIndex: -1,
+		FirstChild:  -1,
+		LastChild:   -1,
 	}
+
+	currentIdx := len(b.entries)
 
 	// Determine parent (simple logic: last entry with Level < current Level)
 	for i := len(b.entries) - 1; i >= 0; i-- {
 		if b.entries[i].Level < level {
 			entry.ParentIndex = i
+			// Update parent's child tracking
+			if b.entries[i].FirstChild == -1 {
+				b.entries[i].FirstChild = currentIdx
+			}
+			b.entries[i].LastChild = currentIdx
 			break
 		}
 	}
@@ -395,16 +826,73 @@ func (b *TOCIndexBuilder) GetEntries() []TOCEntry {
 	return b.entries
 }
 
-// Build returns the built INDX record
+// SetTotalTextSize sets the total text size for length calculation
+func (b *TOCIndexBuilder) SetTotalTextSize(size uint32) {
+	b.totalTextSize = size
+	if b.INDX != nil {
+		b.INDX.TotalSize = size
+	}
+}
+
+// SetRootTitle sets the root title (author + book title) for NCX CNCX
+func (b *TOCIndexBuilder) SetRootTitle(title string) {
+	b.INDX.RootTitle = title
+}
+
+// BuildWithTotalSize builds the INDX with automatic length calculation
+func (b *TOCIndexBuilder) BuildWithTotalSize(totalSize uint32) (*INDX, error) {
+	b.totalTextSize = totalSize
+	return b.Build()
+}
+
+// Build returns the built INDX record with full NCX tag values
 func (b *TOCIndexBuilder) Build() (*INDX, error) {
+	// Calculate chapter lengths based on next entry offset or total text size
+	for i := range b.entries {
+		if i < len(b.entries)-1 {
+			// Length = next entry offset - this entry offset
+			b.entries[i].Length = b.entries[i+1].Offset - b.entries[i].Offset
+		} else {
+			// Last entry: length = total text size - this entry offset
+			if b.totalTextSize > 0 && b.totalTextSize > b.entries[i].Offset {
+				b.entries[i].Length = b.totalTextSize - b.entries[i].Offset
+			} else {
+				// Fallback: use a reasonable default if totalTextSize not set
+				b.entries[i].Length = 1000
+			}
+		}
+	}
+
 	for i, entry := range b.entries {
 		// Add title to CNCX
 		nameIdx := b.INDX.AddString(entry.Label)
 
-		// Create entry with tags
+		// Create entry with full NCX tags
+		// Convert 1-based level to 0-based NCX depth
+		depth := entry.Level
+		if depth > 0 {
+			depth--
+		}
 		tags := map[uint32][]uint32{
-			1: {entry.Offset},
-			6: {uint32(nameIdx)},
+			1: {entry.Offset},    // Tag 1: Offset
+			2: {entry.Length},    // Tag 2: Length
+			3: {uint32(nameIdx)}, // Tag 3: Name index in CNCX
+			4: {depth},           // Tag 4: Depth (0-based)
+		}
+
+		// Tag 5: Parent index (only if has parent)
+		if entry.ParentIndex >= 0 {
+			tags[5] = []uint32{uint32(entry.ParentIndex)}
+		}
+
+		// Tag 21: First child index (only if has children)
+		if entry.FirstChild >= 0 {
+			tags[21] = []uint32{uint32(entry.FirstChild)}
+		}
+
+		// Tag 22: Last child index (only if has children)
+		if entry.LastChild >= 0 {
+			tags[22] = []uint32{uint32(entry.LastChild)}
 		}
 
 		// Use sequential numeric label (standard MOBI format: "0000", "0001", etc.)
@@ -419,10 +907,10 @@ func (b *TOCIndexBuilder) FindOffsetForHref(html, href string) uint32 {
 	// Simplified regex search
 	targetID := strings.TrimPrefix(href, "#")
 
-	// Try matching both id="..." and name="..." attributes
+	// Only match id="..." attributes to find the actual content anchor.
+	// Matching name="..." is dangerous because links often use name/href which appear earlier.
 	patterns := []string{
 		fmt.Sprintf(`id=['"]%s['"]`, regexp.QuoteMeta(targetID)),
-		fmt.Sprintf(`name=['"]%s['"]`, regexp.QuoteMeta(targetID)),
 	}
 
 	for _, pattern := range patterns {

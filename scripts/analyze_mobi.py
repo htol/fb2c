@@ -176,6 +176,52 @@ def parse_exth_header(data, exth_offset):
 
     return header
 
+def parse_indx_header(data, offset):
+    """Парсит INDX header (начинается с offset)"""
+    header = {}
+    
+    # ID (offset 0-3)
+    header['id'] = data[offset:offset+4].decode('ascii', errors='ignore')
+    if header['id'] != 'INDX':
+        return None
+
+    # Header length (offset 4-7)
+    header['header_length'] = struct.unpack('>I', data[offset+4:offset+8])[0]
+
+    # Index Type (offset 12-15) - Corrected offset (0x0C)
+    header['index_type'] = struct.unpack('>I', data[offset+12:offset+16])[0]
+
+    # Unknown Offset / Gap (offset 16-19)
+    header['unknown_gap'] = struct.unpack('>I', data[offset+16:offset+20])[0]
+
+    # IDXT Offset (offset 20-23) - Corrected offset (0x14)
+    header['idxt_offset'] = struct.unpack('>I', data[offset+20:offset+24])[0]
+
+    # Count (offset 24-27)
+    header['count'] = struct.unpack('>I', data[offset+24:offset+28])[0]
+    
+    # Encoding (offset 28-31)
+    header['encoding'] = struct.unpack('>I', data[offset+28:offset+32])[0]
+    
+    # CNCX Count (offset 48-51)
+    # The struct has been variable, but let's check standard offset 0x30
+    header['cncx_count'] = struct.unpack('>I', data[offset+48:offset+52])[0]
+
+    return header
+
+def find_indx_record_index(records, data, indx_offset_in_header):
+    """Находит Record ID для INDX"""
+    # indx_offset_in_header - это field INDXRecordOffset в MOBI хедере (offset record index? or byte offset?)
+    # В MOBI хедере INDXRecordOffset - это обычно Record Index (ID).
+    # Но иногда это byte offset. Проверим.
+    
+    # Если это индекс записи (малое число)
+    if indx_offset_in_header < len(records):
+        return indx_offset_in_header
+    
+    # Иначе ищем по byte offset (не очень надежно)
+    return -1
+
 def analyze_mobi_file(filepath, name):
     """Полный анализ MOBI файла"""
     print(f"\n{'='*80}")
@@ -250,6 +296,94 @@ def analyze_mobi_file(filepath, name):
             size = end - start
             print(f"  Record {i}: offset={start}, size={size} bytes, "
                   f"preview={data[start:start+20].hex()}")
+
+    # Analyze INDX if present (from MOBI header 0xF4 = 244)
+    if records and len(data) > records[0]['offset'] + 248:
+        # INDX Record Offset is at 244 in MOBI header (0xF4)
+        rec0_start = records[0]['offset']
+        # Check header length first (offset 20)
+        hdr_len = struct.unpack('>I', data[rec0_start+20:rec0_start+24])[0]
+        # INDX offset is at rec0_start + 16 (marker) + 228 (F4 relative to marker 10?)
+        # Start of MOBI header is rec0_start + 16
+        # Field 0xF4 is at offset 0xE4 from MOBI header start
+        # So absolute: rec0_start + 16 + 228 = rec0_start + 244
+        
+        indx_rec_idx = struct.unpack('>I', data[rec0_start+244:rec0_start+248])[0]
+        print(f"\n=== INDX RECORD POINTER (0xF4): {indx_rec_idx} ===")
+        
+        if indx_rec_idx != 0xFFFFFFFF and indx_rec_idx < len(records):
+            indx_offset = records[indx_rec_idx]['offset']
+            print(f"  Parsing INDX Record {indx_rec_idx} at offset {indx_offset}:")
+            indx_header = parse_indx_header(data, indx_offset)
+            if indx_header:
+                for k,v in indx_header.items():
+                    print(f"    {k}: {v}")
+                
+            # Try to find Secondary INDX (often next record)
+            sec_idx = indx_rec_idx + 1
+            if sec_idx < len(records):
+                sec_offset = records[sec_idx]['offset']
+                print(f"  Checking Candidate Secondary INDX Record {sec_idx} at offset {sec_offset}:")
+                sec_header = parse_indx_header(data, sec_offset)
+                if sec_header:
+                    for k,v in sec_header.items():
+                        print(f"    {k}: {v}")
+                    
+                    # Dump TAGX/IDXT/Content details if possible
+                    # We need to know where TAGX/IDXT start.
+                    # Primary INDX (Rec 340) usually has TAGX.
+                    # Secondary INDX (Rec 341) usually has Entries.
+            
+            # Dump Primary Content (TAGX)
+            # TAGX follows header (192 bytes)
+            if indx_header['header_length'] == 192:
+                print(f"  Dumping Primary Record Content (offset {indx_offset+192}):")
+                tagx_start = indx_offset + 192
+                if data[tagx_start:tagx_start+4] == b'TAGX':
+                    print("    Found TAGX marker!")
+                    tagx_len = struct.unpack('>I', data[tagx_start+4:tagx_start+8])[0]
+                    print(f"    TAGX Length: {tagx_len}")
+                    # Dump TAGX data (simple hex dump)
+                    print(f"    TAGX Data: {data[tagx_start:tagx_start+tagx_len+12].hex()}")
+                else:
+                    print(f"    No TAGX marker found at {tagx_start}. First 4 bytes: {data[tagx_start:tagx_start+4].hex()}")
+
+            # Dump Secondary Content (Entries)
+            # Secondary INDX (index_type 1) usually has entries
+            if sec_header and sec_header['index_type'] == 1:
+                print(f"  Dumping Secondary Entries (Rec {sec_idx}):")
+                # Parse IDXT to get entry offsets
+                # idxt_offset is relative to start of record?
+                # The field 'idxt_offset' in header is relative to record start.
+                
+                idxt_absolute_start = sec_offset + sec_header['idxt_offset']
+                count = sec_header['count']
+                
+                print(f"    Reading IDXT at +{sec_header['idxt_offset']} (abs {idxt_absolute_start}), Count {count}")
+                
+                # Check bounds
+                if idxt_absolute_start + (count*2) <= len(data):
+                    entry_offsets = []
+                    for i in range(count):
+                        e_off = struct.unpack('>H', data[idxt_absolute_start + (i*2) : idxt_absolute_start + (i*2) + 2])[0]
+                        entry_offsets.append(e_off)
+                    
+                    # Dump first 3 entries
+                    for i in range(min(3, count)):
+                        start_rel = entry_offsets[i]
+                        start_abs = sec_offset + start_rel
+                        # Length is diff between this and next offset (or start of IDXT)
+                        end_pos = 0
+                        if i < count - 1:
+                            end_pos = sec_offset + entry_offsets[i+1]
+                        else:
+                            end_pos = idxt_absolute_start
+                        
+                        entry_len = end_pos - start_abs
+                        entry_data = data[start_abs:end_pos]
+                        print(f"    Entry {i} (Offset {start_rel}): {entry_data.hex()}")
+                else:
+                    print("    IDXT start out of bounds")
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:

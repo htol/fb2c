@@ -119,14 +119,18 @@ func (w *Writer) Write(output io.Writer) error {
 		}
 
 		chunk := textData[i:end]
-
+		record := chunk
 		if w.options.CompressionType == PalmDOCCompression {
-			// Compress individual chunk
-			compressed := compressRecord(chunk)
-			textRecords = append(textRecords, compressed)
-		} else {
-			textRecords = append(textRecords, chunk)
+			record = compressRecord(chunk)
 		}
+
+		// In MOBI with ExtraRecordFlags=0x02 (TBS indexing), we add a 4-byte trailer.
+		// The last byte 0x84 indicates 4 bytes of extra data (including the size byte).
+		// We use 00 00 00 84 to keep it safe. Reference uses 86 80 02 84.
+		trailingRecord := make([]byte, len(record)+4)
+		copy(trailingRecord, record)
+		trailingRecord[len(record)+3] = 0x84
+		textRecords = append(textRecords, trailingRecord)
 	}
 
 	w.options.Logger.Debug("creating PalmDBWriter with records",
@@ -188,14 +192,43 @@ func (w *Writer) Write(output io.Writer) error {
 			return fmt.Errorf("failed to generate TOC index: %w", err)
 		}
 
-		indxData, err := tocINDX.Encode()
+		// Encode as two-record NCX structure (primary + secondary)
+		ncxResult, err := tocINDX.EncodeNCXIndex()
 		if err != nil {
-			return fmt.Errorf("failed to encode TOC INDX: %w", err)
-		}
+			// Fallback to single record if NCX encoding fails
+			w.options.Logger.Debug("NCX encoding failed, using single INDX",
+				"error", err.Error(),
+			)
+			indxData, encErr := tocINDX.Encode()
+			if encErr != nil {
+				return fmt.Errorf("failed to encode TOC INDX: %w", encErr)
+			}
+			tocIndexOffset = uint32(recordIndex)
+			palmWriter.AddRecord(indxData, 0, tocIndexOffset*2)
+			recordIndex++
+		} else {
+			// Add primary INDX (meta record) - this is what INDXRecordOffset points to
+			tocIndexOffset = uint32(recordIndex)
+			palmWriter.AddRecord(ncxResult.PrimaryINDX, 0, tocIndexOffset*2)
+			recordIndex++
 
-		tocIndexOffset = uint32(recordIndex)
-		palmWriter.AddRecord(indxData, 0, tocIndexOffset*2)
-		recordIndex++
+			// Add secondary INDX (data record with actual TOC entries)
+			palmWriter.AddRecord(ncxResult.SecondaryINDX, 0, uint32(recordIndex)*2)
+			recordIndex++
+
+			// Add CNCX record (string table with chapter names)
+			if len(ncxResult.CNCXRecord) > 0 {
+				palmWriter.AddRecord(ncxResult.CNCXRecord, 0, uint32(recordIndex)*2)
+				recordIndex++
+			}
+
+			w.options.Logger.Debug("NCX TOC generated",
+				"primaryRecordIndex", tocIndexOffset,
+				"secondaryRecordIndex", tocIndexOffset+1,
+				"cncxRecordIndex", tocIndexOffset+2,
+				"totalEntries", ncxResult.TotalEntries,
+			)
+		}
 	}
 
 	// 4. Add Images in consistent order: Cover -> Thumbnail -> Manifest
@@ -242,11 +275,17 @@ func (w *Writer) Write(output io.Writer) error {
 	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex)*2)
 	recordIndex++
 
+	// If TOC exists, FirstNonBookIndex should point to it for best compatibility
+	fnbi := firstNonBookIndex
+	if tocIndexOffset != 0xFFFFFFFF {
+		fnbi = tocIndexOffset
+	}
+
 	// Refactoring createMOBIHeaderRecord call to include FLIS/FCIS/INDX
 	mobiHeaderRecord, err = w.createMOBIHeaderRecordExtended(uncompressedSize,
 		len(textRecords), // Text record count MUST match the number of text records
 		firstTextRecord, int(lastContentRec),
-		firstImageIndex, firstNonBookIndex,
+		firstImageIndex, fnbi,
 		flisIndex, fcisIndex, tocIndexOffset)
 	if err != nil {
 		return fmt.Errorf("failed to create extended MOBI header: %w", err)
@@ -295,15 +334,23 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 
 	// Set header flags for UTF-8 and structure
 	mobiHeader.TextEncoding = UTF8Encoding
-	mobiHeader.Locale = 1049        // Russian (Language 25 + Sublanguage 1<<10)
-	mobiHeader.ExtraRecordFlags = 0 // Disable trailers for simplicity and compatibility
+	mobiHeader.Locale = 1049 // Russian (Language 25 + Sublanguage 1<<10)
+
+	// Enable ExtraRecordFlags for NCX/TBS indexing when TOC is present
+	// Bit 1 (0x01): Multibyte character overlap
+	// Bit 2 (0x02): TBS indexing description (required for NCX)
+	if indxOffset != 0xFFFFFFFF {
+		mobiHeader.ExtraRecordFlags = 0x02 // Enable TBS indexing (0x02) only. 0x01 requires FCIS/FLIS which we don't write.
+	} else {
+		mobiHeader.ExtraRecordFlags = 0 // No trailing data
+	}
 
 	// Set mandatory structural indices
 	mobiHeader.FCISIndex = fcisIndex
 	mobiHeader.FLISIndex = flisIndex
 	mobiHeader.INDXRecordOffset = indxOffset // Point to TOC index
 
-	// Set IndexKeys to 0xFFFFFFFF (no index keys) to match reference/standard simple MOBI
+	// Set IndexKeys to 0xFFFFFFFF to match reference
 	mobiHeader.IndexKeys = 0xFFFFFFFF
 
 	// Set compression type
@@ -319,6 +366,11 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 
 	// Create EXTH header
 	if w.options.WithEXTH {
+		// Set EXTH flags to 0x50 (Bit 6: EXTH exists + Bit 4: Unknown/Resources?)
+		// Reference file has 0x50, while standard 0x40 often suffices.
+		// Setting 0x50 to align with reference.
+		mobiHeader.SetEXTHFlags(0x50)
+
 		exthWriter := NewEXTHWriter()
 		authors := make([]string, 0)
 		for _, author := range w.book.Metadata.Authors {
@@ -336,21 +388,27 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			w.book.Metadata.Language,
 		)
 
-		// Critical for Kindle: CDEType=PDOC (safer than EBOK for sideloading)
-		exthWriter.AddType("PDOC")
+		// Critical for Kindle: CDEType=EBOK (preferred for books)
+		exthWriter.AddType("EBOK")
 
 		// Add ASIN (Type 113) - Use standard format
 		exthWriter.AddASIN("B00TEST001")
 
-		// Remove StartReading for now to eliminate potential bad offset issues
-		// exthWriter.AddStartReading(0)
-
 		if w.options.CoverImage != nil {
 			exthWriter.AddCoverOffset(0)
 			exthWriter.AddThumbnailOffset(1)
-			exthWriter.AddHasFakeCover(0)
-			exthWriter.AddK8CoverImage("kindle:embed:0001")
-			mobiHeader.EXTHFlags = mobiHeader.EXTHFlags | 0x10
+		}
+
+		// Add NCX metadata EXTH records when TOC is present
+		// These are required for native TOC visibility in Kindle readers
+		if indxOffset != 0xFFFFFFFF {
+			// Calculate approximate NCX size based on TOC entry count
+			tocEntryCount := uint32(len(w.book.TOC.Flatten()) - 1) // Exclude root
+			if tocEntryCount > 0 {
+				// Approximate NCX size: ~100 bytes per entry is a reasonable estimate
+				ncxSize := uint32(500 + tocEntryCount*100)
+				exthWriter.AddNCXMetadata(tocEntryCount, ncxSize, indxOffset)
+			}
 		}
 
 		exthLength := exthWriter.GetTotalLength()
@@ -493,17 +551,25 @@ func joinStrings(strs []string, sep string) string {
 }
 
 // GenerateTOCIndex generates a TOC index from the book's TOC with proper offsets
+// and NCX-style chapter length calculation for native Kindle navigation
 func (w *Writer) GenerateTOCIndex(htmlContent string, textRecords [][]byte) (*index.INDX, error) {
 	builder := index.NewTOCIndexBuilder()
-
 	// Set text records for offset calculation
 	builder.SetTextRecords(textRecords)
+
+	// Set root title (author + title) for NCX CNCX - matches reference format
+	authors := make([]string, 0)
+	for _, author := range w.book.Metadata.Authors {
+		authors = append(authors, author.FullName)
+	}
+	rootTitle := joinStrings(authors, ", ") + " " + w.book.Metadata.Title
+	builder.SetRootTitle(rootTitle)
 
 	// Build TOC from OEB book
 	flatEntries := w.book.TOC.Flatten()
 
 	for _, entry := range flatEntries {
-		if entry.ID == "root" {
+		if entry.ID == "root" || strings.TrimSpace(entry.Label) == "" {
 			continue
 		}
 
@@ -514,13 +580,16 @@ func (w *Writer) GenerateTOCIndex(htmlContent string, textRecords [][]byte) (*in
 			"label", entry.Label,
 			"href", entry.Href,
 			"offset", offset,
+			"level", entry.Level,
 		)
 
 		// Add entry with calculated offset
 		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset)
 	}
 
-	return builder.Build()
+	// Build with total text size for accurate chapter length calculation
+	totalSize := uint32(len(htmlContent))
+	return builder.BuildWithTotalSize(totalSize)
 }
 
 // ConvertOEBToMOBI is a convenience function to convert OEBBook to MOBI

@@ -240,9 +240,9 @@ func TestTOCIndexBuilderBuild(t *testing.T) {
 		t.Fatalf("Build() failed: %v", err)
 	}
 
-	// Verify TAGX entries (4 tags: name, offset, level, parent)
-	if len(indx.TAGX.Entries) != 4 {
-		t.Errorf("TAGX entries count = %d, want 4", len(indx.TAGX.Entries))
+	// Verify TAGX entries (7 NCX tags: offset, length, name, depth, parent, firstChild, lastChild)
+	if len(indx.TAGX.Entries) != 7 {
+		t.Errorf("TAGX entries count = %d, want 7", len(indx.TAGX.Entries))
 	}
 
 	// Verify IDXT entries
