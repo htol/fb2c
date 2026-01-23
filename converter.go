@@ -79,52 +79,14 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 		return fmt.Errorf("failed to read FB2 file: %w", err)
 	}
 
-	// Encoding conversion is handled by the parser using fb2encoding package
-	fb2Doc, err := c.parser.ParseBytes(fb2Data)
+	// Process FB2 data (Parse -> Metadata -> HTML -> OPF)
+	book, err := c.processFB2(fb2Data)
 	if err != nil {
-		return fmt.Errorf("failed to parse FB2: %w", err)
+		return err
 	}
-
-	metadata, err := c.parser.ExtractMetadata(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to extract metadata: %w", err)
-	}
-
-	// Apply metadata overrides
-	c.applyMetadataOverrides(metadata)
 
 	// Detect output format from file extension
 	ext := strings.ToLower(filepath.Ext(outputPath))
-
-	// Transform to HTML
-	transformer := fb2.NewTransformer()
-	// Enable MOBI mode for MOBI/KF8 output to ensure compatibility
-	if ext != ".epub" {
-		transformer.MOBIMode = true
-	}
-
-	// Share parser state to avoid re-parsing
-	transformer.SetParser(c.parser)
-
-	html, _, _, err := transformer.Transform(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to transform FB2: %w", err)
-	}
-
-	// Extract TOC from FB2 document
-	tocData, err := c.parser.ExtractTOC(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to extract TOC: %w", err)
-	}
-
-	// Create OPF book
-	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to map FB2 to OPF: %w", err)
-	}
-
-	// Detect output format from file extension
-	ext = strings.ToLower(filepath.Ext(outputPath))
 
 	// Write output based on format
 	outputFile, err := os.Create(outputPath)
@@ -136,16 +98,7 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	if ext == ".epub" {
 		return c.writeEPUB(book, outputFile)
 	}
-	switch c.options.MobiType {
-	case MobiTypeOld, "6":
-		return c.writeMOBI6(book, outputFile)
-	case MobiTypeNew, "8":
-		return c.writeKF8(book, outputFile)
-	case MobiTypeBoth:
-		return c.writeJoint(book, outputFile)
-	default:
-		return fmt.Errorf("unknown MOBI type: %s", c.options.MobiType)
-	}
+	return c.writeOutput(book, outputFile)
 }
 
 // ConvertStream converts FB2 from reader to MOBI writer
@@ -156,54 +109,14 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
 
-	// Parse FB2
-	fb2Doc, err := c.parser.ParseBytes(data)
+	// Process FB2 data (Parse -> Metadata -> HTML -> OPF)
+	book, err := c.processFB2(data)
 	if err != nil {
-		return fmt.Errorf("failed to parse FB2: %w", err)
-	}
-
-	// Extract metadata
-	metadata, err := c.parser.ExtractMetadata(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to extract metadata: %w", err)
-	}
-
-	// Extract TOC from FB2 document
-	tocData, err := c.parser.ExtractTOC(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to extract TOC: %w", err)
-	}
-
-	// Transform to HTML
-	transformer := fb2.NewTransformer()
-	// Stream usually defaults to MOBI unless extension known (not known here)
-	transformer.MOBIMode = true
-
-	// Share parser state to avoid re-parsing
-	transformer.SetParser(c.parser)
-
-	html, _, _, err := transformer.Transform(fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to transform FB2: %w", err)
-	}
-
-	// Create OPF book
-	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
-	if err != nil {
-		return fmt.Errorf("failed to map FB2 to OPF: %w", err)
+		return err
 	}
 
 	// Write MOBI
-	switch c.options.MobiType {
-	case MobiTypeOld, "6":
-		return c.writeMOBI6(book, output)
-	case MobiTypeNew, "8":
-		return c.writeKF8(book, output)
-	case MobiTypeBoth:
-		return c.writeJoint(book, output)
-	default:
-		return fmt.Errorf("unknown MOBI type: %s", c.options.MobiType)
-	}
+	return c.writeOutput(book, output)
 }
 
 // applyMetadataOverrides applies user-specified metadata overrides
@@ -266,4 +179,62 @@ func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
 	writer.SetOptions(opts)
 
 	return writer.WriteJointFile(output)
+}
+
+// processFB2 handles the core parsing and conversion logic
+func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
+	// Encoding conversion is handled by the parser using fb2encoding package
+	fb2Doc, err := c.parser.ParseBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse FB2: %w", err)
+	}
+
+	metadata, err := c.parser.ExtractMetadata(fb2Doc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract metadata: %w", err)
+	}
+
+	// Apply metadata overrides
+	c.applyMetadataOverrides(metadata)
+
+	// Transform to HTML
+	transformer := fb2.NewTransformer()
+	// Enable MOBI mode by default for pipeline
+	transformer.MOBIMode = true
+
+	// Share parser state to avoid re-parsing
+	transformer.SetParser(c.parser)
+
+	html, _, _, err := transformer.Transform(fb2Doc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transform FB2: %w", err)
+	}
+
+	// Extract TOC from FB2 document
+	tocData, err := c.parser.ExtractTOC(fb2Doc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract TOC: %w", err)
+	}
+
+	// Create OPF book using the mapper service
+	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map FB2 to OPF: %w", err)
+	}
+
+	return book, nil
+}
+
+// writeOutput writes the book to the output writer based on configuration
+func (c *Converter) writeOutput(book *opf.OEBBook, output io.Writer) error {
+	switch c.options.MobiType {
+	case MobiTypeOld, "6":
+		return c.writeMOBI6(book, output)
+	case MobiTypeNew, "8":
+		return c.writeKF8(book, output)
+	case MobiTypeBoth:
+		return c.writeJoint(book, output)
+	default:
+		return fmt.Errorf("unknown MOBI type: %s", c.options.MobiType)
+	}
 }
