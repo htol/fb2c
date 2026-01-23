@@ -244,6 +244,14 @@ type Binary struct {
 	Data        string   `xml:",chardata"`
 }
 
+// GetContentType returns the content type of the binary, defaulting to "image/jpeg"
+func (b *Binary) GetContentType() string {
+	if b.ContentType != "" {
+		return b.ContentType
+	}
+	return "image/jpeg"
+}
+
 // Bytes returns the decoded binary data
 func (b *Binary) Bytes() ([]byte, error) {
 	return b64.Decode([]byte(b.Data))
@@ -389,11 +397,7 @@ func (p *Parser) extractEmbeddedContent(fb2 *FictionBook) error {
 		}
 
 		p.imageData[binary.ID] = data
-
-		p.imageTypes[binary.ID] = "image/jpeg"
-		if binary.ContentType != "" {
-			p.imageTypes[binary.ID] = binary.ContentType
-		}
+		p.imageTypes[binary.ID] = binary.GetContentType()
 	}
 
 	return nil

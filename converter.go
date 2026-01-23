@@ -262,12 +262,8 @@ func (c *Converter) createOPFBook(metadata *fb2.Metadata, html string, tocData *
 				continue
 			}
 
-			// Determine media type from content-type
-			mediaType := binary.ContentType
-			if mediaType == "" {
-				// Default to jpeg if unknown
-				mediaType = "image/jpeg"
-			}
+			// Determine media type
+			mediaType := binary.GetContentType()
 
 			// Use the binary ID as the resource ID (already has extension in most FB2 files)
 			// The href will be the same for EPUB
