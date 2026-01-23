@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/htol/fb2c/fb2"
+	"github.com/htol/fb2c/internal/mapper"
 	"github.com/htol/fb2c/mobi"
 )
 
@@ -47,8 +48,11 @@ func TestPerformanceBreakdown(t *testing.T) {
 
 	// 5. Create OPF Book
 	start = time.Now()
-	converter := NewConverter()
-	book := converter.createOPFBook(metadata, html, tocData, fb2Doc)
+	// converter := NewConverter()
+	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	if err != nil {
+		t.Fatalf("Map failed: %v", err)
+	}
 	createBookDuration := time.Since(start)
 	t.Logf("Create OPF Book Duration: %v", createBookDuration)
 
@@ -144,8 +148,11 @@ func TestPerformanceRealFile(t *testing.T) {
 
 	// 5. Create OPF Book
 	start = time.Now()
-	converter := NewConverter()
-	book := converter.createOPFBook(metadata, html, tocData, fb2Doc)
+	// converter := NewConverter()
+	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	if err != nil {
+		t.Fatalf("Map failed: %v", err)
+	}
 	createBookDuration := time.Since(start)
 	t.Logf("Create OPF Book Duration: %v", createBookDuration)
 

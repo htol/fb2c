@@ -11,6 +11,7 @@ import (
 
 	"github.com/htol/fb2c/epub"
 	"github.com/htol/fb2c/fb2"
+	"github.com/htol/fb2c/internal/mapper"
 	"github.com/htol/fb2c/mobi"
 	"github.com/htol/fb2c/mobi/kf8"
 	"github.com/htol/fb2c/opf"
@@ -117,7 +118,10 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	}
 
 	// Create OPF book
-	book := c.createOPFBook(metadata, html, tocData, fb2Doc)
+	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	if err != nil {
+		return fmt.Errorf("failed to map FB2 to OPF: %w", err)
+	}
 
 	// Detect output format from file extension
 	ext = strings.ToLower(filepath.Ext(outputPath))
@@ -184,7 +188,10 @@ func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
 	}
 
 	// Create OPF book
-	book := c.createOPFBook(metadata, html, tocData, fb2Doc)
+	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	if err != nil {
+		return fmt.Errorf("failed to map FB2 to OPF: %w", err)
+	}
 
 	// Write MOBI
 	switch c.options.MobiType {
@@ -206,103 +213,6 @@ func (c *Converter) applyMetadataOverrides(metadata *fb2.Metadata) {
 	}
 	if len(c.options.Authors) > 0 {
 		metadata.Authors = c.options.Authors
-	}
-}
-
-// createOPFBook creates an OPF book from metadata and HTML
-func (c *Converter) createOPFBook(metadata *fb2.Metadata, html string, tocData *fb2.TOCData, fb2Doc *fb2.FictionBook) *opf.OEBBook {
-	book := opf.NewOEBBook()
-
-	// Set metadata
-	book.Metadata = opf.ConvertMetadataFromFB2(
-		metadata.Title,
-		metadata.Authors,
-		metadata.AuthorSort,
-		metadata.Publisher,
-		metadata.ISBN,
-		metadata.Year,
-		metadata.Language,
-		metadata.PubDate,
-		metadata.Series,
-		metadata.SeriesIndex,
-		metadata.Genres,
-		metadata.Keywords,
-		metadata.Annotation,
-		metadata.Cover,
-		metadata.CoverID,
-		metadata.CoverExt,
-	)
-
-	// Set content
-	book.Content = html
-
-	// Build TOC from extracted data
-	if tocData != nil && len(tocData.Entries) > 0 {
-		c.buildOPFTOC(tocData, book)
-	}
-
-	// Add resources - first add cover if explicitly set
-	if metadata.CoverID != "" && len(metadata.Cover) > 0 {
-		// CoverID already includes the extension (e.g., "cover.jpg")
-		book.AddResource(metadata.CoverID, metadata.CoverID,
-			"image/"+metadata.CoverExt[1:], metadata.Cover)
-	}
-
-	// Add all embedded binaries as resources
-	// This ensures that inline images (like in with_cover.fb2) are included
-	if fb2Doc != nil && len(fb2Doc.Binaries) > 0 {
-		for _, binary := range fb2Doc.Binaries {
-			if binary.ID == "" {
-				continue
-			}
-
-			// Decode base64 data
-			data, err := binary.Bytes()
-			if err != nil {
-				continue
-			}
-
-			// Determine media type
-			mediaType := binary.GetContentType()
-
-			// Use the binary ID as the resource ID (already has extension in most FB2 files)
-			// The href will be the same for EPUB
-			book.AddResource(binary.ID, binary.ID, mediaType, data)
-		}
-	}
-
-	return book
-}
-
-// buildOPFTOC builds OPF TOC from extracted FB2 TOC data
-func (c *Converter) buildOPFTOC(tocData *fb2.TOCData, book *opf.OEBBook) {
-	// The OPF TOC starts with a root entry
-	book.TOC.ID = "root"
-	book.TOC.Label = book.Metadata.Title
-
-	// Map to track parent entries
-	entryMap := make(map[int]*opf.TOCEntry)
-
-	// Add all entries to the TOC
-	for _, fb2Entry := range tocData.Entries {
-		// Add to parent or root
-		if fb2Entry.Parent == nil || fb2Entry.Level == 1 {
-			// Top-level entry, add directly to root
-			book.TOC.AddChild(fb2Entry.ID, fb2Entry.Label, fb2Entry.Href)
-			// Store the added child for reference
-			if len(book.TOC.Children) > 0 {
-				entryMap[fb2Entry.Level] = book.TOC.Children[len(book.TOC.Children)-1]
-			}
-		} else {
-			// Find parent entry
-			if parent, ok := entryMap[fb2Entry.Level-1]; ok {
-				parent.AddChild(fb2Entry.ID, fb2Entry.Label, fb2Entry.Href)
-				// Store this entry as potential parent
-				if len(parent.Children) > 0 {
-					entryMap[fb2Entry.Level] = parent.Children[len(parent.Children)-1]
-				}
-			}
-		}
 	}
 }
 
