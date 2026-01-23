@@ -17,31 +17,8 @@ var (
 )
 
 // EncodeForward encodes a value using forward varint encoding.
-// In forward encoding, the MSB is set on the first byte of the result.
+// In forward encoding (Standard MOBI), the MSB is set on the last byte.
 func EncodeForward(value uint32) []byte {
-	if value == 0 {
-		return []byte{0x80}
-	}
-
-	var chunks []byte
-	for value > 0 {
-		chunks = append(chunks, byte(value&0x7F))
-		value >>= 7
-	}
-
-	// Reverse to get big-endian order
-	for i, j := 0, len(chunks)-1; i < j; i, j = i+1, j-1 {
-		chunks[i], chunks[j] = chunks[j], chunks[i]
-	}
-
-	// Set MSB on first byte the result
-	chunks[0] |= 0x80
-	return chunks
-}
-
-// EncodeBackward encodes a value using backward varint encoding (MOBI style).
-// In backward encoding, the MSB is set on the last byte of the result.
-func EncodeBackward(value uint32) []byte {
 	if value == 0 {
 		return []byte{0x80}
 	}
@@ -59,6 +36,29 @@ func EncodeBackward(value uint32) []byte {
 
 	// Set MSB on last byte of the result
 	chunks[len(chunks)-1] |= 0x80
+	return chunks
+}
+
+// EncodeBackward encodes a value using backward varint encoding.
+// In backward encoding, the MSB is set on the first byte of the result.
+func EncodeBackward(value uint32) []byte {
+	if value == 0 {
+		return []byte{0x80}
+	}
+
+	var chunks []byte
+	for value > 0 {
+		chunks = append(chunks, byte(value&0x7F))
+		value >>= 7
+	}
+
+	// Reverse to get big-endian order
+	for i, j := 0, len(chunks)-1; i < j; i, j = i+1, j-1 {
+		chunks[i], chunks[j] = chunks[j], chunks[i]
+	}
+
+	// Set MSB on first byte of the result
+	chunks[0] |= 0x80
 	return chunks
 }
 
