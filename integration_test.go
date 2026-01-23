@@ -299,7 +299,7 @@ func TestMetadataExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			metadata, err := ExtractMetadata(tt.file)
+			metadata, err := fb2.GetMetadataFromFile(tt.file)
 			if err != nil {
 				t.Fatalf("ExtractMetadata() failed: %v", err)
 			}
@@ -350,7 +350,7 @@ func TestValidateFB2(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			err := ValidateFB2(tt.file)
+			err := validateFB2(tt.file)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateFB2() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -376,3 +376,11 @@ func BenchmarkConversion(b *testing.B) {
 		os.Remove(outputFile)
 	}
 }
+
+// validateFB2 is a local helper since we removed the public wrapper
+func validateFB2(path string) error {
+parser := fb2.NewParser()
+_, err := parser.ParseFile(path)
+return err
+}
+

@@ -110,6 +110,8 @@ import "log/slog"
 - **Explain**: decisions with facts from specifications
 - **Reread**: AGENTS.md after each change
 - **Update**: AGENTS.md with new significant information before commit
+- **Check**: `docs/ARCHITECTURE.md` and `docs/DECISIONS.md` before starting tasks
+- **Update**: `docs/ARCHITECTURE.md` and `docs/DECISIONS.md` if the task changes architecture or decisions
 
 ## ANTI-PATTERNS
 

@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/htol/fb2c/b64"
+	"github.com/htol/fb2c/fb2/b64"
 	"github.com/htol/fb2c/fb2encoding"
 )
 
@@ -242,6 +242,11 @@ type Binary struct {
 	ID          string   `xml:"id,attr"`
 	ContentType string   `xml:"content-type,attr"`
 	Data        string   `xml:",chardata"`
+}
+
+// Bytes returns the decoded binary data
+func (b *Binary) Bytes() ([]byte, error) {
+	return b64.Decode([]byte(b.Data))
 }
 
 // ContentNode represents any content node

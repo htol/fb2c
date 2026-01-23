@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"strings"
-
-	"github.com/htol/fb2c"
-	"github.com/htol/fb2c/mobi"
 )
+
+var logger *slog.Logger
 
 func main() {
 	var debug bool
@@ -25,7 +22,7 @@ func main() {
 	if debug {
 		logLevel = slog.LevelDebug
 	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
 	if flag.NArg() < 1 {
 		printUsage()
@@ -36,118 +33,14 @@ func main() {
 
 	switch cmd {
 	case "convert":
-		fs := flag.NewFlagSet("convert", flag.ExitOnError)
-		if err := fs.Parse(flag.Args()[1:]); err != nil {
-			os.Exit(1)
-		}
-
-		args := fs.Args()
-		if len(args) < 2 {
-			logger.Error("convert requires input and output paths")
-			printUsage()
-			os.Exit(1)
-		}
-
-		options := mobi.WriteOptions{
-			CompressionType: mobi.NoCompression,
-			WithEXTH:        true,
-			GenerateTOC:     true,
-			Logger:          logger,
-		}
-
-		convertCmd(args[0], args[1], options)
+		convertCmd(flag.Args()[1:])
 
 	case "metadata":
-		fs := flag.NewFlagSet("metadata", flag.ExitOnError)
-		if err := fs.Parse(flag.Args()[1:]); err != nil {
-			os.Exit(1)
-		}
-
-		args := fs.Args()
-		if len(args) < 1 {
-			logger.Error("metadata requires input path")
-			printUsage()
-			os.Exit(1)
-		}
-		extractMetadataCmd(args[0])
+		metadataCmd(flag.Args()[1:])
 
 	default:
 		printUsage()
 		os.Exit(1)
-	}
-}
-
-func convertCmd(inputPath, outputPath string, options mobi.WriteOptions) {
-	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: input file does not exist: %s\n", inputPath)
-		os.Exit(1)
-	}
-
-	outputDir := filepath.Dir(outputPath)
-	if outputDir != "." {
-		if err := os.MkdirAll(outputDir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create output directory: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	compression := options.CompressionType == mobi.PalmDOCCompression
-
-	converter := fb2c.NewConverter()
-	converter.SetOptions(fb2c.ConvertOptions{
-		MobiType:    "old",
-		Compression: compression,
-		Logger:      options.Logger,
-	})
-
-	err := converter.Convert(inputPath, outputPath)
-	if err != nil {
-		options.Logger.Error("conversion failed", "error", err)
-		os.Exit(1)
-	}
-
-	options.Logger.Info("Converted file", "input", inputPath, "output", outputPath)
-}
-
-func extractMetadataCmd(inputPath string) {
-	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: input file does not exist: %s\n", inputPath)
-		os.Exit(1)
-	}
-
-	metadata, err := fb2c.ExtractMetadata(inputPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to extract metadata: %v\n", err)
-		os.Exit(1)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "Title: %s\n", metadata.Title)
-	fmt.Fprintf(&sb, "Authors: %s\n", strings.Join(metadata.Authors, ", "))
-	fmt.Fprintf(&sb, "Publisher: %s\n", metadata.Publisher)
-	fmt.Fprintf(&sb, "ISBN: %s\n", metadata.ISBN)
-	fmt.Fprintf(&sb, "Year: %s\n", metadata.Year)
-	fmt.Fprintf(&sb, "Language: %s\n", metadata.Language)
-	fmt.Print(sb.String())
-
-	if metadata.Series != "" {
-		if metadata.SeriesIndex > 0 {
-			fmt.Printf("Series: %s (#%d)\n", metadata.Series, metadata.SeriesIndex)
-		} else {
-			fmt.Printf("Series: %s\n", metadata.Series)
-		}
-	}
-
-	if len(metadata.Genres) > 0 {
-		fmt.Printf("Genres: %s\n", strings.Join(metadata.Genres, ", "))
-	}
-
-	if metadata.Annotation != "" {
-		fmt.Printf("\nAnnotation:\n%s\n", metadata.Annotation)
-	}
-
-	if len(metadata.Cover) > 0 {
-		fmt.Printf("\nCover: %s (%d bytes, %s)\n", metadata.CoverID, len(metadata.Cover), metadata.CoverExt)
 	}
 }
 

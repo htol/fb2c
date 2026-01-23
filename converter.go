@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/htol/fb2c/b64"
 	"github.com/htol/fb2c/epub"
 	"github.com/htol/fb2c/fb2"
 	"github.com/htol/fb2c/mobi"
@@ -258,7 +257,7 @@ func (c *Converter) createOPFBook(metadata *fb2.Metadata, html string, tocData *
 			}
 
 			// Decode base64 data
-			data, err := b64.Decode([]byte(binary.Data))
+			data, err := binary.Bytes()
 			if err != nil {
 				continue
 			}
@@ -361,21 +360,4 @@ func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
 	writer.SetOptions(opts)
 
 	return writer.WriteJointFile(output)
-}
-
-// ExtractMetadata extracts metadata from an FB2 file
-func ExtractMetadata(path string) (*fb2.Metadata, error) {
-	return fb2.GetMetadataFromFile(path)
-}
-
-// ExtractMetadataFromBytes extracts metadata from FB2 data
-func ExtractMetadataFromBytes(data []byte) (*fb2.Metadata, error) {
-	return fb2.GetMetadataFromBytes(data)
-}
-
-// ValidateFB2 validates an FB2 file
-func ValidateFB2(path string) error {
-	parser := fb2.NewParser()
-	_, err := parser.ParseFile(path)
-	return err
 }

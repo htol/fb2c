@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/htol/fb2c/varint"
+	"github.com/htol/fb2c/mobi/varint"
 )
 
 // INDXHeaderSize is the size of the INDX header
