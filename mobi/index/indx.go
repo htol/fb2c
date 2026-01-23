@@ -757,10 +757,13 @@ func NewTOCIndexBuilder() *TOCIndexBuilder {
 
 	// Initialize NCX TAGX tags for TOC navigation
 	// Match Reference (364) exactly: Tags 1, 2, 3, 4 only.
-	indx.TAGX.AddTag(1, 1, 0x01) // Tag 1: Offset/Position
-	indx.TAGX.AddTag(2, 1, 0x02) // Tag 2: Length
-	indx.TAGX.AddTag(3, 1, 0x04) // Tag 3: Name index in CNCX
-	indx.TAGX.AddTag(4, 1, 0x08) // Tag 4: Depth/Level
+	indx.TAGX.AddTag(1, 1, 0x01)  // Tag 1: Offset/Position
+	indx.TAGX.AddTag(2, 1, 0x02)  // Tag 2: Length
+	indx.TAGX.AddTag(3, 1, 0x04)  // Tag 3: Name index in CNCX
+	indx.TAGX.AddTag(4, 1, 0x08)  // Tag 4: Depth/Level
+	indx.TAGX.AddTag(5, 1, 0x10)  // Tag 5: Parent index
+	indx.TAGX.AddTag(21, 1, 0x20) // Tag 21: First child index
+	indx.TAGX.AddTag(22, 1, 0x40) // Tag 22: Last child index
 
 	return &TOCIndexBuilder{
 		INDX:    indx,
@@ -907,10 +910,10 @@ func (b *TOCIndexBuilder) FindOffsetForHref(html, href string) uint32 {
 	// Simplified regex search
 	targetID := strings.TrimPrefix(href, "#")
 
-	// Only match id="..." attributes to find the actual content anchor.
-	// Matching name="..." is dangerous because links often use name/href which appear earlier.
+	// Match id="..." or name="..." attributes
 	patterns := []string{
 		fmt.Sprintf(`id=['"]%s['"]`, regexp.QuoteMeta(targetID)),
+		fmt.Sprintf(`name=['"]%s['"]`, regexp.QuoteMeta(targetID)),
 	}
 
 	for _, pattern := range patterns {
