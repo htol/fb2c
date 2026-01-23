@@ -229,11 +229,9 @@ func TestConverterOptions(t *testing.T) {
 		{
 			name: "KF8 only",
 			options: ConvertOptions{
-				MobiType:        "new",
-				Compression:     true,
-				EnableChunking:  true,
-				TargetChunkSize: 8192,
-				Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+				MobiType:    "new",
+				Compression: true,
+				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 		},
 		{
@@ -379,8 +377,7 @@ func BenchmarkConversion(b *testing.B) {
 
 // validateFB2 is a local helper since we removed the public wrapper
 func validateFB2(path string) error {
-parser := fb2.NewParser()
-_, err := parser.ParseFile(path)
-return err
+	parser := fb2.NewParser()
+	_, err := parser.ParseFile(path)
+	return err
 }
-

@@ -28,21 +28,15 @@ type ConvertOptions struct {
 	Authors    []string
 	CoverImage string
 
-	// KF8-specific options
-	EnableChunking  bool
-	TargetChunkSize int
-
 	Logger *slog.Logger
 }
 
 // DefaultConvertOptions returns default conversion options
 func DefaultConvertOptions() ConvertOptions {
 	return ConvertOptions{
-		MobiType:        "old", // MOBI 6 format
-		Compression:     false, // Compression is currently broken, do not enable
-		EnableChunking:  true,
-		TargetChunkSize: 4096,
-		Logger:          slog.Default(),
+		MobiType:    "old", // MOBI 6 format
+		Compression: false, // Compression is currently broken, do not enable
+		Logger:      slog.Default(),
 	}
 }
 
@@ -163,8 +157,6 @@ func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 // writeKF8 writes KF8 format
 func (c *Converter) writeKF8(book *opf.OEBBook, output io.Writer) error {
 	opts := kf8.DefaultKF8WriteOptions()
-	opts.EnableChunking = c.options.EnableChunking
-	opts.TargetChunkSize = c.options.TargetChunkSize
 	opts.Logger = c.options.Logger
 
 	return kf8.ConvertOEBToKF8WithOptions(book, output, opts)
@@ -175,7 +167,6 @@ func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
 	writer := kf8.NewKF8Writer(book)
 	opts := kf8.DefaultKF8WriteOptions()
 	opts.KF8Boundary = true
-	opts.EnableChunking = c.options.EnableChunking
 	writer.SetOptions(opts)
 
 	return writer.WriteJointFile(output)
