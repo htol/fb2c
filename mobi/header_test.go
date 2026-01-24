@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// TestMOBIHeaderSize verifies that the MOBI header writes exactly 268 bytes
+// TestHeaderSize verifies that the MOBI header writes exactly 268 bytes
 // from the MOBI marker (284 bytes from record start including PalmDOC header)
-func TestMOBIHeaderSize(t *testing.T) {
-	h := NewMOBIHeader(1000, 1)
+func TestHeaderSize(t *testing.T) {
+	h := NewHeader(1000, 1)
 
 	var buf bytes.Buffer
 	err := h.Write(&buf)
@@ -33,10 +33,10 @@ func TestMOBIHeaderSize(t *testing.T) {
 	}
 }
 
-// TestMOBIHeaderFieldOffsets verifies that critical fields are at the correct
+// TestHeaderFieldOffsets verifies that critical fields are at the correct
 // offsets according to the MobileRead Wiki specification for MOBI (232 bytes)
-func TestMOBIHeaderFieldOffsets(t *testing.T) {
-	h := NewMOBIHeader(1000, 1)
+func TestHeaderFieldOffsets(t *testing.T) {
+	h := NewHeader(1000, 1)
 
 	// Set test values for critical fields
 	h.FirstContentRec = 123
@@ -102,9 +102,9 @@ func TestMOBIHeaderFieldOffsets(t *testing.T) {
 	checkUint16("LastContentRec", 0xB2, 456)
 }
 
-// TestMOBIHeaderDefaults verifies that default values match specification
-func TestMOBIHeaderDefaults(t *testing.T) {
-	h := NewMOBIHeader(5000, 3)
+// TestHeaderDefaults verifies that default values match specification
+func TestHeaderDefaults(t *testing.T) {
+	h := NewHeader(5000, 3)
 
 	// Check critical defaults
 	if h.MOBIMarker != [4]byte{'M', 'O', 'B', 'I'} {
@@ -155,9 +155,9 @@ func TestMOBIHeaderDefaults(t *testing.T) {
 	}
 }
 
-// TestMOBIHeaderHelperMethods verifies that helper methods work correctly
-func TestMOBIHeaderHelperMethods(t *testing.T) {
-	h := NewMOBIHeader(1000, 1)
+// TestHeaderHelperMethods verifies that helper methods work correctly
+func TestHeaderHelperMethods(t *testing.T) {
+	h := NewHeader(1000, 1)
 
 	// Test SetEXTHFlags
 	h.SetEXTHFlags(0x50)
@@ -181,10 +181,10 @@ func TestMOBIHeaderHelperMethods(t *testing.T) {
 	}
 }
 
-// TestMOBIHeaderRecordSize verifies that record size is set correctly
-func TestMOBIHeaderRecordSize(t *testing.T) {
+// TestHeaderRecordSize verifies that record size is set correctly
+func TestHeaderRecordSize(t *testing.T) {
 	// Test standard MOBI 6
-	h := NewMOBIHeader(1000, 1)
+	h := NewHeader(1000, 1)
 	if h.RecordSize != StandardRecordSize {
 		t.Errorf("Standard MOBI: RecordSize = %d, want %d", h.RecordSize, StandardRecordSize)
 	}
@@ -194,9 +194,9 @@ func TestMOBIHeaderRecordSize(t *testing.T) {
 	// This test only verifies the standard MOBI 6 record size.
 }
 
-// TestMOBIHeaderDRMOffsets verifies DRM fields are at correct offsets
-func TestMOBIHeaderDRMOffsets(t *testing.T) {
-	h := NewMOBIHeader(1000, 1)
+// TestHeaderDRMOffsets verifies DRM fields are at correct offsets
+func TestHeaderDRMOffsets(t *testing.T) {
+	h := NewHeader(1000, 1)
 
 	// Set DRM values for testing
 	h.DRMOffset = 0x11111111

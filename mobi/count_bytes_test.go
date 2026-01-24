@@ -8,7 +8,7 @@ import (
 
 // TestCountBytes counts what Write() actually writes
 func TestCountBytes(t *testing.T) {
-	h := NewMOBIHeader(1000, 1)
+	h := NewHeader(1000, 1)
 
 	var buf bytes.Buffer
 	err := h.Write(&buf)

@@ -156,7 +156,7 @@ func (c *Converter) writeMOBI6(book *opf.OEBBook, output io.Writer) error {
 
 // writeKF8 writes KF8 format
 func (c *Converter) writeKF8(book *opf.OEBBook, output io.Writer) error {
-	opts := kf8.DefaultKF8WriteOptions()
+	opts := kf8.DefaultWriteOptions()
 	opts.Logger = c.options.Logger
 
 	return kf8.ConvertOEBToKF8WithOptions(book, output, opts)
@@ -164,8 +164,8 @@ func (c *Converter) writeKF8(book *opf.OEBBook, output io.Writer) error {
 
 // writeJoint writes a joint MOBI file (MOBI 6 + KF8)
 func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
-	writer := kf8.NewKF8Writer(book)
-	opts := kf8.DefaultKF8WriteOptions()
+	writer := kf8.NewWriter(book)
+	opts := kf8.DefaultWriteOptions()
 	opts.KF8Boundary = true
 	writer.SetOptions(opts)
 

@@ -140,8 +140,6 @@ func findLZMatch(data []byte, pos int) lzMatch {
 	return lzMatch{}
 }
 
-
-
 // DecompressPalmDOC decompresses PalmDOC-compressed data
 // Note: This is a simplified implementation for testing
 func DecompressPalmDOC(data []byte) []byte {

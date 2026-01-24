@@ -363,7 +363,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 
 	// Create MOBI header with REAL text record count (Record 0)
 	// This ensures the reader stops DECODING text before it hits binary images.
-	mobiHeader := NewMOBIHeader(textSize, textRecordCount)
+	mobiHeader := NewHeader(textSize, textRecordCount)
 
 	// Set content record indices
 	mobiHeader.FirstContentRec = uint16(firstTextRec)
@@ -444,14 +444,14 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			if tocEntryCount > 0 {
 				// Approximate NCX size: ~100 bytes per entry is a reasonable estimate
 				ncxSize := uint32(500 + tocEntryCount*100)
-				exthWriter.AddNCXMetadata(tocEntryCount, ncxSize, indxOffset)
+				exthWriter.AddNCXMetadata(ncxSize, indxOffset)
 			}
 		}
 
 		exthLength := exthWriter.GetTotalLength()
 		// FullNameOffset = PalmDOC Header (16) + MOBI Header (264 usually) + EXTH Length
 		// Use the constant to be safe
-		mobiHeaderOffset := uint32(16 + MOBIHeaderSize)
+		mobiHeaderOffset := uint32(16 + HeaderSize)
 		mobiHeader.FullNameOffset = mobiHeaderOffset + uint32(exthLength)
 
 		if err := mobiHeader.Write(&buf); err != nil {
@@ -463,7 +463,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		}
 		buf.WriteString(bookName)
 	} else {
-		mobiHeader.FullNameOffset = uint32(16 + MOBIHeaderSize)
+		mobiHeader.FullNameOffset = uint32(16 + HeaderSize)
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}

@@ -14,21 +14,21 @@ func timestampToPalmTime(unix int64) uint32 {
 	// Use 0 as "now" for now
 	// In production, would use time.Now().Unix()
 	const unixToPalmOffset = 2082844800
-	return uint32(unix + unixToPalmOffset)
+	return uint32(unix + unixToPalmOffset) //nolint:gosec // 2106 issue acknowledged
 }
 
 // generateRandomUniqueIDSeed generates a random unique ID seed
 func generateRandomUniqueIDSeed() uint32 {
 	// Generate random number between 1 and 2^32-1
 	n, _ := rand.Int(rand.Reader, big.NewInt(0xFFFFFFFF))
-	return uint32(n.Uint64()) + 1
+	return uint32(n.Uint64()) + 1 //nolint:gosec // Range is guaranteed by big.NewInt
 }
 
 // generateRandomID generates a random MOBI ID
 func generateRandomID() uint32 {
 	// Generate random number between 1 and 2^32-1
 	n, _ := rand.Int(rand.Reader, big.NewInt(0xFFFFFFFF))
-	return uint32(n.Uint64()) + 1
+	return uint32(n.Uint64()) + 1 //nolint:gosec // Range is guaranteed by big.NewInt
 }
 
 // transliterateName converts Cyrillic characters to Latin transliteration

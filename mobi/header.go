@@ -8,8 +8,8 @@ import (
 
 const (
 	// MOBI header constants
-	MOBIHeaderSize = 232 // MOBI header size (standard MOBI 6)
-	MOBIVersion    = 6   // MOBI 6
+	HeaderSize = 232 // MOBI header size (standard MOBI 6)
+	Version    = 6   // MOBI 6
 
 	// Compression types
 	NoCompression      = 1
@@ -29,10 +29,10 @@ const (
 	EXTHIdentifier = "EXTH"
 )
 
-// MOBIHeader represents the MOBI header (MOBI 6 format, 232 bytes from MOBI marker)
+// Header represents the MOBI header (MOBI 6 format, 232 bytes from MOBI marker)
 // Offsets are from record start, with MOBI marker offsets in parentheses.
 // Specification: https://wiki.mobileread.com/wiki/MOBI
-type MOBIHeader struct {
+type Header struct {
 	// PalmDOC Header (offsets 0x00 to 0x0F from record start)
 	Compression          uint16 // 0x00: 1=none, 2=PalmDOC, 17480=HuffCDIC
 	Unused1              uint16 // 0x02: Always zero
@@ -97,14 +97,14 @@ type MOBIHeader struct {
 	// Total struct size = 16 (PalmDOC) + 232 (MOBI) = 248 bytes
 }
 
-// NewMOBIHeader creates a new MOBI header with default values
-func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
-	h := &MOBIHeader{
+// NewHeader creates a new MOBI header with default values
+func NewHeader(textSize, recordCount int) *Header {
+	h := &Header{
 		// PalmDOC header
 		Compression:          NoCompression,
 		Unused1:              0,
 		UncompressedTextSize: uint32(textSize),
-		RecordCount:          uint16(recordCount),
+		RecordCount:          uint16(recordCount), //nolint:gosec // MOBI 6 limit, caller should handle splitting if needed
 		RecordSize:           StandardRecordSize,
 		EncryptionType:       0,
 		Unused2:              0,
@@ -168,24 +168,24 @@ func NewMOBIHeader(textSize, recordCount int) *MOBIHeader {
 // Write writes the complete MOBI header to a writer.
 // The struct is properly aligned with the MOBI specification, so we can
 // write it all at once with binary.Write without padding issues.
-func (h *MOBIHeader) Write(w io.Writer) error {
+func (h *Header) Write(w io.Writer) error {
 	return binary.Write(w, binary.BigEndian, h)
 }
 
 // SetFullName sets the book full name
-func (h *MOBIHeader) SetFullName(name string) {
+func (h *Header) SetFullName(name string) {
 	// In production, this would write the name to data and set offset/length
 	// For now, just set the length
 	h.FullNameLength = uint32(len(name))
 }
 
 // SetEXTHFlags sets the EXTH flags
-func (h *MOBIHeader) SetEXTHFlags(flags uint32) {
+func (h *Header) SetEXTHFlags(flags uint32) {
 	h.EXTHFlags = flags
 }
 
 // SetContentRecords sets the first and last content record indices
-func (h *MOBIHeader) SetContentRecords(first, last uint16) {
+func (h *Header) SetContentRecords(first, last uint16) {
 	h.FirstContentRec = first
 	h.LastContentRec = last
 }

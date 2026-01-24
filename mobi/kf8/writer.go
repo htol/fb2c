@@ -11,8 +11,8 @@ import (
 	"github.com/htol/fb2c/opf"
 )
 
-// KF8WriteOptions contains KF8-specific write options
-type KF8WriteOptions struct {
+// WriteOptions contains KF8-specific write options
+type WriteOptions struct {
 	mobi.WriteOptions
 
 	// KF8-specific options
@@ -23,9 +23,9 @@ type KF8WriteOptions struct {
 	KF8Boundary     bool // Insert BOUNDARY marker for joint files
 }
 
-// DefaultKF8WriteOptions returns default KF8 write options
-func DefaultKF8WriteOptions() KF8WriteOptions {
-	return KF8WriteOptions{
+// DefaultWriteOptions returns default KF8 write options
+func DefaultWriteOptions() WriteOptions {
+	return WriteOptions{
 		WriteOptions:    mobi.DefaultWriteOptions(),
 		EnableChunking:  true,
 		TargetChunkSize: TargetChunkSize,
@@ -35,36 +35,36 @@ func DefaultKF8WriteOptions() KF8WriteOptions {
 	}
 }
 
-// KF8Writer writes KF8 (MOBI 8) files
-type KF8Writer struct {
+// Writer writes KF8 (MOBI 8) files
+type Writer struct {
 	mobiWriter  *mobi.Writer
 	skeleton    *Skeleton
 	flowManager *FlowManager
 	fdst        *FDST
-	options     KF8WriteOptions
+	options     WriteOptions
 	book        *opf.OEBBook
 }
 
-// NewKF8Writer creates a new KF8 writer
-func NewKF8Writer(book *opf.OEBBook) *KF8Writer {
-	return &KF8Writer{
+// NewWriter creates a new KF8 writer
+func NewWriter(book *opf.OEBBook) *Writer {
+	return &Writer{
 		mobiWriter:  mobi.NewWriter(book),
 		skeleton:    NewSkeleton(),
 		flowManager: NewFlowManager(),
 		fdst:        NewFDST(),
-		options:     DefaultKF8WriteOptions(),
+		options:     DefaultWriteOptions(),
 		book:        book,
 	}
 }
 
 // SetOptions sets KF8 write options
-func (w *KF8Writer) SetOptions(options KF8WriteOptions) {
+func (w *Writer) SetOptions(options WriteOptions) {
 	w.options = options
 	w.mobiWriter.SetOptions(options.WriteOptions)
 }
 
 // Write writes the KF8 file
-func (w *KF8Writer) Write(output io.Writer) error {
+func (w *Writer) Write(output io.Writer) error {
 	// 1. Prepare content (chunk if enabled)
 	var content string
 
@@ -122,7 +122,7 @@ func (w *KF8Writer) Write(output io.Writer) error {
 }
 
 // setupKF8Header configures the MOBI header for KF8
-func (w *KF8Writer) setupKF8Header() {
+func (w *Writer) setupKF8Header() {
 	// This would update the MOBI header with KF8-specific values
 	// In a full implementation, would:
 	// - Set MOBI version to 8
@@ -131,7 +131,7 @@ func (w *KF8Writer) setupKF8Header() {
 }
 
 // addResourcesToFlows adds manifest resources to flows
-func (w *KF8Writer) addResourcesToFlows() {
+func (w *Writer) addResourcesToFlows() {
 	// Iterate through book manifest
 	ids := w.book.GetManifestIDs()
 	for _, id := range ids {
@@ -168,36 +168,36 @@ func getFlowForResourceType(resType string) string {
 }
 
 // GetSkeleton returns the skeleton structure
-func (w *KF8Writer) GetSkeleton() *Skeleton {
+func (w *Writer) GetSkeleton() *Skeleton {
 	return w.skeleton
 }
 
 // GetFlowManager returns the flow manager
-func (w *KF8Writer) GetFlowManager() *FlowManager {
+func (w *Writer) GetFlowManager() *FlowManager {
 	return w.flowManager
 }
 
 // GetFDST returns the FDST structure
-func (w *KF8Writer) GetFDST() *FDST {
+func (w *Writer) GetFDST() *FDST {
 	return w.fdst
 }
 
 // ConvertOEBToKF8 is a convenience function to convert OPFBook to KF8
 func ConvertOEBToKF8(book *opf.OEBBook, output io.Writer) error {
-	writer := NewKF8Writer(book)
+	writer := NewWriter(book)
 	return writer.Write(output)
 }
 
 // ConvertOEBToKF8WithOptions converts OPFBook to KF8 with options
-func ConvertOEBToKF8WithOptions(book *opf.OEBBook, output io.Writer, options KF8WriteOptions) error {
-	writer := NewKF8Writer(book)
+func ConvertOEBToKF8WithOptions(book *opf.OEBBook, output io.Writer, options WriteOptions) error {
+	writer := NewWriter(book)
 	writer.SetOptions(options)
 	return writer.Write(output)
 }
 
 // WriteJointFile writes a joint MOBI file (MOBI 6 + KF8)
 // For now, we create pure KF8 like Calibre (smaller, works better)
-func (w *KF8Writer) WriteJointFile(output io.Writer) error {
+func (w *Writer) WriteJointFile(output io.Writer) error {
 	// Save original content
 	originalContent := w.book.Content
 
@@ -269,7 +269,7 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 	// Create MOBI 6 header with KF8 flag (RecordSize=0x10000000)
 	// This tells readers to expect KF8 content
 
-	mobiHeader := mobi.NewMOBIHeader(len(kf8Content),
+	mobiHeader := mobi.NewHeader(len(kf8Content),
 		mobi.CalculateRecordCount(len(kf8Content)))
 	mobiHeader.SetFullName(w.mobiWriter.GetBookName())
 	// Signal KF8 through MOBIType instead of RecordSize
@@ -352,7 +352,7 @@ func (w *KF8Writer) WriteJointFile(output io.Writer) error {
 }
 
 // splitTextRecords splits text into 4KB records
-func (w *KF8Writer) splitTextRecords(data []byte) [][]byte {
+func (w *Writer) splitTextRecords(data []byte) [][]byte {
 	var records [][]byte
 	const recordSize = 4096
 	for i := 0; i < len(data); i += recordSize {
@@ -366,7 +366,7 @@ func (w *KF8Writer) splitTextRecords(data []byte) [][]byte {
 }
 
 // GenerateResourceLinks generates Kindle resource links for all manifest resources
-func (w *KF8Writer) GenerateResourceLinks() map[string]string {
+func (w *Writer) GenerateResourceLinks() map[string]string {
 	links := make(map[string]string)
 
 	ids := w.book.GetManifestIDs()

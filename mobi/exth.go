@@ -346,10 +346,9 @@ func (w *EXTHWriter) AddKF8Boundary(boundaryRecordIndex uint32) {
 }
 
 // AddNCXMetadata adds NCX-related EXTH records needed for native TOC support
-// totalEntries: number of TOC entries
 // totalNCXSize: total size of NCX data in bytes
 // ncxRecordOffset: record index of the primary NCX INDX record
-func (w *EXTHWriter) AddNCXMetadata(totalEntries, totalNCXSize, ncxRecordOffset uint32) {
+func (w *EXTHWriter) AddNCXMetadata(totalNCXSize, ncxRecordOffset uint32) {
 	// EXTH 204: NCX offset (points to the primary INDX record)
 	data204 := make([]byte, 4)
 	binary.BigEndian.PutUint32(data204, ncxRecordOffset)
