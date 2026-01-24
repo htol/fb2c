@@ -18,7 +18,7 @@ func (m *MockImageProvider) GetImageType(binaryID string) string {
 	if t, ok := m.types[binaryID]; ok {
 		return t
 	}
-	return "image/jpeg"
+	return MIMEJPEG
 }
 
 func TestExtractMetadataIsolated(t *testing.T) {
@@ -65,25 +65,25 @@ func TestExtractMetadataIsolated(t *testing.T) {
 	// Add cover info to FB2
 	fb2.Description.TitleInfo.Coverpage = Coverpage{
 		PrimaryImage: ImageRef{
-			Href: "#cover.jpg",
+			Href: "#" + testCoverID,
 		},
 	}
 	// Add cover binary to mock provider
-	mockIP.data["cover.jpg"] = []byte("dummy image data")
-	mockIP.types["cover.jpg"] = "image/jpeg"
+	mockIP.data[testCoverID] = []byte("dummy image data")
+	mockIP.types[testCoverID] = MIMEJPEG
 
 	meta, err = ExtractMetadata(fb2, mockIP)
 	if err != nil {
 		t.Fatalf("ExtractMetadata with cover failed: %v", err)
 	}
 
-	if meta.CoverID != "cover.jpg" {
+	if meta.CoverID != testCoverID {
 		t.Errorf("CoverID = %s, want 'cover.jpg'", meta.CoverID)
 	}
 	if string(meta.Cover) != "dummy image data" {
 		t.Error("Cover content mismatch")
 	}
-	if meta.CoverExt != ".jpg" {
+	if meta.CoverExt != ExtJPG {
 		t.Errorf("CoverExt = %s, want '.jpg'", meta.CoverExt)
 	}
 }

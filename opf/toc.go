@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	TOCRootID       = "root"
+	TOCMergedRootID = "merged_root"
+)
+
 // NCXDoc represents a Navigation Control XML (NCX) document
 type NCXDoc struct {
 	XMLName  xml.Name  `xml:"ncx"`
@@ -111,7 +116,7 @@ func (b *OEBBook) buildNCXNavPoints(toc *TOCEntry, playOrder *int, _ []*TOCEntry
 	points := []NCXNavPoint{}
 
 	// Only add non-root entries or root if it has a real label
-	if toc.ID != "root" && toc.ID != "merged_root" {
+	if toc.ID != TOCRootID && toc.ID != TOCMergedRootID {
 		point := b.buildNCXNavPoint(toc, playOrder)
 		points = append(points, point)
 		(*playOrder)++
@@ -161,7 +166,7 @@ func (b *OEBBook) buildNCXNavPoint(toc *TOCEntry, playOrder *int) NCXNavPoint {
 // BuildTOCFromSections builds a TOC from section data
 func BuildTOCFromSections(sections []SectionData) TOCEntry {
 	root := &TOCEntry{
-		ID:    "root",
+		ID:    TOCRootID,
 		Label: "Root",
 		Level: 0,
 	}
@@ -242,7 +247,7 @@ func (b *OEBBook) GenerateHTMLTOC() string {
 
 // writeHTMLTOC writes TOC entries as HTML list
 func (b *OEBBook) writeHTMLTOC(buf *bytes.Buffer, toc *TOCEntry) {
-	if toc.Label != "" || toc.ID != "root" {
+	if toc.Label != "" || toc.ID != TOCRootID {
 		buf.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a>`,
 			htmlEscape(toc.Href), htmlEscape(toc.Label)))
 
@@ -296,14 +301,14 @@ func MergeTOCs(tocs ...TOCEntry) TOCEntry {
 	}
 
 	root := TOCEntry{
-		ID:       "merged_root",
+		ID:       TOCMergedRootID,
 		Label:    "Contents",
 		Level:    0,
 		Children: make([]*TOCEntry, 0),
 	}
 
 	for _, toc := range tocs {
-		if toc.ID != "root" && toc.ID != "merged_root" {
+		if toc.ID != TOCRootID && toc.ID != TOCMergedRootID {
 			root.Children = append(root.Children, &toc)
 		} else {
 			// Merge children

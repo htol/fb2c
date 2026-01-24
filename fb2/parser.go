@@ -165,7 +165,7 @@ func (p *Parser) GetImageType(binaryID string) string {
 	if ct, ok := p.imageTypes[binaryID]; ok {
 		return ct
 	}
-	return "image/jpeg" // Default fallback
+	return MIMEJPEG // Default fallback
 }
 
 // GetNamespace returns the detected FB2 namespace

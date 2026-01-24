@@ -240,7 +240,7 @@ func (b *Binary) GetContentType() string {
 	if b.ContentType != "" {
 		return b.ContentType
 	}
-	return "image/jpeg"
+	return MIMEJPEG
 }
 
 // Bytes returns the decoded binary data

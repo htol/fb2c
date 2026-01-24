@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+const (
+	testBookTitle = "Test Book"
+	testCoverID   = "cover.jpg"
+)
+
 func TestParseSimpleFB2(t *testing.T) {
 	// Simple FB2 document
 	fb2Data := `<?xml version="1.0" encoding="UTF-8"?>
@@ -36,7 +41,7 @@ func TestParseSimpleFB2(t *testing.T) {
 		t.Fatalf("ParseBytes() error = %v", err)
 	}
 
-	if fb2.Description.TitleInfo.BookTitle != "Test Book" {
+	if fb2.Description.TitleInfo.BookTitle != testBookTitle {
 		t.Errorf("BookTitle = %v, want 'Test Book'", fb2.Description.TitleInfo.BookTitle)
 	}
 
@@ -82,11 +87,11 @@ func TestParseFB2WithBinary(t *testing.T) {
 	}
 
 	binary := fb2.Binaries[0]
-	if binary.ID != "cover.jpg" {
+	if binary.ID != testCoverID {
 		t.Errorf("Binary ID = %v, want 'cover.jpg'", binary.ID)
 	}
 
-	if binary.ContentType != "image/jpeg" {
+	if binary.ContentType != MIMEJPEG {
 		t.Errorf("Binary ContentType = %v, want 'image/jpeg'", binary.ContentType)
 	}
 }
@@ -248,7 +253,7 @@ func TestTransformToHTML(t *testing.T) {
 
 	if metadata == nil {
 		t.Error("Metadata is nil")
-	} else if metadata.Title != "Test Book" {
+	} else if metadata.Title != testBookTitle {
 		t.Errorf("Metadata title = %v, want 'Test Book'", metadata.Title)
 	}
 }

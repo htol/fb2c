@@ -74,45 +74,10 @@ func (v *Validator) validatePalmDBHeader() {
 
 // validateMOBIHeader validates MOBI header
 func (v *Validator) validateMOBIHeader() {
-	// Find MOBI header (starts with "MOBI" magic)
-	// Search from a reasonable offset to avoid finding creator "MOBI"
-	// The MOBI header typically appears after the PalmDB header (78 bytes minimum)
-	searchStart := 78
-	if len(v.data) <= searchStart {
-		v.addError("File too short to contain MOBI header")
+	mobiOffset, err := v.findMOBIHeaderOffset()
+	if err != nil {
+		v.addError(err.Error())
 		return
-	}
-
-	// Find "MOBI" after the PalmDB header
-	// Skip the first occurrence if it's the creator field
-	mobiOffset := bytes.Index(v.data[searchStart:], []byte(MOBIIdentifier))
-	if mobiOffset == -1 {
-		v.addError("MOBI header not found")
-		return
-	}
-
-	// Adjust offset to be from start of file
-	mobiOffset += searchStart
-
-	// A valid MOBI header should have valid length and version at +4 and +8
-	// If we found "MOBI" but it doesn't look like a header, try finding the next one
-	for mobiOffset < len(v.data) {
-		if mobiOffset+12 <= len(v.data) {
-			headerLen := binary.BigEndian.Uint32(v.data[mobiOffset+4 : mobiOffset+8])
-			version := binary.BigEndian.Uint32(v.data[mobiOffset+8 : mobiOffset+12])
-			// Valid MOBI headers have length >= 232 and version 2-8
-			if headerLen >= 232 && version >= 2 && version <= 8 {
-				break // Found valid header
-			}
-		}
-
-		// Try to find next "MOBI"
-		next := bytes.Index(v.data[mobiOffset+4:], []byte(MOBIIdentifier))
-		if next == -1 {
-			v.addError("MOBI header not found")
-			return
-		}
-		mobiOffset += 4 + next
 	}
 
 	// Check MOBI header length (offset + 4)
@@ -147,6 +112,37 @@ func (v *Validator) validateMOBIHeader() {
 	if encoding != 65001 {
 		v.addWarning(fmt.Sprintf("Encoding is not UTF-8: %d (expected 65001)", encoding))
 	}
+}
+
+func (v *Validator) findMOBIHeaderOffset() (int, error) {
+	searchStart := 78
+	if len(v.data) <= searchStart {
+		return 0, fmt.Errorf("File too short to contain MOBI header")
+	}
+
+	mobiOffset := bytes.Index(v.data[searchStart:], []byte(MOBIIdentifier))
+	if mobiOffset == -1 {
+		return 0, fmt.Errorf("MOBI header not found")
+	}
+
+	mobiOffset += searchStart
+
+	for mobiOffset < len(v.data) {
+		if mobiOffset+12 <= len(v.data) {
+			headerLen := binary.BigEndian.Uint32(v.data[mobiOffset+4 : mobiOffset+8])
+			version := binary.BigEndian.Uint32(v.data[mobiOffset+8 : mobiOffset+12])
+			if headerLen >= 232 && version >= 2 && version <= 8 {
+				return mobiOffset, nil
+			}
+		}
+
+		next := bytes.Index(v.data[mobiOffset+4:], []byte(MOBIIdentifier))
+		if next == -1 {
+			return 0, fmt.Errorf("MOBI header not found")
+		}
+		mobiOffset += 4 + next
+	}
+	return 0, fmt.Errorf("MOBI header not found")
 }
 
 // validateEXTH validates EXTH header
@@ -233,7 +229,7 @@ func (v *Validator) checkEXTHRecords(offset int) {
 			hasTitle = true
 		}
 
-		if recordLength > uint32(len(v.data)-pos) {
+		if recordLength > uint32(len(v.data)-pos) { //nolint:gosec // Length fits
 			break
 		}
 

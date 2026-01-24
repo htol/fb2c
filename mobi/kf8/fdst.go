@@ -44,7 +44,7 @@ func (f *FDST) AddEntry(start, end uint32) {
 
 // AddChunk adds a chunk as a flow division
 func (f *FDST) AddChunk(chunk *Chunk) {
-	f.AddEntry(uint32(chunk.Offset), uint32(chunk.Offset+chunk.Length))
+	f.AddEntry(uint32(chunk.Offset), uint32(chunk.Offset+chunk.Length)) //nolint:gosec // Length fits
 }
 
 // Write writes the FDST to a writer
@@ -54,8 +54,8 @@ func (f *FDST) Write(w io.Writer) error {
 	// Each entry: 8 bytes (4 + 4)
 	totalLen := 12 + (len(f.Entries) * 8)
 
-	f.Header.Magic = 0x46545354 // 'FDST' in big-endian
-	f.Header.HeaderLen = uint32(totalLen)
+	f.Header.Magic = 0x46545354           // 'FDST' in big-endian
+	f.Header.HeaderLen = uint32(totalLen) //nolint:gosec // Length fits
 
 	// Write header
 	if err := binary.Write(w, binary.BigEndian, f.Header.Magic); err != nil {
@@ -93,7 +93,7 @@ func (f *FDST) GenerateFromFlows(fm *FlowManager) error {
 	offset := uint32(0)
 
 	for _, flow := range fm.GetFlows() {
-		end := offset + uint32(len(flow.Content))
+		end := offset + uint32(len(flow.Content)) //nolint:gosec // Length fits
 		f.AddEntry(offset, end)
 		offset = end
 	}
@@ -173,5 +173,5 @@ func (f *FDST) MergeEntries(maxGap uint32) {
 	}
 
 	f.Entries = merged
-	f.Header.NumEntries = uint32(len(f.Entries))
+	f.Header.NumEntries = uint32(len(f.Entries)) //nolint:gosec // Length fits
 }

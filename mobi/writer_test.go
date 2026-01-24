@@ -54,10 +54,11 @@ func TestGetBookName(t *testing.T) {
 	}
 
 	// Test with custom title
-	writer.options.Title = "Custom Title"
+	customTitle := "Custom Title"
+	writer.options.Title = customTitle
 	name = writer.GetBookName()
-	if name != "Custom Title" {
-		t.Errorf("GetBookName() with custom = %v, want 'Custom Title'", name)
+	if name != customTitle {
+		t.Errorf("GetBookName() with custom = %v, want '%s'", name, customTitle)
 	}
 
 	// Test long title truncation

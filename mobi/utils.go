@@ -57,147 +57,30 @@ func transliterateName(name string) string {
 	return resultStr
 }
 
+// transliterationMap maps Cyrillic characters to their Latin approximation
+var transliterationMap = map[rune]string{
+	0x0410: "A", 0x0411: "B", 0x0412: "V", 0x0413: "G", 0x0414: "D",
+	0x0415: "E", 0x0401: "Yo", 0x0416: "Zh", 0x0417: "Z", 0x0418: "I",
+	0x0419: "Y", 0x041A: "K", 0x041B: "L", 0x041C: "M", 0x041D: "N",
+	0x041E: "O", 0x041F: "P", 0x0420: "R", 0x0421: "S", 0x0422: "T",
+	0x0423: "U", 0x0424: "F", 0x0425: "Kh", 0x0426: "Ts", 0x0427: "Ch",
+	0x0428: "Sh", 0x0429: "Shch", 0x042A: "\"", 0x042B: "'", 0x042C: "'",
+	0x042D: "E", 0x042E: "Yu", 0x042F: "Ya",
+	0x0430: "a", 0x0431: "b", 0x0432: "v", 0x0433: "g", 0x0434: "d",
+	0x0435: "e", 0x0451: "yo", 0x0436: "zh", 0x0437: "z", 0x0438: "i",
+	0x0439: "y", 0x043A: "k", 0x043B: "l", 0x043C: "m", 0x043D: "n",
+	0x043E: "o", 0x043F: "p", 0x0440: "r", 0x0441: "s", 0x0442: "t",
+	0x0443: "u", 0x0444: "f", 0x0445: "kh", 0x0446: "ts", 0x0447: "ch",
+	0x0448: "sh", 0x0449: "shch", 0x044A: "\"", 0x044B: "'", 0x044C: "'",
+	0x044D: "e", 0x044E: "yu", 0x044F: "ya",
+}
+
 // transliterateRune maps a single Cyrillic character to its Latin approximation
 func transliterateRune(r rune) string {
-	// Uppercase Cyrillic
-	switch r {
-	case 0x0410: // А
-		return "A"
-	case 0x0411: // Б
-		return "B"
-	case 0x0412: // В
-		return "V"
-	case 0x0413: // Г
-		return "G"
-	case 0x0414: // Д
-		return "D"
-	case 0x0415: // Е
-		return "E"
-	case 0x0401: // Ё
-		return "Yo"
-	case 0x0416: // Ж
-		return "Zh"
-	case 0x0417: // З
-		return "Z"
-	case 0x0418: // И
-		return "I"
-	case 0x0419: // Й
-		return "Y"
-	case 0x041A: // К
-		return "K"
-	case 0x041B: // Л
-		return "L"
-	case 0x041C: // М
-		return "M"
-	case 0x041D: // Н
-		return "N"
-	case 0x041E: // О
-		return "O"
-	case 0x041F: // П
-		return "P"
-	case 0x0420: // Р
-		return "R"
-	case 0x0421: // С
-		return "S"
-	case 0x0422: // Т
-		return "T"
-	case 0x0423: // У
-		return "U"
-	case 0x0424: // Ф
-		return "F"
-	case 0x0425: // Х
-		return "Kh"
-	case 0x0426: // Ц
-		return "Ts"
-	case 0x0427: // Ч
-		return "Ch"
-	case 0x0428: // Ш
-		return "Sh"
-	case 0x0429: // Щ
-		return "Shch"
-	case 0x042A: // Ъ
-		return "\""
-	case 0x042B: // Ы
-		return "'"
-	case 0x042C: // Ь
-		return "'"
-	case 0x042D: // Э
-		return "E"
-	case 0x042E: // Ю
-		return "Yu"
-	case 0x042F: // Я
-		return "Ya"
-	// Lowercase Cyrillic
-	case 0x0430: // а
-		return "a"
-	case 0x0431: // б
-		return "b"
-	case 0x0432: // в
-		return "v"
-	case 0x0433: // г
-		return "g"
-	case 0x0434: // д
-		return "d"
-	case 0x0435: // е
-		return "e"
-	case 0x0451: // ё
-		return "yo"
-	case 0x0436: // ж
-		return "zh"
-	case 0x0437: // з
-		return "z"
-	case 0x0438: // и
-		return "i"
-	case 0x0439: // й
-		return "y"
-	case 0x043A: // к
-		return "k"
-	case 0x043B: // л
-		return "l"
-	case 0x043C: // м
-		return "m"
-	case 0x043D: // н
-		return "n"
-	case 0x043E: // о
-		return "o"
-	case 0x043F: // п
-		return "p"
-	case 0x0440: // р
-		return "r"
-	case 0x0441: // с
-		return "s"
-	case 0x0442: // т
-		return "t"
-	case 0x0443: // у
-		return "u"
-	case 0x0444: // ф
-		return "f"
-	case 0x0445: // х
-		return "kh"
-	case 0x0446: // ц
-		return "ts"
-	case 0x0447: // ч
-		return "ch"
-	case 0x0448: // ш
-		return "sh"
-	case 0x0449: // щ
-		return "shch"
-	case 0x044A: // ъ
-		return "\""
-	case 0x044B: // ы
-		return "'"
-	case 0x044C: // ь
-		return "'"
-	case 0x044D: // э
-		return "e"
-	case 0x044E: // ю
-		return "yu"
-	case 0x044F: // я
-		return "ya"
-	default:
-		// Unknown character, use replacement
-		return "?"
+	if val, ok := transliterationMap[r]; ok {
+		return val
 	}
+	return "?"
 }
 
 // joinStrings joins strings with a separator

@@ -36,7 +36,7 @@ func (t *Transformer) renderBody(body Body) string {
 }
 
 // renderSection renders a section
-func (t *Transformer) renderSection(section Section, index int) string {
+func (t *Transformer) renderSection(section Section, _ int) string {
 	var buf strings.Builder
 
 	// Section ID
@@ -52,6 +52,23 @@ func (t *Transformer) renderSection(section Section, index int) string {
 		buf.WriteString(fmt.Sprintf("<div id=\"%s\">\n", id))
 	}
 
+	buf.WriteString(t.renderSectionTitle(section))
+	buf.WriteString(t.renderSectionContent(section))
+
+	// subsections
+	for i, subsection := range section.Sections {
+		buf.WriteString(t.renderSection(subsection, i+1))
+	}
+
+	if !t.MOBIMode {
+		buf.WriteString("</div>\n")
+	}
+
+	return buf.String()
+}
+
+func (t *Transformer) renderSectionTitle(section Section) string {
+	var buf strings.Builder
 	// Section title
 	if section.Title != nil && len(section.Title.P) > 0 {
 		// Determine heading level based on depth (h1-h6)
@@ -70,7 +87,11 @@ func (t *Transformer) renderSection(section Section, index int) string {
 	if section.Subtitle != nil {
 		buf.WriteString(fmt.Sprintf("<h5 class=\"subtitle\">%s</h5>\n", htmlEscape(section.Subtitle.Text)))
 	}
+	return buf.String()
+}
 
+func (t *Transformer) renderSectionContent(section Section) string {
+	var buf strings.Builder
 	// Epigraphs
 	for _, epigraph := range section.Epigraphs {
 		buf.WriteString(t.renderEpigraph(epigraph))
@@ -105,16 +126,6 @@ func (t *Transformer) renderSection(section Section, index int) string {
 	for _, p := range section.Paragraphs {
 		buf.WriteString(fmt.Sprintf("<p class=\"paragraph\">%s</p>\n", htmlEscape(p.Text)))
 	}
-
-	// subsections
-	for i, subsection := range section.Sections {
-		buf.WriteString(t.renderSection(subsection, i+1))
-	}
-
-	if !t.MOBIMode {
-		buf.WriteString("</div>\n")
-	}
-
 	return buf.String()
 }
 

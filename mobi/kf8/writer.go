@@ -209,20 +209,10 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 	// === KF8 SECTION (like Calibre - no MOBI 6 section) ===
 
 	// 1. Prepare KF8 content (with chunking)
-	var kf8Content string
-	if w.options.EnableChunking {
-		if err := w.skeleton.ChunkHTML(originalContent); err != nil {
-			return fmt.Errorf("failed to chunk HTML: %w", err)
-		}
-		w.skeleton.BuildHierarchy()
-		kf8Content = w.skeleton.AssignAIDAttributes()
-
-		// Generate FDST from skeleton
-		if w.options.GenerateFDST {
-			w.fdst.GenerateFromSkeleton(w.skeleton)
-		}
-	} else {
-		kf8Content = originalContent
+	// 1. Prepare KF8 content (with chunking)
+	kf8Content, err := w.prepareContent(originalContent)
+	if err != nil {
+		return err
 	}
 
 	// 2. Add KF8 text records FIRST (before images)
@@ -234,7 +224,7 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 
 	kf8TextRecords := w.splitTextRecords(kf8TextData)
 	for _, rec := range kf8TextRecords {
-		palmWriter.AddRecord(rec, 0, uint32(recordIndex))
+		palmWriter.AddRecord(rec, 0, uint32(recordIndex)) //nolint:gosec // Index fits
 		recordIndex++
 	}
 
@@ -248,7 +238,7 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 			continue
 		}
 		if len(res.MediaType) >= 6 && res.MediaType[0:5] == "image" {
-			palmWriter.AddRecord(res.Data, 0, uint32(recordIndex))
+			palmWriter.AddRecord(res.Data, 0, uint32(recordIndex)) //nolint:gosec // Index fits
 			recordIndex++
 		}
 	}
@@ -257,7 +247,7 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 	if w.options.GenerateFDST && w.fdst != nil {
 		var fdstBuf bytes.Buffer
 		if err := w.fdst.Write(&fdstBuf); err == nil {
-			palmWriter.AddRecord(fdstBuf.Bytes(), 0, uint32(recordIndex))
+			palmWriter.AddRecord(fdstBuf.Bytes(), 0, uint32(recordIndex)) //nolint:gosec // Index fits
 			recordIndex++
 			_ = recordIndex // Suppress ineffassign (future-proofing)
 		} else {
@@ -281,7 +271,7 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 	mobiHeader.Compression = mobi.PalmDOCCompression // 2 = PalmDOC compression
 
 	// Adjust firstTextRec/lastTextRec for prepended header (+1 offset)
-	mobiHeader.SetContentRecords(uint16(firstTextRec+1), uint16(lastTextRec+1))
+	mobiHeader.SetContentRecords(uint16(firstTextRec+1), uint16(lastTextRec+1)) //nolint:gosec // MOBI 6 limit checked elsewhere
 
 	// Create EXTH header with metadata (like Calibre)
 	exthWriter := mobi.NewEXTHWriter()
@@ -336,7 +326,7 @@ func (w *Writer) WriteJointFile(output io.Writer) error {
 		newRecords = append(newRecords, rec)
 		newRecordEntries = append(newRecordEntries, mobi.RecordIndexEntry{
 			Attributes: allRecordEntries[i].Attributes,
-			UniqueID:   uint32(i + 1),
+			UniqueID:   uint32(i + 1), //nolint:gosec // Index fits
 		})
 	}
 

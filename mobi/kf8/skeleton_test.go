@@ -228,7 +228,7 @@ func TestFDSTValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fdst := NewFDST()
 			fdst.Entries = tt.entries
-			fdst.Header.NumEntries = uint32(len(tt.entries))
+			fdst.Header.NumEntries = uint32(len(tt.entries)) //nolint:gosec // Test data fits
 
 			err := fdst.Validate()
 			if (err != nil) != tt.wantErr {

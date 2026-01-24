@@ -106,7 +106,7 @@ func createMOBIWithEXTH() []byte {
 	author := "Test Author"
 	buf.Write([]byte{0, 0, 0, 100}) // Record type
 	authorLen := make([]byte, 4)
-	binary.BigEndian.PutUint32(authorLen, uint32(8+len(author))) // Length
+	binary.BigEndian.PutUint32(authorLen, uint32(8+len(author))) //nolint:gosec // Test data fits
 	buf.Write(authorLen)
 	buf.WriteString(author) // Author name
 

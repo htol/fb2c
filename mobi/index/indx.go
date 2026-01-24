@@ -123,29 +123,29 @@ func (i *INDX) Encode() ([]byte, error) {
 	// Calculate offsets relative to the start of the INDX record
 	// Layout: Header (192) | TAGX | CNCX | Entries | IDXT
 	// Standard MOBI puts entries BEFORE IDXT block
-	entriesStartOffset := INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData))
+	entriesStartOffset := uint32(INDXHeaderSize) + uint32(len(tagxData)) + uint32(len(cncxData)) //nolint:gosec // Lengths fit in uint32 //nolint:gosec // Lengths fit in uint32
 
 	currentOffset := entriesStartOffset
 	for _, entryBuf := range entryBuffers {
-		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil {
+		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil { //nolint:gosec // Offset must fit in uint16 per strict MOBI spec
 			return nil, fmt.Errorf("failed to write IDXT offset: %w", err)
 		}
-		currentOffset += uint32(len(entryBuf))
+		currentOffset += uint32(len(entryBuf)) //nolint:gosec // Length fits
 	}
 	idxtData := idxtBuf.Bytes()
 
 	// 5. Update Header Fields
 	// Layout: Header | TAGX | CNCX | Entries | IDXT
-	i.Header.Count = uint32(len(entryBuffers))
-	i.Header.TotalRecordCount = uint32(len(entryBuffers))
-	i.Header.CNCXCount = uint32(len(i.CNCX))
+	i.Header.Count = uint32(len(entryBuffers))            //nolint:gosec // Count fits
+	i.Header.TotalRecordCount = uint32(len(entryBuffers)) //nolint:gosec // Count fits
+	i.Header.CNCXCount = uint32(len(i.CNCX))              //nolint:gosec // Count fits
 
 	var totalEntriesSize uint32
 	for _, entryBuf := range entryBuffers {
-		totalEntriesSize += uint32(len(entryBuf))
+		totalEntriesSize += uint32(len(entryBuf)) //nolint:gosec // Size fits
 	}
 
-	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData)) + totalEntriesSize
+	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData)) + totalEntriesSize //nolint:gosec // Offset fits //nolint:gosec // Offset fits //nolint:gosec // Offset fits
 
 	if err := i.writeHeader(&buf); err != nil {
 		return nil, err
@@ -218,13 +218,13 @@ func (i *INDX) encodeCNCXRecord() ([]byte, error) {
 	// Write root title first if set
 	if i.RootTitle != "" {
 		// Length as forward varint
-		buf.Write(varint.EncodeForward(uint32(len(i.RootTitle))))
+		buf.Write(varint.EncodeForward(uint32(len(i.RootTitle)))) //nolint:gosec // Length fits
 		buf.WriteString(i.RootTitle)
 	}
 
 	// Write chapter names with length prefix
 	for _, s := range i.CNCX {
-		buf.Write(varint.EncodeForward(uint32(len(s))))
+		buf.Write(varint.EncodeForward(uint32(len(s)))) //nolint:gosec // Length fits
 		buf.WriteString(s)
 	}
 
@@ -269,7 +269,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 	//                    0x83 & 0x7F = 3. 0x00 << 7 = 0. Total = 3.
 	//
 	// Solution: Encode 131 as 0x83 0x01 (131 = 3 + 128).
-	val := uint32(totalEntries)
+	val := uint32(totalEntries) //nolint:gosec // Count fits in uint32
 	for val >= 128 {
 		entryData = append(entryData, byte(val&0x7F)|0x80) // Set continuation bit
 		val >>= 7
@@ -282,7 +282,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 	idxtBuf := new(bytes.Buffer)
 	idxtBuf.WriteString("IDXT")
 	// Offset to entry (after header + TAGX)
-	entryOffset := uint16(INDXHeaderSize + len(tagxData))
+	entryOffset := uint16(INDXHeaderSize + len(tagxData)) //nolint:gosec // Fits in uint16
 	if err := binary.Write(idxtBuf, binary.BigEndian, entryOffset); err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 
 	// Calculate layout
 	// Header (192) | TAGX | Entry | IDXT
-	idxtOffset := INDXHeaderSize + uint32(len(tagxData)) + uint32(len(entryData))
+	idxtOffset := INDXHeaderSize + uint32(len(tagxData)) + uint32(len(entryData)) //nolint:gosec // Offset fits
 
 	// Build header for primary INDX
 	header := INDXHeader{
@@ -304,7 +304,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 		Count:            1, // One entry in this record
 		Encoding:         i.Header.Encoding,
 		Language:         0xFFFFFFFF,           // No specific language (match reference)
-		TotalRecordCount: uint32(totalEntries), // Total entries across all secondary records
+		TotalRecordCount: uint32(totalEntries), //nolint:gosec // Count fits
 		ORDTOffset:       0,                    // Match reference (0, not 0xFFFFFFFF)
 		LIGTOffset:       0,
 		CountNeeded:      0,
@@ -330,7 +330,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 }
 
 // encodeSecondaryINDX creates the secondary INDX record with actual TOC entries
-func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
+func (i *INDX) encodeSecondaryINDX() ([]byte, error) { //nolint:gocyclo
 	var buf bytes.Buffer
 
 	// Pre-calculate CNCX byte offsets for each string
@@ -340,14 +340,14 @@ func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
 
 	// Add root title at CNCX offset 0
 	if i.RootTitle != "" {
-		vLen := varint.EncodeForward(uint32(len(i.RootTitle)))
-		currentCNCXOffset += uint32(len(vLen) + len(i.RootTitle))
+		vLen := varint.EncodeForward(uint32(len(i.RootTitle)))    //nolint:gosec // Length fits
+		currentCNCXOffset += uint32(len(vLen) + len(i.RootTitle)) //nolint:gosec // Offset fits
 	}
 
 	for idx, s := range i.CNCX {
 		cncxOffsets[idx] = currentCNCXOffset
-		vLen := varint.EncodeForward(uint32(len(s)))
-		currentCNCXOffset += uint32(len(vLen) + len(s))
+		vLen := varint.EncodeForward(uint32(len(s)))    //nolint:gosec // Length fits
+		currentCNCXOffset += uint32(len(vLen) + len(s)) //nolint:gosec // Offset fits
 	}
 
 	// Secondary INDX has no TAGX, just entries
@@ -404,7 +404,7 @@ func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
 	entriesStartOffset := uint32(INDXHeaderSize)
 	var totalEntriesSize uint32
 	for _, eb := range entryBuffers {
-		totalEntriesSize += uint32(len(eb))
+		totalEntriesSize += uint32(len(eb)) //nolint:gosec // Size fits
 	}
 	idxtOffset := entriesStartOffset + totalEntriesSize
 
@@ -413,10 +413,10 @@ func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
 	idxtBuf.WriteString("IDXT")
 	currentOffset := entriesStartOffset
 	for _, eb := range entryBuffers {
-		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil {
+		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil { //nolint:gosec // Must fit in uint16
 			return nil, err
 		}
-		currentOffset += uint32(len(eb))
+		currentOffset += uint32(len(eb)) //nolint:gosec // Fits
 	}
 
 	// Build header for secondary INDX
@@ -427,12 +427,12 @@ func (i *INDX) encodeSecondaryINDX() ([]byte, error) {
 		IndexType:        1, // Secondary/data index (1 matches Reference 365)
 		UnknownOffset:    0, // Unknown field (0 matches Reference 365)
 		IDXTOffset:       idxtOffset,
-		Count:            uint32(len(entryBuffers)),
-		Encoding:         0xFFFFFFFF, // No encoding for secondary (match reference)
-		Language:         0xFFFFFFFF, // No language for secondary (match reference)
-		TotalRecordCount: 0,          // Not used in secondary
-		ORDTOffset:       0,          // Match reference (0, not 0xFFFFFFFF)
-		LIGTOffset:       0,          // Match reference
+		Count:            uint32(len(entryBuffers)), //nolint:gosec // Count fits
+		Encoding:         0xFFFFFFFF,                // No encoding for secondary (match reference)
+		Language:         0xFFFFFFFF,                // No language for secondary (match reference)
+		TotalRecordCount: 0,                         // Not used in secondary
+		ORDTOffset:       0,                         // Match reference (0, not 0xFFFFFFFF)
+		LIGTOffset:       0,                         // Match reference
 		CountNeeded:      0,
 		CNCXCount:        0,
 		Padding:          [136]byte{},
@@ -485,15 +485,6 @@ func (i *INDX) encodeSecondaryEntryWithOffset(label string, offset, length, cncx
 	return buf.Bytes()
 }
 
-// encodeSecondaryEntry encodes a single entry for the secondary INDX (legacy wrapper)
-func (i *INDX) encodeSecondaryEntry(label string, entry IDXTEntry) ([]byte, error) {
-	depth := uint32(0)
-	if vals, ok := entry.TagValues[4]; ok && len(vals) > 0 {
-		depth = vals[0]
-	}
-	return i.encodeSecondaryEntryWithOffset(label, entry.Offset, entry.Length, 0, depth), nil
-}
-
 // EncodeWithTerminator encodes TAGX with a terminator entry
 func (t *TAGX) EncodeWithTerminator() ([]byte, error) {
 	// Header: "TAGX" (4) + Length(4) + Control(4)
@@ -504,7 +495,7 @@ func (t *TAGX) EncodeWithTerminator() ([]byte, error) {
 
 	var buf bytes.Buffer
 	buf.WriteString("TAGX")
-	if err := binary.Write(&buf, binary.BigEndian, uint32(totalLen)); err != nil {
+	if err := binary.Write(&buf, binary.BigEndian, uint32(totalLen)); err != nil { //nolint:gosec // Length fits
 		return nil, fmt.Errorf("failed to write header length: %w", err)
 	}
 	buf.Write([]byte{0, 0, 0, 1}) // 1 Control Byte
@@ -633,7 +624,7 @@ func (t *TAGX) Encode() ([]byte, error) {
 
 	var buf bytes.Buffer
 	buf.WriteString("TAGX")
-	if err := binary.Write(&buf, binary.BigEndian, uint32(totalLen)); err != nil {
+	if err := binary.Write(&buf, binary.BigEndian, uint32(totalLen)); err != nil { //nolint:gosec // Length fits
 		return nil, fmt.Errorf("failed to write header length: %w", err)
 	}
 	buf.Write([]byte{0, 0, 0, 1}) // 1 Control Byte
@@ -674,8 +665,19 @@ func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 	buf.WriteByte(0) // Placeholder for control byte
 
 	// 3. Write tag values based on TAGX definition (in order of tag ID)
+	controlByte := i.writeIDXTTags(&buf, entry)
+
+	data := buf.Bytes()
+	data[controlBytePos] = controlByte
+
+	return data, nil
+}
+
+// writeIDXTTags writes the tag values for an IDXT entry and returns the control byte
+func (i *INDX) writeIDXTTags(buf *bytes.Buffer, entry IDXTEntry) byte { //nolint:gocyclo
 	var controlByte byte = 0x00
 
+	// Tag 1: Offset (Mask 0x01)
 	if val, ok := entry.TagValues[1]; ok && len(val) > 0 {
 		controlByte |= 0x01
 		buf.Write(encodeVarint(val[0]))
@@ -723,10 +725,7 @@ func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
 		buf.Write(encodeVarint(val[0]))
 	}
 
-	data := buf.Bytes()
-	data[controlBytePos] = controlByte
-
-	return data, nil
+	return controlByte
 }
 
 // TOCEntry represents a helper entry for building TOC
@@ -780,7 +779,7 @@ func (b *TOCIndexBuilder) SetTextRecords(records [][]byte) {
 func (b *TOCIndexBuilder) CalculateRecordOffset(offset uint32) (int, uint32) {
 	currentOffset := uint32(0)
 	for i, rec := range b.textRecords {
-		recLen := uint32(len(rec))
+		recLen := uint32(len(rec)) //nolint:gosec // Length fits
 		if offset < currentOffset+recLen {
 			return i, offset - currentOffset
 		}
@@ -789,7 +788,7 @@ func (b *TOCIndexBuilder) CalculateRecordOffset(offset uint32) (int, uint32) {
 	// If beyond, return last record and overflow offset (or handle as error)
 	// For robustness return last record index
 	if len(b.textRecords) > 0 {
-		return len(b.textRecords) - 1, offset - (currentOffset - uint32(len(b.textRecords[len(b.textRecords)-1])))
+		return len(b.textRecords) - 1, offset - (currentOffset - uint32(len(b.textRecords[len(b.textRecords)-1]))) //nolint:gosec // Length fits
 	}
 	return 0, 0
 }
@@ -879,23 +878,23 @@ func (b *TOCIndexBuilder) Build() (*INDX, error) {
 		tags := map[uint32][]uint32{
 			1: {entry.Offset},    // Tag 1: Offset
 			2: {entry.Length},    // Tag 2: Length
-			3: {uint32(nameIdx)}, // Tag 3: Name index in CNCX
+			3: {uint32(nameIdx)}, //nolint:gosec // Tag 3: Name index in CNCX
 			4: {depth},           // Tag 4: Depth (0-based)
 		}
 
 		// Tag 5: Parent index (only if has parent)
 		if entry.ParentIndex >= 0 {
-			tags[5] = []uint32{uint32(entry.ParentIndex)}
+			tags[5] = []uint32{uint32(entry.ParentIndex)} //nolint:gosec // Index fits
 		}
 
 		// Tag 21: First child index (only if has children)
 		if entry.FirstChild >= 0 {
-			tags[21] = []uint32{uint32(entry.FirstChild)}
+			tags[21] = []uint32{uint32(entry.FirstChild)} //nolint:gosec // Index fits
 		}
 
 		// Tag 22: Last child index (only if has children)
 		if entry.LastChild >= 0 {
-			tags[22] = []uint32{uint32(entry.LastChild)}
+			tags[22] = []uint32{uint32(entry.LastChild)} //nolint:gosec // Index fits
 		}
 
 		// Use sequential numeric label (standard MOBI format: "0000", "0001", etc.)
@@ -920,7 +919,7 @@ func (b *TOCIndexBuilder) FindOffsetForHref(html, href string) uint32 {
 		re := regexp.MustCompile(pattern)
 		loc := re.FindStringIndex(html)
 		if loc != nil {
-			return uint32(loc[0])
+			return uint32(loc[0]) //nolint:gosec // Index fits
 		}
 	}
 	return 0

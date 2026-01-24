@@ -43,10 +43,10 @@ func GenerateTOCIndex(book *opf.OEBBook, htmlContent string, textRecords [][]byt
 		)
 
 		// Add entry with calculated offset
-		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset)
+		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset) //nolint:gosec // Level fits
 	}
 
 	// Build with total text size for accurate chapter length calculation
-	totalSize := uint32(len(htmlContent))
+	totalSize := uint32(len(htmlContent)) //nolint:gosec // Length fits
 	return builder.BuildWithTotalSize(totalSize)
 }

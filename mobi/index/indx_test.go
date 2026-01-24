@@ -4,6 +4,11 @@ import (
 	"testing"
 )
 
+const (
+	ch1 = "Chapter 1"
+	ch2 = "Chapter 2"
+)
+
 // TestNewINDX tests INDX creation
 func TestNewINDX(t *testing.T) {
 	// TestNewINDX now uses 65001 explicitly
@@ -84,12 +89,18 @@ func TestTAGXEncode(t *testing.T) {
 func TestINDXAddString(t *testing.T) {
 	indx := NewINDX(0, 0)
 
-	idx1 := indx.AddString("Chapter 1")
+	// Define strings
+	const (
+		ch1 = "Chapter 1"
+		ch2 = "Chapter 2"
+	)
+
+	idx1 := indx.AddString(ch1)
 	if idx1 != 0 {
 		t.Errorf("First string index = %d, want 0", idx1)
 	}
 
-	idx2 := indx.AddString("Chapter 2")
+	idx2 := indx.AddString(ch2)
 	if idx2 != 1 {
 		t.Errorf("Second string index = %d, want 1", idx2)
 	}
@@ -255,11 +266,11 @@ func TestTOCIndexBuilderBuild(t *testing.T) {
 		t.Errorf("CNCX strings count = %d, want 2", len(indx.CNCX))
 	}
 
-	if indx.CNCX[0] != "Chapter 1" {
+	if indx.CNCX[0] != ch1 {
 		t.Errorf("CNCX[0] = %s, want 'Chapter 1'", indx.CNCX[0])
 	}
 
-	if indx.CNCX[1] != "Chapter 2" {
+	if indx.CNCX[1] != ch2 {
 		t.Errorf("CNCX[1] = %s, want 'Chapter 2'", indx.CNCX[1])
 	}
 }

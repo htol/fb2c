@@ -105,7 +105,8 @@ func generateLargeFB2(paragraphs int) []byte {
 // Since createOPFBook is private, I'll access it because I am in package fb2c_test or fb2c?
 
 func TestPerformanceRealFile(t *testing.T) {
-	filePath := "testdata/src.fb2"
+	// Use the constant that already exists
+	filePath := testSrcFB2
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		t.Skipf("Skipping test: file %s not found", filePath)

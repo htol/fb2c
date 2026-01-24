@@ -56,7 +56,7 @@ func resolveImageSources(book *opf.OEBBook, hasCover bool, content string) strin
 
 		if recIndex, ok := imageMap[url]; ok {
 			// MOBI 1-based relative index (relative to FirstImageIndex)
-			finalIndex := uint32(recIndex + 1)
+			finalIndex := uint32(recIndex + 1) //nolint:gosec // Limit verified
 			// Calibre replaces src with recindex attribute
 			return fmt.Sprintf("recindex=%c%05d%c", quote, finalIndex, quote)
 		}

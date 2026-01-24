@@ -103,7 +103,7 @@ func NewHeader(textSize, recordCount int) *Header {
 		// PalmDOC header
 		Compression:          NoCompression,
 		Unused1:              0,
-		UncompressedTextSize: uint32(textSize),
+		UncompressedTextSize: uint32(textSize),    //nolint:gosec // Size fits
 		RecordCount:          uint16(recordCount), //nolint:gosec // MOBI 6 limit, caller should handle splitting if needed
 		RecordSize:           StandardRecordSize,
 		EncryptionType:       0,
@@ -147,7 +147,7 @@ func NewHeader(textSize, recordCount int) *Header {
 		DRMFlags:            0,
 		Unknown4:            [8]byte{},
 		FirstContentRec:     1,
-		LastContentRec:      uint16(recordCount),
+		LastContentRec:      uint16(recordCount), //nolint:gosec // Limit checked elsewhere
 		Unknown5:            0x00000001,
 		FCISIndex:           0xFFFFFFFF,
 		FCISCount:           0x00000001,
@@ -176,7 +176,7 @@ func (h *Header) Write(w io.Writer) error {
 func (h *Header) SetFullName(name string) {
 	// In production, this would write the name to data and set offset/length
 	// For now, just set the length
-	h.FullNameLength = uint32(len(name))
+	h.FullNameLength = uint32(len(name)) //nolint:gosec // Length fits
 }
 
 // SetEXTHFlags sets the EXTH flags

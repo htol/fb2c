@@ -102,7 +102,7 @@ type MOBIHeader struct {
 	INDXRecordOffset    uint32  // 0xF4
 }
 
-func main() {
+func main() { //nolint:gocyclo
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run scripts/inspect_mobi.go <mobi_file>")
 		os.Exit(1)

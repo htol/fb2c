@@ -17,8 +17,8 @@ import (
 // Regex to match id attributes: id="value" or id='value'
 var idRegex = regexp.MustCompile(`id=["']([^"']+)["']`)
 
-// EPUBWriter writes EPUB files
-type EPUBWriter struct {
+// Writer writes EPUB files
+type Writer struct {
 	book         *opf.OEBBook
 	bookID       string
 	uuid         string
@@ -27,9 +27,9 @@ type EPUBWriter struct {
 	playOrder    int      // Counter for NCX playOrder
 }
 
-// NewEPUBWriter creates a new EPUB writer
-func NewEPUBWriter(book *opf.OEBBook) *EPUBWriter {
-	return &EPUBWriter{
+// NewWriter creates a new EPUB writer
+func NewWriter(book *opf.OEBBook) *Writer {
+	return &Writer{
 		book:    book,
 		bookID:  generateUUID(),
 		uuid:    generateUUID(),
@@ -38,7 +38,7 @@ func NewEPUBWriter(book *opf.OEBBook) *EPUBWriter {
 }
 
 // Write writes the EPUB file to a writer
-func (w *EPUBWriter) Write(output io.Writer) error {
+func (w *Writer) Write(output io.Writer) error {
 	zipWriter := zip.NewWriter(output)
 	defer zipWriter.Close()
 
@@ -69,7 +69,7 @@ func (w *EPUBWriter) Write(output io.Writer) error {
 	return nil
 }
 
-func (w *EPUBWriter) writeMimetype(zipWriter *zip.Writer) error {
+func (w *Writer) writeMimetype(zipWriter *zip.Writer) error {
 	header := &zip.FileHeader{
 		Name:   "mimetype",
 		Method: zip.Store,
@@ -83,7 +83,7 @@ func (w *EPUBWriter) writeMimetype(zipWriter *zip.Writer) error {
 }
 
 // writeContainer writes META-INF/container.xml
-func (w *EPUBWriter) writeContainer(zipWriter *zip.Writer) error {
+func (w *Writer) writeContainer(zipWriter *zip.Writer) error {
 	const containerXML = `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
@@ -101,7 +101,7 @@ func (w *EPUBWriter) writeContainer(zipWriter *zip.Writer) error {
 }
 
 // writeOPF writes the content.opf file
-func (w *EPUBWriter) writeOPF(zipWriter *zip.Writer) error {
+func (w *Writer) writeOPF(zipWriter *zip.Writer) error {
 	var buf bytes.Buffer
 
 	// Header - use EPUB 2.0 for simpler compatibility
@@ -131,7 +131,7 @@ func (w *EPUBWriter) writeOPF(zipWriter *zip.Writer) error {
 }
 
 // writeMetadata writes the metadata section of content.opf
-func (w *EPUBWriter) writeMetadata(buf *bytes.Buffer) {
+func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 	m := w.book.Metadata
 
 	buf.WriteString(`  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -208,7 +208,7 @@ func (w *EPUBWriter) writeMetadata(buf *bytes.Buffer) {
 }
 
 // writeManifest writes the manifest section of content.opf
-func (w *EPUBWriter) writeManifest(buf *bytes.Buffer) {
+func (w *Writer) writeManifest(buf *bytes.Buffer) {
 	buf.WriteString(`  <manifest>
 `)
 
@@ -239,7 +239,7 @@ func (w *EPUBWriter) writeManifest(buf *bytes.Buffer) {
 }
 
 // writeSpine writes the spine section of content.opf
-func (w *EPUBWriter) writeSpine(buf *bytes.Buffer) {
+func (w *Writer) writeSpine(buf *bytes.Buffer) {
 	buf.WriteString(`  <spine toc="ncx">
 `)
 
@@ -252,7 +252,7 @@ func (w *EPUBWriter) writeSpine(buf *bytes.Buffer) {
 }
 
 // writeNCX writes the toc.ncx file
-func (w *EPUBWriter) writeNCX(zipWriter *zip.Writer) error {
+func (w *Writer) writeNCX(zipWriter *zip.Writer) error {
 	var buf bytes.Buffer
 
 	// Reset and collect fragment IDs
@@ -295,7 +295,7 @@ func (w *EPUBWriter) writeNCX(zipWriter *zip.Writer) error {
 }
 
 // writeTOCEntries recursively writes TOC entries
-func (w *EPUBWriter) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, depth int) {
+func (w *Writer) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, depth int) {
 	if entry == nil {
 		return
 	}
@@ -327,13 +327,13 @@ func (w *EPUBWriter) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, dep
 `)
 }
 
-func (w *EPUBWriter) getNextPlayOrder() int {
+func (w *Writer) getNextPlayOrder() int {
 	w.playOrder++
 	return w.playOrder
 }
 
 // rewriteDuplicateIDs finds and rewrites duplicate IDs in HTML content
-func (w *EPUBWriter) rewriteDuplicateIDs(html string) string {
+func (w *Writer) rewriteDuplicateIDs(html string) string {
 	// Find all id attributes in the HTML
 	idCounts := make(map[string]int)
 
@@ -389,7 +389,7 @@ func (w *EPUBWriter) rewriteDuplicateIDs(html string) string {
 }
 
 // writeContent writes the main content XHTML file
-func (w *EPUBWriter) writeContent(zipWriter *zip.Writer) error {
+func (w *Writer) writeContent(zipWriter *zip.Writer) error {
 	content := w.book.Content
 
 	// Content from FB2 transformer has full HTML structure
@@ -409,7 +409,7 @@ func (w *EPUBWriter) writeContent(zipWriter *zip.Writer) error {
 }
 
 // convertToXHTML converts HTML content to XHTML format for EPUB
-func (w *EPUBWriter) convertToXHTML(html string) string {
+func (w *Writer) convertToXHTML(html string) string {
 	// Simple approach: wrap in XHTML with proper namespace
 	// In production, would use html/parser to extract body content
 
@@ -466,7 +466,7 @@ func (w *EPUBWriter) convertToXHTML(html string) string {
 }
 
 // writeResources writes resources (images, etc.) to the EPUB
-func (w *EPUBWriter) writeResources(zipWriter *zip.Writer) error {
+func (w *Writer) writeResources(zipWriter *zip.Writer) error {
 	ids := w.book.GetManifestIDs()
 	for _, id := range ids {
 		res, ok := w.book.GetResource(id)
@@ -527,6 +527,6 @@ func generateUUID() string {
 
 // ConvertOEBToEPUB converts an OEBBook to EPUB
 func ConvertOEBToEPUB(book *opf.OEBBook, output io.Writer) error {
-	writer := NewEPUBWriter(book)
+	writer := NewWriter(book)
 	return writer.Write(output)
 }

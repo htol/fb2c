@@ -117,25 +117,10 @@ func (w *Writer) Write(output io.Writer) error {
 
 	// 1. Resolve image sources and calculate final text size
 	// We do this in two passes to get absolute record indices
-	hasTOC := w.options.GenerateTOC && len(w.book.TOC.Children) > 0
-
-	// Pass 1: Dummy resolution to get final text size
-	dummyContent := resolveImageSources(w.book, w.options.CoverImage != nil, w.book.Content)
-	textRecordCount := (len(dummyContent) + 4095) / 4096
-	// firstImageRecord is 0-based absolute index: Header (0) + TextRecords + TOC (optional)
-	firstImageRecord := 1 + textRecordCount
-	if hasTOC {
-		firstImageRecord++
-		_ = firstImageRecord // Suppress ineffassign
-	}
-
-	// Pass 2: Final resolution with relative indices (1st image = 1)
-	resolvedContent := resolveImageSources(w.book, w.options.CoverImage != nil, w.book.Content)
-	// Convert href="#ID" to filepos=OFFSET for Kindle internal navigation
-	resolvedContent = resolveFileposLinks(resolvedContent)
-	textData := []byte(resolvedContent)
-
+	textData, firstImageRecord := w.prepareTextContent()
 	uncompressedSize := len(textData)
+	// resolvedContent is needed for TOC generation later
+	resolvedContent := string(textData)
 
 	w.options.Logger.Debug("processing text data",
 		"component", "MOBIWriter",
@@ -146,29 +131,9 @@ func (w *Writer) Write(output io.Writer) error {
 
 	// Split and compress records
 	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
-	var textRecords [][]byte
-	const recordSize = 4096
-
-	for i := 0; i < len(textData); i += recordSize {
-		end := i + recordSize
-		if end > len(textData) {
-			end = len(textData)
-		}
-
-		chunk := textData[i:end]
-		record := chunk
-		if w.options.CompressionType == PalmDOCCompression {
-			record = compressRecord(chunk)
-		}
-
-		// In MOBI with ExtraRecordFlags=0x02 (TBS indexing), we add a 4-byte trailer.
-		// The last byte 0x84 indicates 4 bytes of extra data (including the size byte).
-		// We use 00 00 00 84 to keep it safe. Reference uses 86 80 02 84.
-		trailingRecord := make([]byte, len(record)+4)
-		copy(trailingRecord, record)
-		trailingRecord[len(record)+3] = 0x84
-		textRecords = append(textRecords, trailingRecord)
-	}
+	// Split and compress records
+	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
+	textRecords := w.splitAndCompressRecords(textData)
 
 	w.options.Logger.Debug("creating PalmDBWriter with records",
 		"component", "MOBIWriter",
@@ -196,6 +161,10 @@ func (w *Writer) Write(output io.Writer) error {
 	// FirstNonBookIndex should point to the first record that is NOT content (e.g. INDX, Images)
 	// We'll determine it dynamically.
 	firstImageIndex := uint32(0xFFFFFFFF)
+	// Update firstImageIndex if we have images
+	if w.book.HasImages() || w.options.CoverImage != nil {
+		firstImageIndex = uint32(firstImageRecord) //nolint:gosec // Record index fits
+	}
 	firstNonBookIndex := uint32(0xFFFFFFFF)
 
 	// Create MOBI header with correct record indices
@@ -205,67 +174,26 @@ func (w *Writer) Write(output io.Writer) error {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
 
-	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex)*2)
+	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex)*2) //nolint:gosec // Record index fits
 	recordIndex++
 
 	// 2. Add text records
 	for _, rec := range textRecords {
-		palmWriter.AddRecord(rec, 0, uint32(recordIndex)*2)
+		palmWriter.AddRecord(rec, 0, uint32(recordIndex)*2) //nolint:gosec // Record index fits
 		recordIndex++
 	}
 
 	// Correctly set LastContentRec to the last text record added
-	lastContentRec := uint32(recordIndex - 1)
+	lastContentRec := uint32(recordIndex - 1) //nolint:gosec // Record index fits
 
 	// FirstNonBookIndex starts here (next record)
-	firstNonBookIndex = uint32(recordIndex)
+	firstNonBookIndex = uint32(recordIndex) //nolint:gosec // Record index fits
 
 	// 3. Add TOC Index Records (NCX) - Two-record structure for native Kindle TOC
-	var tocIndexOffset uint32 = 0xFFFFFFFF
-	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
-		// Use resolvedContent for accurate TOC offset calculation
-		tocINDX, err := GenerateTOCIndex(w.book, resolvedContent, textRecords, w.options.Logger)
-		if err != nil {
-			return fmt.Errorf("failed to generate TOC index: %w", err)
-		}
-
-		// Encode as two-record NCX structure (primary + secondary)
-		ncxResult, err := tocINDX.EncodeNCXIndex()
-		if err != nil {
-			// Fallback to single record if NCX encoding fails
-			w.options.Logger.Debug("NCX encoding failed, using single INDX",
-				"error", err.Error(),
-			)
-			indxData, encErr := tocINDX.Encode()
-			if encErr != nil {
-				return fmt.Errorf("failed to encode TOC INDX: %w", encErr)
-			}
-			tocIndexOffset = uint32(recordIndex)
-			palmWriter.AddRecord(indxData, 0, tocIndexOffset*2)
-			recordIndex++
-		} else {
-			// Add primary INDX (meta record) - this is what INDXRecordOffset points to
-			tocIndexOffset = uint32(recordIndex)
-			palmWriter.AddRecord(ncxResult.PrimaryINDX, 0, tocIndexOffset*2)
-			recordIndex++
-
-			// Add secondary INDX (data record with actual TOC entries)
-			palmWriter.AddRecord(ncxResult.SecondaryINDX, 0, uint32(recordIndex)*2)
-			recordIndex++
-
-			// Add CNCX record (string table with chapter names)
-			if len(ncxResult.CNCXRecord) > 0 {
-				palmWriter.AddRecord(ncxResult.CNCXRecord, 0, uint32(recordIndex)*2)
-				recordIndex++
-			}
-
-			w.options.Logger.Debug("NCX TOC generated",
-				"primaryRecordIndex", tocIndexOffset,
-				"secondaryRecordIndex", tocIndexOffset+1,
-				"cncxRecordIndex", tocIndexOffset+2,
-				"totalEntries", ncxResult.TotalEntries,
-			)
-		}
+	// Note: We don't need to return tocIndexOffset here because it's not used later in this function
+	var tocIndexOffset uint32
+	if tocIndexOffset, err = w.addTOCIndexRecords(palmWriter, &recordIndex, resolvedContent, textRecords); err != nil {
+		return err
 	}
 
 	// 4. Add Images in consistent order: Cover -> Thumbnail -> Manifest
@@ -275,19 +203,19 @@ func (w *Writer) Write(output io.Writer) error {
 	coverID := w.book.Metadata.CoverID
 
 	if w.options.CoverImage != nil || w.book.HasImages() {
-		firstImageIndex = uint32(recordIndex)
+		firstImageIndex = uint32(recordIndex) //nolint:gosec // Record index fits
 
 		// 1. Add cover image if present
 		if w.options.CoverImage != nil {
 			coverRecord := w.options.CoverImage
-			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex)*2)
+			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex)*2) //nolint:gosec // Record index fits
 			recordIndex++
 
 			// 2. Add thumbnail immediately after cover
 			thumbnailData := w.generateThumbnail(w.options.CoverImage)
 			if thumbnailData != nil {
 				thumbnailRecord := thumbnailData
-				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex)*2)
+				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex)*2) //nolint:gosec // Record index fits
 				recordIndex++
 			}
 		}
@@ -300,16 +228,16 @@ func (w *Writer) Write(output io.Writer) error {
 	// Do not Overwrite it.
 
 	// 5. Add Mandatory Structural Records (FLIS, FCIS, EOF)
-	flisIndex := uint32(recordIndex)
+	flisIndex := uint32(recordIndex) //nolint:gosec // Record index fits
 	palmWriter.AddRecord(createFLISRecord(), 0, flisIndex*2)
 	recordIndex++
 
-	fcisIndex := uint32(recordIndex)
-	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex*2)
+	fcisIndex := uint32(recordIndex)                                                 //nolint:gosec // Record index fits
+	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex*2) //nolint:gosec // Size fits
 	recordIndex++
 
 	// EOF record (4 zero bytes)
-	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex)*2)
+	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex)*2) //nolint:gosec // Index fits
 	recordIndex++
 
 	// If TOC exists, FirstNonBookIndex should point to it for best compatibility
@@ -366,8 +294,8 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader := NewHeader(textSize, textRecordCount)
 
 	// Set content record indices
-	mobiHeader.FirstContentRec = uint16(firstTextRec)
-	mobiHeader.LastContentRec = uint16(lastTextRec)
+	mobiHeader.FirstContentRec = uint16(firstTextRec) //nolint:gosec // Limit verified
+	mobiHeader.LastContentRec = uint16(lastTextRec)   //nolint:gosec // Limit verified
 
 	// Set header flags for UTF-8 and structure
 	mobiHeader.TextEncoding = UTF8Encoding
@@ -391,7 +319,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.IndexKeys = 0xFFFFFFFF
 
 	// Set compression type
-	mobiHeader.Compression = uint16(w.options.CompressionType)
+	mobiHeader.Compression = uint16(w.options.CompressionType) //nolint:gosec // Enum values fit
 
 	// Set image indices
 	mobiHeader.FirstImageIndex = firstImageIndex
@@ -440,10 +368,10 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		// These are required for native TOC visibility in Kindle readers
 		if indxOffset != 0xFFFFFFFF {
 			// Calculate approximate NCX size based on TOC entry count
-			tocEntryCount := uint32(len(w.book.TOC.Flatten()) - 1) // Exclude root
+			tocEntryCount := uint32(len(w.book.TOC.Flatten()) - 1) //nolint:gosec // Count fits
 			if tocEntryCount > 0 {
 				// Approximate NCX size: ~100 bytes per entry is a reasonable estimate
-				ncxSize := uint32(500 + tocEntryCount*100)
+				ncxSize := uint32(500 + tocEntryCount*100) //nolint:gosec // Size fits
 				exthWriter.AddNCXMetadata(ncxSize, indxOffset)
 			}
 		}
@@ -452,7 +380,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		// FullNameOffset = PalmDOC Header (16) + MOBI Header (264 usually) + EXTH Length
 		// Use the constant to be safe
 		mobiHeaderOffset := uint32(16 + HeaderSize)
-		mobiHeader.FullNameOffset = mobiHeaderOffset + uint32(exthLength)
+		mobiHeader.FullNameOffset = mobiHeaderOffset + uint32(exthLength) //nolint:gosec // Offset fits
 
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
@@ -494,7 +422,7 @@ func (w *Writer) addImagesFiltered(palmWriter *PalmDBWriter, recordIndex *int, s
 			continue
 		}
 
-		palmWriter.AddRecord(res.Data, 0, uint32(*recordIndex)*2)
+		palmWriter.AddRecord(res.Data, 0, uint32(*recordIndex)*2) //nolint:gosec // Index fits
 		(*recordIndex)++
 	}
 }

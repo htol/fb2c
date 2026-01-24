@@ -189,8 +189,8 @@ func (ft *FlowTable) AddEntry(flowID string, flowNum int, content string) {
 	entry := &FlowTableEntry{
 		FlowID:   flowID,
 		FlowNum:  flowNum,
-		Length:   uint32(len(content)),
-		Encoding: 65001, // UTF-8
+		Length:   uint32(len(content)), //nolint:gosec // Length fits
+		Encoding: 65001,                // UTF-8
 	}
 	ft.Entries = append(ft.Entries, entry)
 }

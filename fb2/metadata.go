@@ -13,6 +13,20 @@ import (
 	"time"
 )
 
+const (
+	MIMEJPEG = "image/jpeg"
+	MIMEPNG  = "image/png"
+	MIMEGIF  = "image/gif"
+	MIMESVG  = "image/svg+xml"
+	MIMEWEBP = "image/webp"
+
+	ExtJPG  = ".jpg"
+	ExtPNG  = ".png"
+	ExtGIF  = ".gif"
+	ExtSVG  = ".svg"
+	ExtWEBP = ".webp"
+)
+
 // Metadata represents extracted book metadata
 type Metadata struct {
 	Title       string
@@ -55,19 +69,23 @@ func ExtractMetadata(fb2 *FictionBook, ip ImageProvider) (*Metadata, error) {
 		Keywords:  []string{},
 	}
 
-	// Extract from TitleInfo
-	ti := fb2.Description.TitleInfo
+	extractTitleInfo(m, fb2.Description.TitleInfo)
+	extractPublishInfo(m, fb2.Description.PublishInfo)
+	extractCover(m, fb2.Description.TitleInfo.Coverpage, ip)
+
+	return m, nil
+}
+
+func extractTitleInfo(m *Metadata, ti TitleInfo) {
 	if ti.BookTitle != "" {
 		m.Title = strings.TrimSpace(ti.BookTitle)
 	}
 
-	// Authors
 	for _, author := range ti.Author {
 		name := formatAuthorName(author)
 		if name != "" {
 			m.Authors = append(m.Authors, name)
 		}
-		// Build author sort: "Last, First Middle"
 		if author.LastName != "" {
 			sortName := author.LastName
 			if author.FirstName != "" {
@@ -83,39 +101,31 @@ func ExtractMetadata(fb2 *FictionBook, ip ImageProvider) (*Metadata, error) {
 			}
 		}
 	}
-
-	// Full authors string (for display)
 	m.AuthorsFull = strings.Join(m.Authors, " & ")
 
-	// Language
 	if ti.Language != "" {
 		m.Language = ti.Language
 		m.Languages = append(m.Languages, ti.Language)
 	}
-
-	// Genres
 	m.Genres = append(m.Genres, ti.Genre...)
 
-	// Annotation
 	if ti.Annotation != nil {
 		m.Annotation = extractTextContent(ti.Annotation)
 		m.Comments = m.Annotation
 	}
 
-	// Keywords
 	if ti.Keywords != nil {
 		m.Keywords = parseKeywords(ti.Keywords.Text)
 	}
 
-	// Sequence (series)
 	if len(ti.Sequence) > 0 {
-		seq := ti.Sequence[0] // Use first sequence
+		seq := ti.Sequence[0]
 		m.Series = seq.Name
 		m.SeriesIndex = seq.Number
 	}
+}
 
-	// Extract from PublishInfo
-	pi := fb2.Description.PublishInfo
+func extractPublishInfo(m *Metadata, pi PublishInfo) {
 	if pi.Publisher != "" {
 		m.Publisher = strings.TrimSpace(pi.Publisher)
 	}
@@ -124,55 +134,45 @@ func ExtractMetadata(fb2 *FictionBook, ip ImageProvider) (*Metadata, error) {
 	}
 	if pi.Year != "" {
 		m.Year = pi.Year
-		// Try to parse as date (June 2 of year)
 		if year, err := parseYear(pi.Year); err == nil {
 			m.PubDate = year
 		}
 	}
 	if len(pi.Sequence) > 0 && m.Series == "" {
-		// Use publish-info sequence if title-info didn't have one
 		seq := pi.Sequence[0]
 		m.Series = seq.Name
 		m.SeriesIndex = seq.Number
 	}
+}
 
-	// Cover image
-	if ti.Coverpage.PrimaryImage.Href != "" || ti.Coverpage.PrimaryImage.LHref != "" ||
-		ti.Coverpage.PrimaryImage.LHref2 != "" || len(ti.Coverpage.PrimaryImage.AnyAttr) > 0 {
-		href := ti.Coverpage.PrimaryImage.Href
+func extractCover(m *Metadata, cover Coverpage, ip ImageProvider) {
+	href := resolveCoverHref(cover)
+	if href != "" {
+		href = strings.TrimPrefix(href, "#")
+		m.CoverID = href
+		m.Cover, m.CoverExt = extractCoverImage(href, ip)
+	}
+}
 
-		// Try local href if regular href is empty
-		if href == "" && ti.Coverpage.PrimaryImage.LHref != "" {
-			href = ti.Coverpage.PrimaryImage.LHref
-		}
+func resolveCoverHref(cover Coverpage) string {
+	if cover.PrimaryImage.Href != "" {
+		return cover.PrimaryImage.Href
+	}
+	if cover.PrimaryImage.LHref != "" {
+		return cover.PrimaryImage.LHref
+	}
+	if cover.PrimaryImage.LHref2 != "" {
+		return cover.PrimaryImage.LHref2
+	}
 
-		// Try namespaced href (l:href with xmlns:l="...")
-		if href == "" && ti.Coverpage.PrimaryImage.LHref2 != "" {
-			href = ti.Coverpage.PrimaryImage.LHref2
-		}
-
-		// Fallback: check AnyAttr for l:href or xlink:href
-		if href == "" && len(ti.Coverpage.PrimaryImage.AnyAttr) > 0 {
-			for _, attr := range ti.Coverpage.PrimaryImage.AnyAttr {
-				if (attr.Name.Local == "href" && (attr.Name.Space == "l" || attr.Name.Space == "xlink")) ||
-					attr.Name.Local == "l:href" || attr.Name.Local == "xlink:href" {
-					href = attr.Value
-					break
-				}
-			}
-		}
-
-		if href != "" {
-			// Remove # prefix if present
-			href = strings.TrimPrefix(href, "#")
-			m.CoverID = href
-
-			// Try to extract cover from binaries
-			m.Cover, m.CoverExt = extractCoverImage(href, ip)
+	for _, attr := range cover.PrimaryImage.AnyAttr {
+		if (attr.Name.Local == "href" && (attr.Name.Space == "l" || attr.Name.Space == "xlink")) ||
+			attr.Name.Local == "l:href" || attr.Name.Local == "xlink:href" {
+			return attr.Value
 		}
 	}
 
-	return m, nil
+	return ""
 }
 
 // formatAuthorName formats an author's name
@@ -291,16 +291,16 @@ func extractCoverImage(binaryID string, ip ImageProvider) ([]byte, string) {
 // contentTypeToExtension converts a content-type to a file extension
 func contentTypeToExtension(contentType string) string {
 	switch contentType {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	case "image/svg+xml":
-		return ".svg"
-	case "image/webp":
-		return ".webp"
+	case MIMEJPEG:
+		return ExtJPG
+	case MIMEPNG:
+		return ExtPNG
+	case MIMEGIF:
+		return ExtGIF
+	case MIMESVG:
+		return ExtSVG
+	case MIMEWEBP:
+		return ExtWEBP
 	default:
 		return ""
 	}

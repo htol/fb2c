@@ -53,7 +53,7 @@ func NewPalmDBHeader(name string, numRecords int) *PalmDBHeader {
 		SortInfoOffset:     0,
 		UniqueIDSeed:       generateRandomUniqueIDSeed(),
 		NextRecordListID:   0,
-		NumRecords:         uint16(numRecords),
+		NumRecords:         uint16(numRecords), //nolint:gosec // 64K record limit is standard for PDB
 	}
 
 	// Transliterate name to ASCII and copy (max 31 chars + null terminator)
@@ -195,8 +195,8 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 		"dataOffset", dataOffset,
 		"numRecords", len(w.records),
 		"numEntries", len(w.recordEntries),
-		"dataOffsetUint32", uint32(dataOffset),
-		"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+		"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked below
+		"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked below
 	)
 
 	if dataOffset > 2147483647 { // Max safe value for adding 4096
@@ -218,11 +218,11 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 				"dataOffset", dataOffset,
 				"numRecords", len(w.records),
 				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset),
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
 			)
 		}
-		w.recordEntries[i].Offset = uint32(dataOffset)
+		w.recordEntries[i].Offset = uint32(dataOffset) //nolint:gosec // Offset fits
 		recordLen := len(w.records[i])
 		dataOffset += recordLen
 		if i == 0 {
@@ -232,8 +232,8 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 				"dataOffset", dataOffset,
 				"numRecords", len(w.records),
 				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset),
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
 			)
 		}
 		if i == 1 {
@@ -243,8 +243,8 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 				"dataOffset", dataOffset,
 				"numRecords", len(w.records),
 				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset),
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)),
+				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
+				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
 			)
 		}
 		// Log final summary after all offsets are calculated

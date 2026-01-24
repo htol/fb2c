@@ -8,100 +8,100 @@ import (
 	"time"
 )
 
-// OPFPackage represents an OPF package document
-type OPFPackage struct {
+// Package represents an OPF package document
+type Package struct {
 	XMLName  xml.Name    `xml:"package"`
 	Version  string      `xml:"version,attr"`
 	XMLNS    string      `xml:"xmlns,attr"`
 	UniqueID string      `xml:"unique-identifier,attr"`
-	Metadata OPFMetadata `xml:"metadata"`
-	Manifest OPFManifest `xml:"manifest"`
-	Spine    OPFSpine    `xml:"spine"`
-	Guide    *OPFGuide   `xml:"guide,omitempty"`
+	Metadata XMLMetadata `xml:"metadata"`
+	Manifest Manifest    `xml:"manifest"`
+	Spine    Spine       `xml:"spine"`
+	Guide    *Guide      `xml:"guide,omitempty"`
 }
 
-// OPFMetadata contains Dublin Core metadata
-type OPFMetadata struct {
-	XMLName        xml.Name      `xml:"metadata"`
-	XMLNSDC        string        `xml:"xmlns:dc,attr"`
-	XMLNSOPF       string        `xml:"xmlns:opf,attr"`
-	DCTitle        string        `xml:"dc:title"`
-	DCCreators     []OPFDCreator `xml:"dc:creator"`
-	DCContributors []string      `xml:"dc:contributor"`
-	DCPublisher    string        `xml:"dc:publisher,omitempty"`
-	DCIdentifier   OPFIdentifier `xml:"dc:identifier"`
-	DCDate         OPFDate       `xml:"dc:date"`
-	DCLanguage     string        `xml:"dc:language"`
-	DCSubject      []string      `xml:"dc:subject"`
-	DCDescription  string        `xml:"dc:description,omitempty"`
-	DCRights       string        `xml:"dc:rights,omitempty"`
-	Meta           []OPFMeta     `xml:"meta"`
+// Metadata contains Dublin Core metadata
+type XMLMetadata struct {
+	XMLName        xml.Name   `xml:"metadata"`
+	XMLNSDC        string     `xml:"xmlns:dc,attr"`
+	XMLNSOPF       string     `xml:"xmlns:opf,attr"`
+	DCTitle        string     `xml:"dc:title"`
+	DCCreators     []DCreator `xml:"dc:creator"`
+	DCContributors []string   `xml:"dc:contributor"`
+	DCPublisher    string     `xml:"dc:publisher,omitempty"`
+	DCIdentifier   Identifier `xml:"dc:identifier"`
+	DCDate         Date       `xml:"dc:date"`
+	DCLanguage     string     `xml:"dc:language"`
+	DCSubject      []string   `xml:"dc:subject"`
+	DCDescription  string     `xml:"dc:description,omitempty"`
+	DCRights       string     `xml:"dc:rights,omitempty"`
+	Meta           []Meta     `xml:"meta"`
 }
 
-// OPFDCreator represents a creator (author, translator, etc.)
-type OPFDCreator struct {
+// DCreator represents a creator (author, translator, etc.)
+type DCreator struct {
 	XMLName xml.Name `xml:"dc:creator"`
 	Role    string   `xml:"opf:role,attr,omitempty"`
 	FileAs  string   `xml:"opf:file-as,attr,omitempty"`
 	Text    string   `xml:",chardata"`
 }
 
-// OPFIdentifier represents a unique identifier
-type OPFIdentifier struct {
+// Identifier represents a unique identifier
+type Identifier struct {
 	XMLName xml.Name `xml:"dc:identifier"`
 	ID      string   `xml:"id,attr"`
 	Scheme  string   `xml:"opf:scheme,attr,omitempty"`
 	Text    string   `xml:",chardata"`
 }
 
-// OPFDate represents a date
-type OPFDate struct {
+// Date represents a date
+type Date struct {
 	XMLName xml.Name `xml:"dc:date"`
 	Event   string   `xml:"opf:event,attr,omitempty"`
 	Text    string   `xml:",chardata"`
 }
 
-// OPFMeta represents a meta element
-type OPFMeta struct {
+// Meta represents a meta element
+type Meta struct {
 	XMLName xml.Name `xml:"meta"`
 	Name    string   `xml:"name,attr"`
 	Content string   `xml:"content,attr"`
 }
 
-// OPFManifest contains all resources
-type OPFManifest struct {
-	XMLName xml.Name  `xml:"manifest"`
-	Items   []OPFItem `xml:"item"`
+// Manifest contains all resources
+type Manifest struct {
+	XMLName xml.Name `xml:"manifest"`
+	Items   []Item   `xml:"item"`
 }
 
-// OPFItem represents a resource in the manifest
-type OPFItem struct {
+// Item represents a resource in the manifest
+type Item struct {
 	ID        string `xml:"id,attr"`
 	Href      string `xml:"href,attr"`
 	MediaType string `xml:"media-type,attr"`
 }
 
-// OPFSpine defines the reading order
-type OPFSpine struct {
-	XMLName  xml.Name     `xml:"spine"`
-	TOC      string       `xml:"toc,attr"`
-	ItemRefs []OPFItemRef `xml:"itemref"`
+// Spine defines the reading order
+type Spine struct {
+	XMLName  xml.Name  `xml:"spine"`
+	TOC      string    `xml:"toc,attr"`
+	ItemRefs []ItemRef `xml:"itemref"`
 }
 
-// OPFItemRef references a manifest item in the spine
-type OPFItemRef struct {
+// ItemRef references a manifest item in the spine
+type ItemRef struct {
 	IDREF  string `xml:"idref,attr"`
 	Linear string `xml:"linear,attr,omitempty"`
 }
 
-// OPFGuide contains special locations (cover, TOC, etc.)
-type OPFGuide struct {
-	XMLName xml.Name      `xml:"guide"`
-	Refs    []OPFGuideRef `xml:"reference"`
+// Guide contains special locations (cover, TOC, etc.)
+type Guide struct {
+	XMLName xml.Name   `xml:"guide"`
+	Refs    []GuideRef `xml:"reference"`
 }
 
-// OPFGuideRef represents a guide reference
-type OPFGuideRef struct {
+// GuideRef represents a guide reference
+type GuideRef struct {
 	Type  string `xml:"type,attr"`
 	Title string `xml:"title,attr"`
 	Href  string `xml:"href,attr"`
@@ -115,14 +115,14 @@ func (b *OEBBook) GenerateOPF() ([]byte, error) {
 		uniqueID = "isbn_id"
 	}
 
-	pkg := OPFPackage{
+	pkg := Package{
 		Version:  "2.0",
 		XMLNS:    "http://www.idpf.org/2007/opf",
 		UniqueID: uniqueID,
-		Metadata: b.buildOPFMetadata(uniqueID),
-		Manifest: b.buildOPFManifest(),
-		Spine:    b.buildOPFSpine(),
-		Guide:    b.buildOPFGuide(),
+		Metadata: b.buildXMLMetadata(uniqueID),
+		Manifest: b.buildManifest(),
+		Spine:    b.buildSpine(),
+		Guide:    b.buildGuide(),
 	}
 
 	// Marshal to XML with indentation
@@ -139,9 +139,9 @@ func (b *OEBBook) GenerateOPF() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// buildOPFMetadata builds OPF metadata from book metadata
-func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
-	m := OPFMetadata{
+// buildXMLMetadata builds OPF metadata from book metadata
+func (b *OEBBook) buildXMLMetadata(uniqueID string) XMLMetadata {
+	m := XMLMetadata{
 		XMLNSDC:       "http://purl.org/dc/elements/1.1/",
 		XMLNSOPF:      "http://www.idpf.org/2007/opf",
 		DCTitle:       b.Metadata.Title,
@@ -154,7 +154,7 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 
 	// Creators (authors, translators, etc.)
 	for _, author := range b.Metadata.Authors {
-		creator := OPFDCreator{
+		creator := DCreator{
 			Role:   author.Role,
 			FileAs: author.SortName,
 			Text:   author.FullName,
@@ -168,7 +168,7 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 	m.DCContributors = append(m.DCContributors, b.Metadata.Contributors...)
 
 	// Identifier (ISBN or UUID)
-	identifier := OPFIdentifier{
+	identifier := Identifier{
 		ID:     uniqueID,
 		Scheme: "ISBN",
 		Text:   b.Metadata.ISBN,
@@ -183,12 +183,12 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 
 	// Publication date
 	if !b.Metadata.PubDate.IsZero() {
-		m.DCDate = OPFDate{
+		m.DCDate = Date{
 			Event: "publication",
 			Text:  b.Metadata.PubDate.Format("2006-01-02"),
 		}
 	} else if b.Metadata.Year != "" {
-		m.DCDate = OPFDate{
+		m.DCDate = Date{
 			Event: "publication",
 			Text:  b.Metadata.Year + "-01-01",
 		}
@@ -196,12 +196,12 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 
 	// Meta elements
 	if b.Metadata.Series != "" {
-		m.Meta = append(m.Meta, OPFMeta{
+		m.Meta = append(m.Meta, Meta{
 			Name:    "calibre:series",
 			Content: b.Metadata.Series,
 		})
 		if b.Metadata.SeriesIndex > 0 {
-			m.Meta = append(m.Meta, OPFMeta{
+			m.Meta = append(m.Meta, Meta{
 				Name:    "calibre:series_index",
 				Content: fmt.Sprintf("%d", b.Metadata.SeriesIndex),
 			})
@@ -210,7 +210,7 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 
 	// Cover meta
 	if b.Metadata.CoverID != "" {
-		m.Meta = append(m.Meta, OPFMeta{
+		m.Meta = append(m.Meta, Meta{
 			Name:    "cover",
 			Content: b.Metadata.CoverID,
 		})
@@ -218,14 +218,14 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 
 	// Author sort
 	if len(b.Metadata.Authors) > 0 && b.Metadata.Authors[0].SortName != "" {
-		m.Meta = append(m.Meta, OPFMeta{
+		m.Meta = append(m.Meta, Meta{
 			Name:    "author_sort",
 			Content: b.Metadata.Authors[0].SortName,
 		})
 	}
 
 	// Title sort (could be customized)
-	m.Meta = append(m.Meta, OPFMeta{
+	m.Meta = append(m.Meta, Meta{
 		Name:    "title_sort",
 		Content: b.Metadata.Title,
 	})
@@ -233,16 +233,16 @@ func (b *OEBBook) buildOPFMetadata(uniqueID string) OPFMetadata {
 	return m
 }
 
-// buildOPFManifest builds the manifest from book resources
-func (b *OEBBook) buildOPFManifest() OPFManifest {
-	manifest := OPFManifest{}
+// buildManifest builds the manifest from book resources
+func (b *OEBBook) buildManifest() Manifest {
+	manifest := Manifest{}
 
 	// Get sorted IDs for consistent output
 	ids := b.GetManifestIDs()
 
 	for _, id := range ids {
 		res := b.Manifest[id]
-		item := OPFItem{
+		item := Item{
 			ID:        res.ID,
 			Href:      res.Href,
 			MediaType: res.MediaType,
@@ -253,14 +253,14 @@ func (b *OEBBook) buildOPFManifest() OPFManifest {
 	return manifest
 }
 
-// buildOPFSpine builds the spine (reading order)
-func (b *OEBBook) buildOPFSpine() OPFSpine {
-	spine := OPFSpine{
+// buildSpine builds the spine (reading order)
+func (b *OEBBook) buildSpine() Spine {
+	spine := Spine{
 		TOC: "ncx",
 	}
 
 	for _, id := range b.Spine {
-		spine.ItemRefs = append(spine.ItemRefs, OPFItemRef{
+		spine.ItemRefs = append(spine.ItemRefs, ItemRef{
 			IDREF: id,
 		})
 	}
@@ -268,14 +268,14 @@ func (b *OEBBook) buildOPFSpine() OPFSpine {
 	return spine
 }
 
-// buildOPFGuide builds the guide (special locations)
-func (b *OEBBook) buildOPFGuide() *OPFGuide {
-	guide := &OPFGuide{}
+// buildGuide builds the guide (special locations)
+func (b *OEBBook) buildGuide() *Guide {
+	guide := &Guide{}
 
 	// Cover reference
 	if b.Metadata.CoverID != "" {
 		if res, ok := b.Manifest[b.Metadata.CoverID]; ok {
-			guide.Refs = append(guide.Refs, OPFGuideRef{
+			guide.Refs = append(guide.Refs, GuideRef{
 				Type:  "cover",
 				Title: "Cover",
 				Href:  res.Href,
@@ -285,7 +285,7 @@ func (b *OEBBook) buildOPFGuide() *OPFGuide {
 
 	// TOC reference (if we have a TOC resource)
 	if ncx, ok := b.Manifest["ncx"]; ok {
-		guide.Refs = append(guide.Refs, OPFGuideRef{
+		guide.Refs = append(guide.Refs, GuideRef{
 			Type:  "toc",
 			Title: "Table of Contents",
 			Href:  ncx.Href,
@@ -294,7 +294,7 @@ func (b *OEBBook) buildOPFGuide() *OPFGuide {
 
 	// Title page (if exists)
 	if title, ok := b.Manifest["titlepage"]; ok {
-		guide.Refs = append(guide.Refs, OPFGuideRef{
+		guide.Refs = append(guide.Refs, GuideRef{
 			Type:  "title-page",
 			Title: "Title Page",
 			Href:  title.Href,

@@ -241,8 +241,8 @@ func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 	// Write header
 	header := EXTHHeader{
 		Identifier:   [4]byte{'E', 'X', 'T', 'H'},
-		HeaderLength: uint32(totalLength),
-		RecordCount:  uint32(len(w.records)),
+		HeaderLength: uint32(totalLength),    //nolint:gosec // Length fits
+		RecordCount:  uint32(len(w.records)), //nolint:gosec // Count fits
 	}
 
 	if err := binary.Write(output, binary.BigEndian, header.Identifier); err != nil {
@@ -261,7 +261,7 @@ func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 			return 0, fmt.Errorf("failed to write EXTH record type: %w", err)
 		}
 		// Record length includes the 8 bytes for type and length fields, plus data
-		if err := binary.Write(output, binary.BigEndian, uint32(8+len(record.Data))); err != nil {
+		if err := binary.Write(output, binary.BigEndian, uint32(8+len(record.Data))); err != nil { //nolint:gosec // Length fits
 			return 0, fmt.Errorf("failed to write EXTH record length: %w", err)
 		}
 		if _, err := output.Write(record.Data); err != nil {

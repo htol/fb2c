@@ -19,7 +19,7 @@ const (
 	bookType   = "BOOK"
 )
 
-func TestConvertSimpleFB2(t *testing.T) {
+func TestConvertSimpleFB2(t *testing.T) { //nolint:gocyclo
 	testFile := testRefFB2
 	// Verify it exists
 	if _, err := os.Stat(testFile); os.IsNotExist(err) {
