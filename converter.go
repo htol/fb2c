@@ -180,7 +180,7 @@ func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
 		return nil, fmt.Errorf("failed to parse FB2: %w", err)
 	}
 
-	metadata, err := c.parser.ExtractMetadata(fb2Doc)
+	metadata, err := fb2.ExtractMetadata(fb2Doc, c.parser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract metadata: %w", err)
 	}
@@ -196,7 +196,7 @@ func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
 	// Share parser state to avoid re-parsing
 	transformer.SetParser(c.parser)
 
-	html, _, _, err := transformer.Transform(fb2Doc)
+	result, err := transformer.Transform(fb2Doc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform FB2: %w", err)
 	}
@@ -208,7 +208,7 @@ func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
 	}
 
 	// Create OPF book using the mapper service
-	book, err := mapper.FromFB2(metadata, html, tocData, fb2Doc)
+	book, err := mapper.FromFB2(metadata, result.HTML, tocData, fb2Doc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map FB2 to OPF: %w", err)
 	}

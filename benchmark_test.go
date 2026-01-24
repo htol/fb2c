@@ -29,7 +29,7 @@ func TestPerformanceBreakdown(t *testing.T) {
 
 	// 3. Metadata & TOC
 	start = time.Now()
-	metadata, _ := parser.ExtractMetadata(fb2Doc)
+	metadata, _ := fb2.ExtractMetadata(fb2Doc, parser)
 	tocData, _ := parser.ExtractTOC(fb2Doc)
 	metaDuration := time.Since(start)
 	t.Logf("Metadata/TOC Extraction Duration: %v", metaDuration)
@@ -39,7 +39,8 @@ func TestPerformanceBreakdown(t *testing.T) {
 	transformer := fb2.NewTransformer()
 	transformer.MOBIMode = true
 	transformer.SetParser(parser)
-	html, _, _, err := transformer.Transform(fb2Doc)
+	result, err := transformer.Transform(fb2Doc)
+	html := result.HTML
 	if err != nil {
 		t.Fatalf("Transform failed: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestPerformanceRealFile(t *testing.T) {
 
 	// 3. Metadata & TOC
 	start = time.Now()
-	metadata, _ := parser.ExtractMetadata(fb2Doc)
+	metadata, _ := fb2.ExtractMetadata(fb2Doc, parser)
 	tocData, _ := parser.ExtractTOC(fb2Doc)
 	metaDuration := time.Since(start)
 	t.Logf("Metadata/TOC Extraction Duration: %v", metaDuration)
@@ -139,7 +140,8 @@ func TestPerformanceRealFile(t *testing.T) {
 	transformer := fb2.NewTransformer()
 	transformer.MOBIMode = true
 	transformer.SetParser(parser)
-	html, _, _, err := transformer.Transform(fb2Doc)
+	result, err := transformer.Transform(fb2Doc)
+	html := result.HTML
 	if err != nil {
 		t.Fatalf("Transform failed: %v", err)
 	}

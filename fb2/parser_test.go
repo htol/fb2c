@@ -134,7 +134,7 @@ func TestExtractMetadata(t *testing.T) {
 		t.Fatalf("ParseBytes() error = %v", err)
 	}
 
-	metadata, err := parser.ExtractMetadata(fb2)
+	metadata, err := ExtractMetadata(fb2, parser)
 	if err != nil {
 		t.Fatalf("ExtractMetadata() error = %v", err)
 	}
@@ -212,11 +212,23 @@ func TestTransformToHTML(t *testing.T) {
 	</body>
 </FictionBook>`
 
+	// Parse
+	parser := NewParser()
+	fb2, err := parser.ParseBytes([]byte(fb2Data))
+	if err != nil {
+		t.Fatalf("ParseBytes() error = %v", err)
+	}
+
+	// Transform
 	transformer := NewTransformer()
-	html, _, metadata, err := transformer.ConvertBytes([]byte(fb2Data))
+	transformer.SetParser(parser)
+	result, err := transformer.Transform(fb2)
 	if err != nil {
 		t.Fatalf("ConvertBytes() error = %v", err)
 	}
+
+	html := result.HTML
+	metadata := result.Metadata
 
 	if html == "" {
 		t.Error("HTML is empty")
@@ -373,10 +385,21 @@ func TestImageDataToDataURL(t *testing.T) {
 
 	transformer := NewTransformer()
 	transformer.UseDataURLs = true
-	html, _, _, err := transformer.ConvertBytes([]byte(fb2Data))
+	// Parse
+	parser := NewParser()
+	fb2, err := parser.ParseBytes([]byte(fb2Data))
+	if err != nil {
+		t.Fatalf("ParseBytes() error = %v", err)
+	}
+
+	// Transform
+	transformer.SetParser(parser)
+	result, err := transformer.Transform(fb2)
 	if err != nil {
 		t.Fatalf("ConvertBytes() error = %v", err)
 	}
+
+	html := result.HTML
 
 	// Verify data URL is used
 	if !strings.Contains(html, "data:image/jpeg;base64,") {

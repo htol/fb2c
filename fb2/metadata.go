@@ -41,8 +41,14 @@ type Metadata struct {
 	FilePath string
 }
 
+// ImageProvider provides access to book images
+type ImageProvider interface {
+	GetImageData() map[string][]byte
+	GetImageType(binaryID string) string
+}
+
 // ExtractMetadata extracts metadata from an FB2 document
-func (p *Parser) ExtractMetadata(fb2 *FictionBook) (*Metadata, error) {
+func ExtractMetadata(fb2 *FictionBook, ip ImageProvider) (*Metadata, error) {
 	m := &Metadata{
 		Languages: []string{},
 		Genres:    []string{},
@@ -162,7 +168,7 @@ func (p *Parser) ExtractMetadata(fb2 *FictionBook) (*Metadata, error) {
 			m.CoverID = href
 
 			// Try to extract cover from binaries
-			m.Cover, m.CoverExt = p.extractCoverImage(href)
+			m.Cover, m.CoverExt = extractCoverImage(href, ip)
 		}
 	}
 
@@ -259,11 +265,11 @@ func parseYear(yearStr string) (time.Time, error) {
 }
 
 // extractCoverImage extracts cover image data from binaries
-func (p *Parser) extractCoverImage(binaryID string) ([]byte, string) {
+func extractCoverImage(binaryID string, ip ImageProvider) ([]byte, string) {
 	// Look for the binary data in imageData
-	if data, ok := p.imageData[binaryID]; ok {
+	if data, ok := ip.GetImageData()[binaryID]; ok {
 		// Get content-type from imageTypes
-		contentType := p.GetImageType(binaryID)
+		contentType := ip.GetImageType(binaryID)
 
 		// Convert content-type to extension
 		ext := contentTypeToExtension(contentType)
@@ -308,7 +314,7 @@ func GetMetadataFromFile(path string) (*Metadata, error) {
 		return nil, err
 	}
 
-	return parser.ExtractMetadata(fb2)
+	return ExtractMetadata(fb2, parser)
 }
 
 // GetMetadataFromBytes is a convenience function to extract metadata from FB2 data
@@ -319,5 +325,5 @@ func GetMetadataFromBytes(data []byte) (*Metadata, error) {
 		return nil, err
 	}
 
-	return parser.ExtractMetadata(fb2)
+	return ExtractMetadata(fb2, parser)
 }

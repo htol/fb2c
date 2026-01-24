@@ -41,7 +41,7 @@ func TestConvertSimpleFB2(t *testing.T) {
 	}
 
 	// Extract metadata
-	metadata, err := parser.ExtractMetadata(fb2Doc)
+	metadata, err := fb2.ExtractMetadata(fb2Doc, parser)
 	if err != nil {
 		t.Fatalf("Failed to extract metadata: %v", err)
 	}
@@ -73,11 +73,13 @@ func TestConvertSimpleFB2(t *testing.T) {
 
 	// Transform to HTML
 	transformer := fb2.NewTransformer()
-	html, _, _, err := transformer.ConvertBytes(fb2Data)
+	transformer.SetParser(parser) // Share the parser state
+	result, err := transformer.Transform(fb2Doc)
 	if err != nil {
 		t.Fatalf("Failed to transform FB2: %v", err)
 	}
 
+	html := result.HTML
 	if html == "" {
 		t.Error("HTML output is empty")
 	}
@@ -146,7 +148,7 @@ func TestConvertFB2WithCover(t *testing.T) {
 		t.Fatalf("Failed to parse FB2: %v", err)
 	}
 
-	metadata, err := parser.ExtractMetadata(fb2Doc)
+	metadata, err := fb2.ExtractMetadata(fb2Doc, parser)
 	if err != nil {
 		t.Fatalf("Failed to extract metadata: %v", err)
 	}

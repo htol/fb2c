@@ -1,0 +1,255 @@
+package fb2
+
+import (
+	"encoding/xml"
+
+	"github.com/htol/fb2c/fb2/b64"
+)
+
+const (
+	// FB2Namespaces
+	FB2NS   = "http://www.gribuser.ru/xml/fictionbook/2.0"
+	FB21NS  = "http://www.gribuser.ru/xml/fictionbook/2.1"
+	XLINKNS = "http://www.w3.org/1999/xlink"
+)
+
+// FictionBook represents the root FB2 document structure
+type FictionBook struct {
+	XMLName     xml.Name    `xml:"FictionBook"`
+	XMLNS       string      `xml:"xmlns,attr"`
+	Description Description `xml:"description"`
+	Bodies      []Body      `xml:"body"`
+	Binaries    []Binary    `xml:"binary"`
+}
+
+// Description contains book metadata
+type Description struct {
+	TitleInfo    TitleInfo    `xml:"title-info"`
+	SrcTitleInfo *TitleInfo   `xml:"src-title-info"`
+	PublishInfo  PublishInfo  `xml:"publish-info"`
+	DocumentInfo DocumentInfo `xml:"document-info"`
+}
+
+// TitleInfo contains main book metadata
+type TitleInfo struct {
+	Genre      []string       `xml:"genre"`
+	Author     []Author       `xml:"author"`
+	BookTitle  string         `xml:"book-title"`
+	Annotation *TextContainer `xml:"annotation"`
+	Keywords   *TextContainer `xml:"keywords"`
+	Date       Date           `xml:"date"`
+	Coverpage  Coverpage      `xml:"coverpage"`
+	Language   string         `xml:"lang"`
+	SrcLang    string         `xml:"src-lang"`
+	Sequence   []Sequence     `xml:"sequence"`
+}
+
+// Author represents a book author
+type Author struct {
+	FirstName  string `xml:"first-name"`
+	MiddleName string `xml:"middle-name"`
+	LastName   string `xml:"last-name"`
+	Nickname   string `xml:"nickname"`
+	HomePage   string `xml:"home-page"`
+	Email      string `xml:"email"`
+}
+
+// Date represents a date value
+type Date struct {
+	Value string `xml:"value,attr"`
+	Text  string `xml:",chardata"`
+}
+
+// Sequence represents series information
+type Sequence struct {
+	Name   string `xml:"name,attr"`
+	Number int    `xml:"number,attr"`
+	// Lang   string `xml:"lang,attr"` // Optional
+}
+
+// Coverpage represents cover image reference
+type Coverpage struct {
+	PrimaryImage ImageRef `xml:"image"`
+}
+
+// ImageRef is a reference to an image
+type ImageRef struct {
+	Href   string `xml:"href,attr"`
+	LHref  string `xml:"l:href,attr"`                            // Local href (FB2 specific)
+	LHref2 string `xml:"http://www.w3.org/1999/xlink href,attr"` // Namespaced href
+	// AnyAttr will capture all attributes for fallback processing
+	AnyAttr []xml.Attr `xml:",any,attr"`
+}
+
+// TextContainer contains text with possible markup
+type TextContainer struct {
+	XMLName xml.Name
+	Text    string `xml:",chardata"`
+	P       []P    `xml:"p"`
+}
+
+// P represents a paragraph
+type P struct {
+	XMLName xml.Name
+	Text    string `xml:",chardata"`
+}
+
+// PublishInfo contains publishing metadata
+type PublishInfo struct {
+	BookName  string     `xml:"book-name"`
+	Publisher string     `xml:"publisher"`
+	City      string     `xml:"city"`
+	Year      string     `xml:"year"`
+	ISBN      string     `xml:"isbn"`
+	Sequence  []Sequence `xml:"sequence"`
+}
+
+// DocumentInfo contains document metadata
+type DocumentInfo struct {
+	Author      []Author  `xml:"author"`
+	ProgramUsed string    `xml:"program-used"`
+	Date        Date      `xml:"date"`
+	ID          string    `xml:"id"`
+	Version     string    `xml:"version"`
+	History     []History `xml:"history"`
+}
+
+// History contains version history
+type History struct {
+	XMLName xml.Name
+	Text    string `xml:",chardata"`
+	P       []P    `xml:"p"`
+}
+
+// Body contains the book content
+type Body struct {
+	XMLName   xml.Name   `xml:"body"`
+	Name      string     `xml:"name,attr"`
+	Language  string     `xml:"lang,attr"`
+	Title     *Title     `xml:"title"`
+	Sections  []Section  `xml:"section"`
+	Epigraphs []Epigraph `xml:"epigraph"`
+	// Direct content
+	Content []ContentNode `xml:",any"`
+}
+
+// Title represents a section title
+type Title struct {
+	XMLName xml.Name `xml:"title"`
+	P       []P      `xml:"p"`
+}
+
+// Section represents a book section
+type Section struct {
+	XMLName   xml.Name   `xml:"section"`
+	ID        string     `xml:"id,attr"`
+	Name      string     `xml:"name,attr"`
+	Title     *Title     `xml:"title"`
+	Epigraphs []Epigraph `xml:"epigraph"`
+	Sections  []Section  `xml:"section"`
+	// Various content elements
+	Paragraphs []P      `xml:"p"`
+	Subtitle   *P       `xml:"subtitle"`
+	Cite       []Cite   `xml:"cite"`
+	Stanza     []Stanza `xml:"stanza"`
+	Code       []Code   `xml:"code"`
+	Table      []Table  `xml:"table"`
+	Image      []Image  `xml:"image"`
+	// Content nodes
+	Content []ContentNode `xml:",any"`
+}
+
+// Epigraph represents an epigraph
+type Epigraph struct {
+	XMLName   xml.Name      `xml:"epigraph"`
+	TextAlign string        `xml:"align,attr"`
+	Authors   []Author      `xml:"author"`
+	Content   []ContentNode `xml:",any"`
+}
+
+// Cite represents a quotation
+type Cite struct {
+	XMLName xml.Name      `xml:"cite"`
+	Authors []Author      `xml:"author"`
+	Content []ContentNode `xml:",any"`
+}
+
+// Stanza represents a poem stanza
+type Stanza struct {
+	XMLName xml.Name `xml:"stanza"`
+	Title   *Title   `xml:"title"`
+	Author  []Author `xml:"author"`
+	Date    Date     `xml:"date"`
+	V       []V      `xml:"v"`
+}
+
+// V represents a verse line
+type V struct {
+	XMLName xml.Name `xml:"v"`
+	Text    string   `xml:",chardata"`
+}
+
+// Code represents code text
+type Code struct {
+	XMLName xml.Name `xml:"code"`
+	Text    string   `xml:",chardata"`
+}
+
+// Table represents a table
+type Table struct {
+	XMLName xml.Name `xml:"table"`
+	Rows    []TR     `xml:"tr"`
+}
+
+// TR is a table row
+type TR struct {
+	XMLName xml.Name    `xml:"tr"`
+	Align   string      `xml:"align,attr"`
+	Cells   []TableCell `xml:",any"`
+}
+
+// TableCell is a table cell
+type TableCell struct {
+	XMLName xml.Name
+	ColSpan int    `xml:"colspan,attr"`
+	RowSpan int    `xml:"rowspan,attr"`
+	Style   string `xml:"style,attr"`
+	Class   string `xml:"class,attr"`
+	Content string `xml:",chardata"`
+}
+
+// Image represents an inline image
+type Image struct {
+	XMLName   xml.Name `xml:"image"`
+	Href      string   `xml:"href,attr"`
+	Alt       string   `xml:"alt,attr"`
+	Title     string   `xml:"title,attr"`
+	XLinkHref string   `xml:"http://www.w3.org/1999/xlink href,attr"`
+}
+
+// Binary contains embedded binary data
+type Binary struct {
+	XMLName     xml.Name `xml:"binary"`
+	ID          string   `xml:"id,attr"`
+	ContentType string   `xml:"content-type,attr"`
+	Data        string   `xml:",chardata"`
+}
+
+// GetContentType returns the content type of the binary, defaulting to "image/jpeg"
+func (b *Binary) GetContentType() string {
+	if b.ContentType != "" {
+		return b.ContentType
+	}
+	return "image/jpeg"
+}
+
+// Bytes returns the decoded binary data
+func (b *Binary) Bytes() ([]byte, error) {
+	return b64.Decode([]byte(b.Data))
+}
+
+// ContentNode represents any content node
+type ContentNode struct {
+	XMLName xml.Name
+	Content string `xml:",chardata"`
+}
