@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/htol/fb2c/fb2/b64"
-	"github.com/htol/fb2c/fb2encoding"
+	"github.com/htol/fb2c/fb2/encoding"
 )
 
 // Parser parses FB2 files
@@ -57,7 +57,7 @@ func (p *Parser) Parse(r io.Reader) (*FictionBook, error) {
 func (p *Parser) ParseBytes(data []byte) (*FictionBook, error) {
 	data = bytes.ReplaceAll(data, []byte{0x00}, nil)
 
-	text, _, err := fb2encoding.ToUTF8WithStrip(data, true)
+	text, _, err := encoding.ToUTF8WithStrip(data, true)
 	if err != nil {
 		return nil, fmt.Errorf("fb2: encoding detection failed: %w", err)
 	}

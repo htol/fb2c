@@ -1,8 +1,8 @@
-// Package fb2encoding provides character encoding detection for FB2 files.
+// Package encoding provides character encoding detection for FB2 files.
 //
 // It handles BOM detection, XML/HTML encoding declarations, and provides
 // robust fallback mechanisms for malformed files.
-package fb2encoding
+package encoding
 
 import (
 	"bytes"

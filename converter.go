@@ -174,7 +174,7 @@ func (c *Converter) writeJoint(book *opf.OEBBook, output io.Writer) error {
 
 // processFB2 handles the core parsing and conversion logic
 func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
-	// Encoding conversion is handled by the parser using fb2encoding package
+	// Encoding conversion is handled by the parser using fb2/encoding package
 	fb2Doc, err := c.parser.ParseBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse FB2: %w", err)

@@ -1,4 +1,4 @@
-package fb2encoding
+package encoding
 
 import (
 	"bytes"

@@ -51,7 +51,7 @@ A lightweight EPUB writer that packages the `OEBBook` content into a valid EPUB 
 * `fb2/b64/`: Base64 decoding utilities (for embedded images in FB2).
 * `epub/`: EPUB generation logic.
 * `fb2/`: FB2 parsing and transformation.
-* `fb2encoding/`: Character encoding handling (often needed for older Russian FB2 files).
+* `fb2/encoding/`: Character encoding handling (often needed for older Russian FB2 files).
 * `mobi/`: MOBI format generation.
 * `opf/`: Intermediate Open eBook representation.
 * `mobi/varint/`: Variable-length integer encoding (used in MOBI).
