@@ -1,0 +1,134 @@
+package mobi
+
+import (
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+
+	"github.com/htol/fb2c/opf"
+)
+
+// resolveImageSources replaces src="filename" with src="recindex:N"
+// If baseIndex is 0, it uses relative indexing (1, 2, 3...)
+// If baseIndex is > 0, it uses absolute 1-based indexing (baseIndex + 1, baseIndex + 2...)
+func resolveImageSources(book *opf.OEBBook, hasCover bool, content string) string {
+	imageMap := make(map[string]int)
+	coverID := book.Metadata.CoverID
+
+	currentOffset := 0
+
+	// 2. Map cover (index 0) and thumbnail (index 1)
+	// These are relative to FirstImageIndex, starting at 0
+	if hasCover {
+		if coverID != "" {
+			imageMap[coverID] = currentOffset
+		} else {
+			imageMap["cover.jpg"] = currentOffset
+		}
+		currentOffset++ // cover
+		currentOffset++ // thumbnail
+	}
+
+	// 3. Map other manifest images
+	ids := book.GetManifestIDs()
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		if id == coverID {
+			continue
+		}
+		res, ok := book.GetResource(id)
+		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
+			continue
+		}
+		imageMap[id] = currentOffset
+		currentOffset++
+	}
+
+	// 4. Perform replacements
+	re := regexp.MustCompile(`src=["']([^"']+)["']`)
+	return re.ReplaceAllStringFunc(content, func(match string) string {
+		quote := match[4]
+		url := match[5 : len(match)-1]
+		// Remove # prefix if present
+		url = strings.TrimPrefix(url, "#")
+
+		if recIndex, ok := imageMap[url]; ok {
+			// MOBI 1-based relative index (relative to FirstImageIndex)
+			finalIndex := uint32(recIndex + 1)
+			// Calibre replaces src with recindex attribute
+			return fmt.Sprintf("recindex=%c%05d%c", quote, finalIndex, quote)
+		}
+		return match
+	})
+}
+
+// resolveFileposLinks replaces href="#ID" with filepos=OFFSET for Kindle internal navigation
+// This is a multi-pass process to ensure correct offset calculation after string length changes
+func resolveFileposLinks(content string) string {
+	// Pass 1: Collect all href="#ID" matches and their anchor IDs
+	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
+	hrefMatches := hrefRe.FindAllStringSubmatch(content, -1)
+	if len(hrefMatches) == 0 {
+		return content
+	}
+
+	// Pass 2: Replace all href="#X" with placeholder "filepos=Q0000000000Q" (same length for any anchor ID)
+	// We use placeholder value 0 first, which keeps consistent length
+	placeholderContent := hrefRe.ReplaceAllStringFunc(content, func(match string) string {
+		quote := match[5]
+		return fmt.Sprintf("filepos=%c%010d%c", quote, 0, quote)
+	})
+
+	// Pass 3: Find anchor positions in the modified content
+	anchorRe := regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
+	anchorMap := make(map[string]int)
+	for _, match := range anchorRe.FindAllStringSubmatchIndex(placeholderContent, -1) {
+		if len(match) >= 4 {
+			anchorID := placeholderContent[match[2]:match[3]]
+			position := match[0]
+			anchorMap[anchorID] = position
+		}
+	}
+
+	// Pass 4: Replace placeholder filepos values with actual positions
+	fileposRe := regexp.MustCompile(`filepos=["']0000000000["']`)
+	idx := 0
+	result := fileposRe.ReplaceAllStringFunc(placeholderContent, func(match string) string {
+		if idx >= len(hrefMatches) {
+			return match
+		}
+		anchorID := hrefMatches[idx][1]
+		idx++
+
+		quote := match[8]
+		if pos, ok := anchorMap[anchorID]; ok {
+			return fmt.Sprintf("filepos=%c%010d%c", quote, pos, quote)
+		}
+		return match
+	})
+
+	return result
+}
+
+// splitTextRecords splits text into 4KB records and adds trailing bytes
+func splitTextRecords(data []byte) [][]byte {
+	var records [][]byte
+
+	const recordSize = 4096
+	for i := 0; i < len(data); i += recordSize {
+		end := i + recordSize
+		if end > len(data) {
+			end = len(data)
+		}
+		record := data[i:end]
+		// Add trailing bytes for ExtraRecordFlags=0x02
+		trailingRecord := make([]byte, len(record)+4)
+		copy(trailingRecord, record)
+		trailingRecord[len(record)+3] = 0x84
+		records = append(records, trailingRecord)
+	}
+
+	return records
+}

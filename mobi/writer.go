@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"regexp"
 	"sort"
-	"strings"
 
-	"github.com/htol/fb2c/mobi/index"
 	"github.com/htol/fb2c/opf"
 )
 
@@ -33,6 +30,46 @@ func DefaultWriteOptions() WriteOptions {
 		GenerateTOC:     true,
 		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
+}
+
+// generateThumbnail creates a thumbnail from cover image
+// For now, returns the original image as thumbnail (simplified approach)
+// A full implementation would resize to thumbnail dimensions (e.g., 154x240)
+func (w *Writer) generateThumbnail(coverData []byte) []byte {
+	// Simplified: return the same image as thumbnail
+	// In a full implementation, this would resize the image to thumbnail dimensions
+	// using an image processing library
+	return coverData
+}
+
+// CalculateRecordCount calculates the number of records for text
+func CalculateRecordCount(textSize int) int {
+	const recordSize = 4096
+	count := textSize / recordSize
+	if textSize%recordSize != 0 {
+		count++
+	}
+	return count
+}
+
+// ConvertOEBToMOBI is a convenience function to convert OEBBook to MOBI
+func ConvertOEBToMOBI(book *opf.OEBBook, output io.Writer) error {
+	writer := NewWriter(book)
+	return writer.Write(output)
+}
+
+// ConvertOEBToMOBIWithOptions converts OEBBook to MOBI with options
+func ConvertOEBToMOBIWithOptions(book *opf.OEBBook, output io.Writer, options WriteOptions) error {
+	writer := NewWriter(book)
+	writer.SetOptions(options)
+	return writer.Write(output)
+}
+
+// SortManifestIDs returns sorted manifest resource IDs
+func SortManifestIDs(book *opf.OEBBook) []string {
+	ids := book.GetManifestIDs()
+	sort.Strings(ids)
+	return ids
 }
 
 // Writer writes MOBI files
@@ -83,7 +120,7 @@ func (w *Writer) Write(output io.Writer) error {
 	hasTOC := w.options.GenerateTOC && len(w.book.TOC.Children) > 0
 
 	// Pass 1: Dummy resolution to get final text size
-	dummyContent := w.resolveImageSources(w.book.Content)
+	dummyContent := resolveImageSources(w.book, w.options.CoverImage != nil, w.book.Content)
 	textRecordCount := (len(dummyContent) + 4095) / 4096
 	// firstImageRecord is 0-based absolute index: Header (0) + TextRecords + TOC (optional)
 	firstImageRecord := 1 + textRecordCount
@@ -93,7 +130,7 @@ func (w *Writer) Write(output io.Writer) error {
 	}
 
 	// Pass 2: Final resolution with relative indices (1st image = 1)
-	resolvedContent := w.resolveImageSources(w.book.Content)
+	resolvedContent := resolveImageSources(w.book, w.options.CoverImage != nil, w.book.Content)
 	// Convert href="#ID" to filepos=OFFSET for Kindle internal navigation
 	resolvedContent = resolveFileposLinks(resolvedContent)
 	textData := []byte(resolvedContent)
@@ -187,7 +224,7 @@ func (w *Writer) Write(output io.Writer) error {
 	var tocIndexOffset uint32 = 0xFFFFFFFF
 	if w.options.GenerateTOC && len(w.book.TOC.Children) > 0 {
 		// Use resolvedContent for accurate TOC offset calculation
-		tocINDX, err := w.GenerateTOCIndex(resolvedContent, textRecords)
+		tocINDX, err := GenerateTOCIndex(w.book, resolvedContent, textRecords, w.options.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to generate TOC index: %w", err)
 		}
@@ -495,222 +532,4 @@ func createFCISRecord(textSize uint32) []byte {
 	binary.BigEndian.PutUint16(data[38:40], 1)
 	binary.BigEndian.PutUint32(data[40:44], 0)
 	return data
-}
-
-// splitTextRecords splits text into 4KB records and adds trailing bytes
-func (w *Writer) splitTextRecords(data []byte) [][]byte {
-	var records [][]byte
-
-	const recordSize = 4096
-	for i := 0; i < len(data); i += recordSize {
-		end := i + recordSize
-		if end > len(data) {
-			end = len(data)
-		}
-		record := data[i:end]
-		// Add trailing bytes for ExtraRecordFlags=0x02
-		trailingRecord := make([]byte, len(record)+4)
-		copy(trailingRecord, record)
-		trailingRecord[len(record)+3] = 0x84
-		records = append(records, trailingRecord)
-	}
-
-	return records
-}
-
-// generateThumbnail creates a thumbnail from cover image
-// For now, returns the original image as thumbnail (simplified approach)
-// A full implementation would resize to thumbnail dimensions (e.g., 154x240)
-func (w *Writer) generateThumbnail(coverData []byte) []byte {
-	// Simplified: return the same image as thumbnail
-	// In a full implementation, this would resize the image to thumbnail dimensions
-	// using an image processing library
-	return coverData
-}
-
-// CalculateRecordCount calculates the number of records for text
-func CalculateRecordCount(textSize int) int {
-	const recordSize = 4096
-	count := textSize / recordSize
-	if textSize%recordSize != 0 {
-		count++
-	}
-	return count
-}
-
-// joinStrings joins strings with a separator
-func joinStrings(strs []string, sep string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-	result := strs[0]
-	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
-	}
-	return result
-}
-
-// GenerateTOCIndex generates a TOC index from the book's TOC with proper offsets
-// and NCX-style chapter length calculation for native Kindle navigation
-func (w *Writer) GenerateTOCIndex(htmlContent string, textRecords [][]byte) (*index.INDX, error) {
-	builder := index.NewTOCIndexBuilder()
-	// Set text records for offset calculation
-	builder.SetTextRecords(textRecords)
-
-	// Set root title (author + title) for NCX CNCX - matches reference format
-	authors := make([]string, 0)
-	for _, author := range w.book.Metadata.Authors {
-		authors = append(authors, author.FullName)
-	}
-	rootTitle := joinStrings(authors, ", ") + " " + w.book.Metadata.Title
-	builder.SetRootTitle(rootTitle)
-
-	// Build TOC from OEB book
-	flatEntries := w.book.TOC.Flatten()
-
-	for _, entry := range flatEntries {
-		if entry.ID == "root" || strings.TrimSpace(entry.Label) == "" {
-			continue
-		}
-
-		// Calculate offset from HTML by scanning for entry.Href
-		offset := builder.FindOffsetForHref(htmlContent, entry.Href)
-
-		w.options.Logger.Debug("TOC entry offset",
-			"label", entry.Label,
-			"href", entry.Href,
-			"offset", offset,
-			"level", entry.Level,
-		)
-
-		// Add entry with calculated offset
-		builder.AddEntry(entry.Label, entry.Href, uint32(entry.Level), offset)
-	}
-
-	// Build with total text size for accurate chapter length calculation
-	totalSize := uint32(len(htmlContent))
-	return builder.BuildWithTotalSize(totalSize)
-}
-
-// ConvertOEBToMOBI is a convenience function to convert OEBBook to MOBI
-func ConvertOEBToMOBI(book *opf.OEBBook, output io.Writer) error {
-	writer := NewWriter(book)
-	return writer.Write(output)
-}
-
-// ConvertOEBToMOBIWithOptions converts OEBBook to MOBI with options
-func ConvertOEBToMOBIWithOptions(book *opf.OEBBook, output io.Writer, options WriteOptions) error {
-	writer := NewWriter(book)
-	writer.SetOptions(options)
-	return writer.Write(output)
-}
-
-// SortManifestIDs returns sorted manifest resource IDs
-func SortManifestIDs(book *opf.OEBBook) []string {
-	ids := book.GetManifestIDs()
-	sort.Strings(ids)
-	return ids
-}
-
-// resolveImageSources replaces src="filename" with src="recindex:N"
-// If baseIndex is 0, it uses relative indexing (1, 2, 3...)
-// If baseIndex is > 0, it uses absolute 1-based indexing (baseIndex + 1, baseIndex + 2...)
-func (w *Writer) resolveImageSources(content string) string {
-	imageMap := make(map[string]int)
-	coverID := w.book.Metadata.CoverID
-
-	currentOffset := 0
-
-	// 2. Map cover (index 0) and thumbnail (index 1)
-	// These are relative to FirstImageIndex, starting at 0
-	if w.options.CoverImage != nil {
-		if coverID != "" {
-			imageMap[coverID] = currentOffset
-		} else {
-			imageMap["cover.jpg"] = currentOffset
-		}
-		currentOffset++ // cover
-		currentOffset++ // thumbnail
-	}
-
-	// 3. Map other manifest images
-	ids := w.book.GetManifestIDs()
-	sort.Strings(ids)
-
-	for _, id := range ids {
-		if id == coverID {
-			continue
-		}
-		res, ok := w.book.GetResource(id)
-		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
-			continue
-		}
-		imageMap[id] = currentOffset
-		currentOffset++
-	}
-
-	// 4. Perform replacements
-	re := regexp.MustCompile(`src=["']([^"']+)["']`)
-	return re.ReplaceAllStringFunc(content, func(match string) string {
-		quote := match[4]
-		url := match[5 : len(match)-1]
-		// Remove # prefix if present
-		url = strings.TrimPrefix(url, "#")
-
-		if recIndex, ok := imageMap[url]; ok {
-			// MOBI 1-based relative index (relative to FirstImageIndex)
-			finalIndex := uint32(recIndex + 1)
-			// Calibre replaces src with recindex attribute
-			return fmt.Sprintf("recindex=%c%05d%c", quote, finalIndex, quote)
-		}
-		return match
-	})
-}
-
-// resolveFileposLinks replaces href="#ID" with filepos=OFFSET for Kindle internal navigation
-// This is a multi-pass process to ensure correct offset calculation after string length changes
-func resolveFileposLinks(content string) string {
-	// Pass 1: Collect all href="#ID" matches and their anchor IDs
-	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
-	hrefMatches := hrefRe.FindAllStringSubmatch(content, -1)
-	if len(hrefMatches) == 0 {
-		return content
-	}
-
-	// Pass 2: Replace all href="#X" with placeholder "filepos=Q0000000000Q" (same length for any anchor ID)
-	// We use placeholder value 0 first, which keeps consistent length
-	placeholderContent := hrefRe.ReplaceAllStringFunc(content, func(match string) string {
-		quote := match[5]
-		return fmt.Sprintf("filepos=%c%010d%c", quote, 0, quote)
-	})
-
-	// Pass 3: Find anchor positions in the modified content
-	anchorRe := regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
-	anchorMap := make(map[string]int)
-	for _, match := range anchorRe.FindAllStringSubmatchIndex(placeholderContent, -1) {
-		if len(match) >= 4 {
-			anchorID := placeholderContent[match[2]:match[3]]
-			position := match[0]
-			anchorMap[anchorID] = position
-		}
-	}
-
-	// Pass 4: Replace placeholder filepos values with actual positions
-	fileposRe := regexp.MustCompile(`filepos=["']0000000000["']`)
-	idx := 0
-	result := fileposRe.ReplaceAllStringFunc(placeholderContent, func(match string) string {
-		if idx >= len(hrefMatches) {
-			return match
-		}
-		anchorID := hrefMatches[idx][1]
-		idx++
-
-		quote := match[8]
-		if pos, ok := anchorMap[anchorID]; ok {
-			return fmt.Sprintf("filepos=%c%010d%c", quote, pos, quote)
-		}
-		return match
-	})
-
-	return result
 }

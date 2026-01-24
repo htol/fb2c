@@ -70,7 +70,6 @@ func TestGetBookName(t *testing.T) {
 }
 
 func TestSplitTextRecords(t *testing.T) {
-	writer := NewWriter(opf.NewOEBBook())
 
 	tests := []struct {
 		name     string
@@ -106,7 +105,7 @@ func TestSplitTextRecords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			records := writer.splitTextRecords(tt.data)
+			records := splitTextRecords(tt.data)
 			if len(records) != tt.wantRecs {
 				t.Errorf("splitTextRecords() returned %v records, want %v", len(records), tt.wantRecs)
 			}
