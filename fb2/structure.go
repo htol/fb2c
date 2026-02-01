@@ -88,10 +88,20 @@ type TextContainer struct {
 	P       []P    `xml:"p"`
 }
 
-// P represents a paragraph
+// P represents a paragraph with mixed content
 type P struct {
 	XMLName xml.Name
-	Text    string `xml:",chardata"`
+	RawXML  string `xml:",innerxml"` // Capture full inner XML with inline elements
+	Text    string `xml:",chardata"` // Plain text (for backward compat)
+}
+
+// Link represents an anchor element in FB2
+type Link struct {
+	XMLName xml.Name `xml:"a"`
+	Type    string   `xml:"type,attr"`   // "note" for footnotes
+	Href    string   `xml:"href,attr"`   // Standard href
+	LHref   string   `xml:"l:href,attr"` // FB2-specific l:href
+	Text    string   `xml:",chardata"`   // Link text
 }
 
 // PublishInfo contains publishing metadata

@@ -14,18 +14,35 @@ func (t *Transformer) renderBody(body Body) string {
 		buf.WriteString("<div>\n")
 	}
 
-	// Body name if present
-	if body.Name != "" {
+	// Add anchor for notes body (for TOC linking)
+	if body.Name == "notes" {
+		buf.WriteString("<a id=\"notes\"></a>\n")
+	}
+
+	// Body Title or Name
+	displayTitle := ""
+	if body.Title != nil && len(body.Title.P) > 0 {
+		var titleParts []string
+		for _, p := range body.Title.P {
+			titleParts = append(titleParts, t.renderP(p))
+		}
+		displayTitle = strings.Join(titleParts, "<br/>")
+	} else if body.Name != "" {
+		displayTitle = htmlEscape(body.Name)
+	}
+
+	if displayTitle != "" {
 		if t.MOBIMode {
-			buf.WriteString(fmt.Sprintf("<p align=\"center\"><b>%s</b></p>\n", htmlEscape(body.Name)))
+			buf.WriteString(fmt.Sprintf("<p align=\"center\"><b>%s</b></p>\n", displayTitle))
 		} else {
-			buf.WriteString(fmt.Sprintf("<h4 align=\"center\">%s</h4>\n", htmlEscape(body.Name)))
+			buf.WriteString(fmt.Sprintf("<h4 align=\"center\">%s</h4>\n", displayTitle))
 		}
 	}
 
 	// Process sections
-	for i, section := range body.Sections {
-		buf.WriteString(t.renderSection(section, i+1))
+	isNotesBody := body.Name == "notes"
+	for _, section := range body.Sections {
+		buf.WriteString(t.renderSectionWithBackLink(section, isNotesBody))
 	}
 
 	if !t.MOBIMode {
@@ -37,6 +54,11 @@ func (t *Transformer) renderBody(body Body) string {
 
 // renderSection renders a section
 func (t *Transformer) renderSection(section Section, _ int) string {
+	return t.renderSectionWithBackLink(section, false)
+}
+
+// renderSectionWithBackLink renders a section, optionally adding a back-link for notes
+func (t *Transformer) renderSectionWithBackLink(section Section, isNoteSection bool) string {
 	var buf strings.Builder
 
 	// Section ID
@@ -55,9 +77,14 @@ func (t *Transformer) renderSection(section Section, _ int) string {
 	buf.WriteString(t.renderSectionTitle(section))
 	buf.WriteString(t.renderSectionContent(section))
 
-	// subsections
-	for i, subsection := range section.Sections {
-		buf.WriteString(t.renderSection(subsection, i+1))
+	// Add back-link for note sections
+	if isNoteSection && id != "" {
+		buf.WriteString(fmt.Sprintf(" <a href=\"#noteref_%s\" class=\"noteback\">↩</a>\n", id))
+	}
+
+	// subsections (also as note sections if parent is)
+	for _, subsection := range section.Sections {
+		buf.WriteString(t.renderSectionWithBackLink(subsection, isNoteSection))
 	}
 
 	if !t.MOBIMode {
@@ -76,7 +103,7 @@ func (t *Transformer) renderSectionTitle(section Section) string {
 		buf.WriteString(fmt.Sprintf("<h%d>", level))
 
 		for _, p := range section.Title.P {
-			buf.WriteString(htmlEscape(p.Text))
+			buf.WriteString(t.renderP(p))
 			buf.WriteString("<br/>\n")
 		}
 
@@ -85,7 +112,7 @@ func (t *Transformer) renderSectionTitle(section Section) string {
 
 	// Subtitle
 	if section.Subtitle != nil {
-		buf.WriteString(fmt.Sprintf("<h5 class=\"subtitle\">%s</h5>\n", htmlEscape(section.Subtitle.Text)))
+		buf.WriteString(fmt.Sprintf("<h5 class=\"subtitle\">%s</h5>\n", t.renderP(*section.Subtitle)))
 	}
 	return buf.String()
 }
@@ -124,7 +151,7 @@ func (t *Transformer) renderSectionContent(section Section) string {
 
 	// Paragraphs
 	for _, p := range section.Paragraphs {
-		buf.WriteString(fmt.Sprintf("<p class=\"paragraph\">%s</p>\n", htmlEscape(p.Text)))
+		buf.WriteString(fmt.Sprintf("<p class=\"paragraph\">%s</p>\n", t.renderP(p)))
 	}
 	return buf.String()
 }
@@ -314,4 +341,12 @@ func (t *Transformer) renderCoverPage(cover Coverpage) string {
 
 	// Render the image centered and with a page break after
 	return fmt.Sprintf("<div style=\"text-align: center; page-break-after: always;\">\n%s</div>\n", t.renderImage(img))
+}
+
+// renderP renders a paragraph content, preserving inline markup if available
+func (t *Transformer) renderP(p P) string {
+	if p.RawXML != "" {
+		return ParseInlineContent(p.RawXML)
+	}
+	return htmlEscape(p.Text)
 }

@@ -145,7 +145,36 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 
 	if len(fb2.Bodies) > 0 {
 		buf.WriteString("<a id=\"toc\"></a>\n")
-		buf.WriteString(t.generateTOC(fb2.Bodies[0].Sections, 0))
+
+		toc := t.generateTOC(fb2.Bodies[0].Sections, 0)
+
+		// Check for notes body
+		hasNotes := false
+		notesTitle := "Notes"
+		for _, b := range fb2.Bodies {
+			if b.Name == "notes" {
+				hasNotes = true
+				// Try to get title from body
+				if b.Title != nil && len(b.Title.P) > 0 {
+					notesTitle = b.Title.P[0].Text
+				} else {
+					notesTitle = b.Name // Fallback to "notes" or whatever name is
+				}
+				break
+			}
+		}
+
+		// Inject notes link into TOC if present
+		if hasNotes {
+			// Find the last closing </ul> and insert the list item before it
+			lastUL := strings.LastIndex(toc, "</ul>")
+			if lastUL != -1 {
+				notesLink := fmt.Sprintf("  <li><a href=\"#notes\">%s</a></li>\n", htmlEscape(notesTitle))
+				toc = toc[:lastUL] + notesLink + toc[lastUL:]
+			}
+		}
+
+		buf.WriteString(toc)
 		buf.WriteString("<hr/>\n")
 	}
 
