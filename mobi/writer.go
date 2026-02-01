@@ -236,8 +236,8 @@ func (w *Writer) Write(output io.Writer) error {
 	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex*2) //nolint:gosec // Size fits
 	recordIndex++
 
-	// EOF record (4 zero bytes)
-	palmWriter.AddRecord([]byte{0x00, 0x00, 0x00, 0x00}, 0, uint32(recordIndex)*2) //nolint:gosec // Index fits
+	// EOF record (MOBI spec: E9 8E 0D 0A)
+	palmWriter.AddRecord([]byte{0xE9, 0x8E, 0x0D, 0x0A}, 0, uint32(recordIndex)*2) //nolint:gosec // Index fits
 	recordIndex++
 
 	// If TOC exists, FirstNonBookIndex should point to it for best compatibility
@@ -301,14 +301,9 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.TextEncoding = UTF8Encoding
 	mobiHeader.Locale = 1049 // Russian (Language 25 + Sublanguage 1<<10)
 
-	// Enable ExtraRecordFlags for NCX/TBS indexing when TOC is present
-	// Bit 1 (0x01): Multibyte character overlap
-	// Bit 2 (0x02): TBS indexing description (required for NCX)
-	if indxOffset != 0xFFFFFFFF {
-		mobiHeader.ExtraRecordFlags = 0x02 // Enable TBS indexing (0x02) only. 0x01 requires FCIS/FLIS which we don't write.
-	} else {
-		mobiHeader.ExtraRecordFlags = 0 // No trailing data
-	}
+	// ExtraRecordFlags = 0 means no trailing data on text records
+	// We don't use TBS indexing - TOC works via INDX records without it
+	mobiHeader.ExtraRecordFlags = 0
 
 	// Set mandatory structural indices
 	mobiHeader.FCISIndex = fcisIndex

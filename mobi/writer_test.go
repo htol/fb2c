@@ -111,10 +111,10 @@ func TestSplitTextRecords(t *testing.T) {
 				t.Errorf("splitTextRecords() returned %v records, want %v", len(records), tt.wantRecs)
 			}
 
-			// Verify each record is max 4096+4 bytes (except possibly last)
+			// Verify each record is max 4096 bytes (no trailing bytes)
 			for i, rec := range records {
-				if len(rec) > 4100 {
-					t.Errorf("Record %v has length %v, want max 4100", i, len(rec))
+				if len(rec) > 4096 {
+					t.Errorf("Record %v has length %v, want max 4096", i, len(rec))
 				}
 			}
 		})
