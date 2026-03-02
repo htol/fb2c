@@ -1,6 +1,7 @@
 package fb2
 
 import (
+	"html"
 	"regexp"
 	"strings"
 )
@@ -80,7 +81,7 @@ func convertLinks(s string) string {
 		var htmlAttrs []string
 
 		if href != "" {
-			htmlAttrs = append(htmlAttrs, `href="`+href+`"`)
+			htmlAttrs = append(htmlAttrs, `href="`+html.EscapeString(href)+`"`)
 		}
 
 		// For note references, add special class and ID for back-navigation
