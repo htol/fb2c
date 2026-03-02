@@ -77,27 +77,27 @@ func NewEXTHWriter() *EXTHWriter {
 
 // AddAuthor adds an author record
 func (w *EXTHWriter) AddAuthor(author string) {
-	w.addRecord(EXTHAuthor, author)
+	w.addStringRecord(EXTHAuthor, author)
 }
 
 // AddTitle adds a title record
 func (w *EXTHWriter) AddTitle(title string) {
-	w.addRecord(EXTHTitle, title)
+	w.addStringRecord(EXTHTitle, title)
 }
 
 // AddPublisher adds a publisher record
 func (w *EXTHWriter) AddPublisher(publisher string) {
-	w.addRecord(EXTHPublisher, publisher)
+	w.addStringRecord(EXTHPublisher, publisher)
 }
 
 // AddDescription adds a description/annotation record
 func (w *EXTHWriter) AddDescription(description string) {
-	w.addRecord(EXTHDescription, description)
+	w.addStringRecord(EXTHDescription, description)
 }
 
 // AddISBN adds an ISBN record
 func (w *EXTHWriter) AddISBN(isbn string) {
-	w.addRecord(EXTHISBN, isbn)
+	w.addStringRecord(EXTHISBN, isbn)
 }
 
 // AddSubject adds a subject/genre record
@@ -107,73 +107,73 @@ func (w *EXTHWriter) AddSubject(subject string) {
 
 // AddPublishedDate adds a publication date record
 func (w *EXTHWriter) AddPublishedDate(date string) {
-	w.addRecord(EXTHPublishedDate, date)
+	w.addStringRecord(EXTHPublishedDate, date)
 }
 
 // AddContributor adds a contributor record
 func (w *EXTHWriter) AddContributor(contributor string) {
-	w.addRecord(EXTHContributor, contributor)
+	w.addStringRecord(EXTHContributor, contributor)
 }
 
 // AddRights adds a copyright record
 func (w *EXTHWriter) AddRights(rights string) {
-	w.addRecord(EXTHRights, rights)
+	w.addStringRecord(EXTHRights, rights)
 }
 
 // AddASIN adds an Amazon ASIN record
 func (w *EXTHWriter) AddASIN(asin string) {
-	w.addRecord(EXTHASIN, asin)
+	w.addStringRecord(EXTHASIN, asin)
 }
 
 // AddType adds a type/genre record
 func (w *EXTHWriter) AddType(typ string) {
-	w.addRecord(EXTHType, typ)
+	w.addStringRecord(EXTHType, typ)
 }
 
 // AddSource adds a source record
 func (w *EXTHWriter) AddSource(source string) {
-	w.addRecord(EXTHSource, source)
+	w.addStringRecord(EXTHSource, source)
 }
 
 // AddLanguage adds a language record
 func (w *EXTHWriter) AddLanguage(lang string) {
-	w.addRecord(EXTHLanguage, lang)
+	w.addStringRecord(EXTHLanguage, lang)
 }
 
 // AddCoverOffset adds a cover offset record
 func (w *EXTHWriter) AddCoverOffset(offset uint32) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, offset)
-	w.addRecord(EXTHCoverOffset, string(data))
+	w.addRecord(EXTHCoverOffset, data)
 }
 
 // AddThumbnailOffset adds a thumbnail offset record
 func (w *EXTHWriter) AddThumbnailOffset(offset uint32) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, offset)
-	w.addRecord(EXTHThumbOffset, string(data))
+	w.addRecord(EXTHThumbOffset, data)
 }
 
 // AddHasFakeCover adds a has fake cover record
 func (w *EXTHWriter) AddHasFakeCover(hasFake uint32) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, hasFake)
-	w.addRecord(EXTHHasFakeCover, string(data))
+	w.addRecord(EXTHHasFakeCover, data)
 }
 
 // AddK8CoverImage adds a K8 cover image record
 func (w *EXTHWriter) AddK8CoverImage(imageID string) {
-	w.addRecord(EXTHK8CoverImage, imageID)
+	w.addStringRecord(EXTHK8CoverImage, imageID)
 }
 
 // AddCreatorSoftware adds a creator software record
 func (w *EXTHWriter) AddCreatorSoftware(software string) {
-	w.addRecord(EXTHCreatorSoftware, software)
+	w.addStringRecord(EXTHCreatorSoftware, software)
 }
 
 // AddReview adds a review record
 func (w *EXTHWriter) AddReview(review string) {
-	w.addRecord(EXTHReview, review)
+	w.addStringRecord(EXTHReview, review)
 }
 
 // AddRetailPrice adds a retail price record
@@ -184,7 +184,7 @@ func (w *EXTHWriter) AddRetailPrice(price float32, currency string) {
 
 	// Combine with currency
 	data := append(priceBytes, []byte(currency)...)
-	w.addRecord(EXTHRetailPrice, string(data))
+	w.addRecord(EXTHRetailPrice, data)
 }
 
 // addStringList adds multiple strings as a single record (comma-separated)
@@ -192,12 +192,17 @@ func (w *EXTHWriter) AddSubjectList(subjects []string) {
 	w.addStringList(EXTHSubject, subjects)
 }
 
-// addRecord adds a generic record
-func (w *EXTHWriter) addRecord(recordType uint32, data string) {
+// addRecord adds a record with raw bytes
+func (w *EXTHWriter) addRecord(recordType uint32, data []byte) {
 	w.records = append(w.records, EXTHRecord{
 		RecordType: recordType,
-		Data:       []byte(data),
+		Data:       data,
 	})
+}
+
+// addStringRecord adds a record from a string value
+func (w *EXTHWriter) addStringRecord(recordType uint32, data string) {
+	w.addRecord(recordType, []byte(data))
 }
 
 // addStringList adds multiple strings as comma-separated values
@@ -209,14 +214,14 @@ func (w *EXTHWriter) addStringList(recordType uint32, strings []string) {
 		}
 		combined += s
 	}
-	w.addRecord(recordType, combined)
+	w.addStringRecord(recordType, combined)
 }
 
 // AddStartReading adds a start reading record
 func (w *EXTHWriter) AddStartReading(offset uint32) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, offset)
-	w.addRecord(EXTHStartReading, string(data))
+	w.addRecord(EXTHStartReading, data)
 }
 
 // Write writes the EXTH header and records
