@@ -136,23 +136,23 @@ func parseHTMLTags(html string) ([]TagPosition, error) {
 
 	matches := re.FindAllStringSubmatchIndex(html, -1)
 	for _, match := range matches {
-		if len(match) < 6 {
+		if len(match) < 8 {
 			continue
 		}
 
 		tagStart := match[0]
 		_ = match[1] // tagEnd
 
-		// Extract tag name
-		tagNameStart := match[2]
-		tagNameEnd := match[3]
+		// Extract tag name (group 2)
+		tagNameStart := match[4]
+		tagNameEnd := match[5]
 		tagName := html[tagNameStart:tagNameEnd]
 
-		// Check if closing tag
-		isClose := match[4] != match[5] && (match[4] >= 0 && html[match[4]] == '/')
+		// Check if closing tag (group 1 non-empty)
+		isClose := match[2] != match[3]
 
-		// Check if self-closing
-		selfClose := match[4] != match[5] && (match[4] >= 0 && html[match[4]] == '/')
+		// Check if self-closing (group 3 non-empty)
+		selfClose := match[6] != match[7]
 
 		positions = append(positions, TagPosition{
 			Tag:       strings.ToLower(tagName),
