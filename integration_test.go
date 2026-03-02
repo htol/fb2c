@@ -14,17 +14,12 @@ import (
 
 // TestConvertSimpleFB2 tests end-to-end conversion of a simple FB2 file
 const (
-	testSrcFB2 = "testdata/src.fb2"
 	testRefFB2 = "testdata/src_ref.fb2"
 	bookType   = "BOOK"
 )
 
 func TestConvertSimpleFB2(t *testing.T) { //nolint:gocyclo
 	testFile := testRefFB2
-	// Verify it exists
-	if _, err := os.Stat(testFile); os.IsNotExist(err) {
-		testFile = testSrcFB2 // Fallback to src.fb2 if src_ref doesn't exist yet
-	}
 
 	// Parse FB2
 	parser := fb2.NewParser()
@@ -133,7 +128,7 @@ func TestConvertSimpleFB2(t *testing.T) { //nolint:gocyclo
 
 // TestConvertFB2WithCover tests conversion with cover image
 func TestConvertFB2WithCover(t *testing.T) {
-	testFile := testSrcFB2
+	testFile := testRefFB2
 
 	// Read the file
 	fb2Data, err := os.ReadFile(testFile)
@@ -284,16 +279,10 @@ func TestMetadataExtraction(t *testing.T) {
 		wantSeries string
 	}{
 		{
-			file:       "testdata/src.fb2",
-			wantTitle:  "Голубой адепт",
-			wantAuthor: "Пирс Энтони",
-			wantSeries: "Начинающий адепт",
-		},
-		{
-			file:       "testdata/src.fb2",
-			wantTitle:  "Голубой адепт",
-			wantAuthor: "Пирс Энтони",
-			wantSeries: "Начинающий адепт",
+			file:       "testdata/src_ref.fb2",
+			wantTitle:  "Тестовый ознакомительный документ FictionBook 2.1",
+			wantAuthor: "Дмитрий Петрович Грибов",
+			wantSeries: "",
 		},
 	}
 
@@ -335,7 +324,7 @@ func TestValidateFB2(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			file:    "testdata/src.fb2",
+			file:    "testdata/src_ref.fb2",
 			wantErr: false,
 		},
 		{
@@ -360,7 +349,7 @@ func TestValidateFB2(t *testing.T) {
 
 // BenchmarkConversion benchmarks the conversion process
 func BenchmarkConversion(b *testing.B) {
-	testFile := "testdata/src.fb2"
+	testFile := "testdata/src_ref.fb2"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
