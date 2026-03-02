@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 )
 
 const (
@@ -199,12 +200,12 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 		"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked below
 	)
 
-	if dataOffset > 2147483647 { // Max safe value for adding 4096
+	if dataOffset > math.MaxInt32 { // Max safe value for adding 4096
 		w.logger.Error("dataOffset overflow detected",
 			"component", "PalmDBWriter",
 			"operation", "Write",
 			"dataOffset", dataOffset,
-			"maxSafeValue", 2147483647,
+			"maxSafeValue", math.MaxInt32,
 		)
 		return fmt.Errorf("record offset overflow: %d", dataOffset)
 	}

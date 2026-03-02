@@ -12,6 +12,8 @@ import (
 	"github.com/htol/fb2c/opf"
 )
 
+const maxBookNameLen = 31
+
 // WriteOptions contains options for writing MOBI files
 type WriteOptions struct {
 	CompressionType int // NoCompression=1, PalmDOCCompression=2, HuffCDCompression=17480
@@ -97,8 +99,8 @@ func (w *Writer) GetBookName() string {
 	if name == "" {
 		name = w.book.Metadata.Title
 	}
-	if len(name) > 31 {
-		name = name[:31]
+	if len(name) > maxBookNameLen {
+		name = name[:maxBookNameLen]
 	}
 	return name
 }
@@ -271,8 +273,8 @@ func (w *Writer) getBookName() string {
 	if name == "" {
 		name = w.book.Metadata.Title
 	}
-	if len(name) > 31 {
-		name = name[:31]
+	if len(name) > maxBookNameLen {
+		name = name[:maxBookNameLen]
 	}
 	return name
 }
