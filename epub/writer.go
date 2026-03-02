@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"html"
 	"io"
 	"regexp"
 	"strings"
@@ -144,25 +145,25 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 	// Title
 	if m.Title != "" {
 		buf.WriteString(fmt.Sprintf(`    <dc:title>%s</dc:title>
-`, escapeXML(m.Title)))
+`, html.EscapeString(m.Title)))
 	}
 
 	// Authors
 	for _, author := range m.Authors {
 		buf.WriteString(fmt.Sprintf(`    <dc:creator>%s</dc:creator>
-`, escapeXML(author.FullName)))
+`, html.EscapeString(author.FullName)))
 	}
 
 	// Publisher
 	if m.Publisher != "" {
 		buf.WriteString(fmt.Sprintf(`    <dc:publisher>%s</dc:publisher>
-`, escapeXML(m.Publisher)))
+`, html.EscapeString(m.Publisher)))
 	}
 
 	// ISBN
 	if m.ISBN != "" {
 		buf.WriteString(fmt.Sprintf(`    <dc:identifier>urn:isbn:%s</dc:identifier>
-`, escapeXML(m.ISBN)))
+`, html.EscapeString(m.ISBN)))
 	}
 
 	// Date/Year
@@ -174,13 +175,13 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 `, year, month, day))
 	} else if m.Year != "" {
 		buf.WriteString(fmt.Sprintf(`    <dc:date>%s</dc:date>
-`, escapeXML(m.Year)))
+`, html.EscapeString(m.Year)))
 	}
 
 	// Language
 	if m.Language != "" {
 		buf.WriteString(fmt.Sprintf(`    <dc:language>%s</dc:language>
-`, escapeXML(m.Language)))
+`, html.EscapeString(m.Language)))
 	}
 
 	// Annotation (description)
@@ -190,7 +191,7 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 		// Indent each line of annotation
 		lines := strings.Split(m.Annotation, "\n")
 		for _, line := range lines {
-			buf.WriteString(fmt.Sprintf("      %s\n", escapeXML(line)))
+			buf.WriteString(fmt.Sprintf("      %s\n", html.EscapeString(line)))
 		}
 		buf.WriteString(`    </dc:description>
 `)
@@ -270,7 +271,7 @@ func (w *Writer) writeNCX(zipWriter *zip.Writer) error {
   </head>
   <docTitle>
     <text>`)
-	buf.WriteString(escapeXML(w.book.Metadata.Title))
+	buf.WriteString(html.EscapeString(w.book.Metadata.Title))
 	buf.WriteString(`</text>
   </docTitle>
   <navMap>
@@ -302,7 +303,7 @@ func (w *Writer) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, depth i
 
 	// Write this entry
 	playOrder := w.getNextPlayOrder()
-	label := escapeXML(entry.Label)
+	label := html.EscapeString(entry.Label)
 
 	// Generate unique fragment ID for each TOC entry to avoid duplicate target errors
 	fragmentID := fmt.Sprintf("toc-%d", playOrder)
@@ -409,26 +410,26 @@ func (w *Writer) writeContent(zipWriter *zip.Writer) error {
 }
 
 // convertToXHTML converts HTML content to XHTML format for EPUB
-func (w *Writer) convertToXHTML(html string) string {
+func (w *Writer) convertToXHTML(rawHTML string) string {
 	// Simple approach: wrap in XHTML with proper namespace
 	// In production, would use html/parser to extract body content
 
 	// Check if content starts with <!DOCTYPE
-	if strings.HasPrefix(html, "<!DOCTYPE") || strings.HasPrefix(html, "<html") {
+	if strings.HasPrefix(rawHTML, "<!DOCTYPE") || strings.HasPrefix(rawHTML, "<html") {
 		// Extract body content
-		bodyStart := strings.Index(html, "<body")
+		bodyStart := strings.Index(rawHTML, "<body")
 		if bodyStart == -1 {
-			bodyStart = strings.Index(html, "<BODY")
+			bodyStart = strings.Index(rawHTML, "<BODY")
 		}
 		if bodyStart != -1 {
 			// Find opening >
-			bodyStart = strings.Index(html[bodyStart:], ">") + bodyStart + 1
-			bodyEnd := strings.Index(html[bodyStart:], "</body")
+			bodyStart = strings.Index(rawHTML[bodyStart:], ">") + bodyStart + 1
+			bodyEnd := strings.Index(rawHTML[bodyStart:], "</body")
 			if bodyEnd == -1 {
-				bodyEnd = strings.Index(html[bodyStart:], "</BODY")
+				bodyEnd = strings.Index(rawHTML[bodyStart:], "</BODY")
 			}
 			if bodyEnd != -1 {
-				bodyContent := html[bodyStart : bodyStart+bodyEnd]
+				bodyContent := rawHTML[bodyStart : bodyStart+bodyEnd]
 
 				// Build body with optional anchor navigation markers
 				bodyWithContent := bodyContent
@@ -454,7 +455,7 @@ func (w *Writer) convertToXHTML(html string) string {
 %s
 </body>
 </html>
-`, escapeXML(w.book.Metadata.Title), bodyWithContent)
+`, html.EscapeString(w.book.Metadata.Title), bodyWithContent)
 			}
 		}
 	}
@@ -462,7 +463,7 @@ func (w *Writer) convertToXHTML(html string) string {
 	// Fallback: just add XML declaration
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 %s
-`, html)
+`, rawHTML)
 }
 
 // writeResources writes resources (images, etc.) to the EPUB
@@ -494,15 +495,6 @@ func (w *Writer) writeResources(zipWriter *zip.Writer) error {
 	return nil
 }
 
-// escapeXML escapes special XML characters
-func escapeXML(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	return s
-}
 
 // generateUUID generates a random UUID for the book
 func generateUUID() string {

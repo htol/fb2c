@@ -4,6 +4,7 @@ package fb2
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -98,7 +99,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 <html lang="` + fb2.Description.TitleInfo.Language + `">
 <head>
     <meta charset="UTF-8">
-    <title>` + htmlEscape(t.getDisplayTitle(fb2)) + `</title>
+    <title>` + html.EscapeString(t.getDisplayTitle(fb2)) + `</title>
     <style type="text/css">
         body { text-align: justify; margin: 2em; }
         h1, h2, h3, h4, h5, h6 { font-weight: bold; page-break-before: always; }
@@ -138,7 +139,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		annotation := extractTextContent(fb2.Description.TitleInfo.Annotation)
 		if annotation != "" {
 			buf.WriteString("<div>")
-			buf.WriteString(htmlEscape(annotation))
+			buf.WriteString(html.EscapeString(annotation))
 			buf.WriteString("</div>\n<hr/>\n")
 		}
 	}
@@ -169,7 +170,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 			// Find the last closing </ul> and insert the list item before it
 			lastUL := strings.LastIndex(toc, "</ul>")
 			if lastUL != -1 {
-				notesLink := fmt.Sprintf("  <li><a href=\"#notes\">%s</a></li>\n", htmlEscape(notesTitle))
+				notesLink := fmt.Sprintf("  <li><a href=\"#notes\">%s</a></li>\n", html.EscapeString(notesTitle))
 				toc = toc[:lastUL] + notesLink + toc[lastUL:]
 			}
 		}
@@ -220,7 +221,7 @@ func (t *Transformer) generateTOC(sections []Section, depth int) string {
 			id = fmt.Sprintf("section_%d", i+1)
 		}
 
-		buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, htmlEscape(title)))
+		buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, html.EscapeString(title)))
 
 		// Recurse for subsections
 		if len(section.Sections) > 0 {
@@ -253,12 +254,3 @@ func (t *Transformer) countSectionDepth(_ Section) int {
 	return 1 // Default to h2 for top-level sections under body
 }
 
-// htmlEscape escapes HTML special characters
-func htmlEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	return s
-}

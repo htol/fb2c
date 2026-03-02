@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"sort"
 	"strings"
 )
@@ -249,7 +250,7 @@ func (b *OEBBook) GenerateHTMLTOC() string {
 func (b *OEBBook) writeHTMLTOC(buf *bytes.Buffer, toc *TOCEntry) {
 	if toc.Label != "" || toc.ID != TOCRootID {
 		buf.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a>`,
-			htmlEscape(toc.Href), htmlEscape(toc.Label)))
+			html.EscapeString(toc.Href), html.EscapeString(toc.Label)))
 
 		if len(toc.Children) > 0 {
 			buf.WriteString("\n<ul>\n")

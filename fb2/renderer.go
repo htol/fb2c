@@ -3,6 +3,7 @@ package fb2
 import (
 	"encoding/base64"
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ func (t *Transformer) renderBody(body Body) string {
 		}
 		displayTitle = strings.Join(titleParts, "<br/>")
 	} else if body.Name != "" {
-		displayTitle = htmlEscape(body.Name)
+		displayTitle = html.EscapeString(body.Name)
 	}
 
 	if displayTitle != "" {
@@ -136,7 +137,7 @@ func (t *Transformer) renderSectionContent(section Section) string {
 
 	// Code
 	for _, code := range section.Code {
-		buf.WriteString(fmt.Sprintf("<code>%s</code><br/>\n", htmlEscape(code.Text)))
+		buf.WriteString(fmt.Sprintf("<code>%s</code><br/>\n", html.EscapeString(code.Text)))
 	}
 
 	// Tables
@@ -169,12 +170,12 @@ func (t *Transformer) renderEpigraph(epigraph Epigraph) string {
 
 	// Authors
 	for _, author := range epigraph.Authors {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", htmlEscape(formatAuthorName(author))))
+		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
 	}
 
 	// Content
 	for _, node := range epigraph.Content {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", htmlEscape(node.Content)))
+		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(node.Content)))
 	}
 
 	buf.WriteString("</blockquote>\n")
@@ -190,12 +191,12 @@ func (t *Transformer) renderCite(cite Cite) string {
 
 	// Authors
 	for _, author := range cite.Authors {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", htmlEscape(formatAuthorName(author))))
+		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
 	}
 
 	// Content
 	for _, node := range cite.Content {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", htmlEscape(node.Content)))
+		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(node.Content)))
 	}
 
 	buf.WriteString("</blockquote>\n")
@@ -212,23 +213,23 @@ func (t *Transformer) renderStanza(stanza Stanza) string {
 	// Title
 	if stanza.Title != nil && len(stanza.Title.P) > 0 {
 		for _, p := range stanza.Title.P {
-			buf.WriteString(fmt.Sprintf("  <p><strong>%s</strong></p>\n", htmlEscape(p.Text)))
+			buf.WriteString(fmt.Sprintf("  <p><strong>%s</strong></p>\n", html.EscapeString(p.Text)))
 		}
 	}
 
 	// Author
 	for _, author := range stanza.Author {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", htmlEscape(formatAuthorName(author))))
+		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
 	}
 
 	// Date
 	if stanza.Date.Text != "" {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", htmlEscape(stanza.Date.Text)))
+		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(stanza.Date.Text)))
 	}
 
 	// Verses
 	for _, v := range stanza.V {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", htmlEscape(v.Text)))
+		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(v.Text)))
 		buf.WriteString("<br/>\n")
 	}
 
@@ -259,14 +260,14 @@ func (t *Transformer) renderTable(table Table) string {
 				buf.WriteString(fmt.Sprintf(" rowspan=\"%d\"", cell.RowSpan))
 			}
 			if cell.Style != "" {
-				buf.WriteString(fmt.Sprintf(" style=\"%s\"", htmlEscape(cell.Style)))
+				buf.WriteString(fmt.Sprintf(" style=\"%s\"", html.EscapeString(cell.Style)))
 			}
 			if cell.Class != "" {
-				buf.WriteString(fmt.Sprintf(" class=\"%s\"", htmlEscape(cell.Class)))
+				buf.WriteString(fmt.Sprintf(" class=\"%s\"", html.EscapeString(cell.Class)))
 			}
 			buf.WriteString(">")
 
-			buf.WriteString(htmlEscape(cell.Content))
+			buf.WriteString(html.EscapeString(cell.Content))
 
 			buf.WriteString("</td>\n")
 		}
@@ -310,13 +311,13 @@ func (t *Transformer) renderImage(img Image) string {
 	// Always include alt attribute (empty if not specified) for EPUB compliance
 	alt := ""
 	if img.Alt != "" {
-		alt = htmlEscape(img.Alt)
+		alt = html.EscapeString(img.Alt)
 	}
 	altAttr := fmt.Sprintf(" alt=\"%s\"", alt)
 
 	titleAttr := ""
 	if img.Title != "" {
-		titleAttr = fmt.Sprintf(" title=\"%s\"", htmlEscape(img.Title))
+		titleAttr = fmt.Sprintf(" title=\"%s\"", html.EscapeString(img.Title))
 	}
 
 	if t.MOBIMode {
@@ -348,5 +349,5 @@ func (t *Transformer) renderP(p P) string {
 	if p.RawXML != "" {
 		return ParseInlineContent(p.RawXML)
 	}
-	return htmlEscape(p.Text)
+	return html.EscapeString(p.Text)
 }

@@ -1,6 +1,7 @@
 package fb2
 
 import (
+	"html"
 	"strings"
 	"testing"
 )
@@ -265,15 +266,15 @@ func TestHTMLEscape(t *testing.T) {
 	}{
 		{"Hello & goodbye", "Hello &amp; goodbye"},
 		{"<tag>", "&lt;tag&gt;"},
-		{"\"quoted\"", "&quot;quoted&quot;"},
-		{"'apostrophe'", "&apos;apostrophe&apos;"},
+		{"\"quoted\"", "&#34;quoted&#34;"},
+		{"'apostrophe'", "&#39;apostrophe&#39;"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := htmlEscape(tt.input)
+			got := html.EscapeString(tt.input)
 			if got != tt.want {
-				t.Errorf("htmlEscape(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("html.EscapeString(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

@@ -4,6 +4,7 @@ package opf
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"regexp"
 	"strings"
 )
@@ -187,7 +188,7 @@ func (p *HTMLProcessor) WrapInHTML(content, title, lang string) string {
 <head>
     <meta charset="UTF-8">
     <title>`)
-	buf.WriteString(htmlEscape(title))
+	buf.WriteString(html.EscapeString(title))
 	buf.WriteString(`</title>
     <style type="text/css">
         body { font-family: serif; margin: 2em; text-align: justify; }
@@ -222,14 +223,14 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 
 	// Title
 	if metadata.Title != "" {
-		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>\n`, htmlEscape(metadata.Title)))
+		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>\n`, html.EscapeString(metadata.Title)))
 	}
 
 	// Authors
 	if len(metadata.Authors) > 0 {
 		for _, author := range metadata.Authors {
 			if author.FullName != "" {
-				buf.WriteString(fmt.Sprintf(`<h2>%s</h2>\n`, htmlEscape(author.FullName)))
+				buf.WriteString(fmt.Sprintf(`<h2>%s</h2>\n`, html.EscapeString(author.FullName)))
 			}
 		}
 		buf.WriteString("<br/>\n")
@@ -241,22 +242,22 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 		if metadata.SeriesIndex > 0 {
 			seriesText += fmt.Sprintf(" (#%d)", metadata.SeriesIndex)
 		}
-		buf.WriteString(fmt.Sprintf(`<h3>%s</h3>\n`, htmlEscape(seriesText)))
+		buf.WriteString(fmt.Sprintf(`<h3>%s</h3>\n`, html.EscapeString(seriesText)))
 		buf.WriteString("<br/>\n")
 	}
 
 	// Publisher info
 	if metadata.Publisher != "" {
-		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, htmlEscape(metadata.Publisher)))
+		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, html.EscapeString(metadata.Publisher)))
 	}
 
 	if metadata.Year != "" {
-		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, htmlEscape(metadata.Year)))
+		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, html.EscapeString(metadata.Year)))
 	}
 
 	// ISBN
 	if metadata.ISBN != "" {
-		buf.WriteString(fmt.Sprintf(`<p>ISBN: %s</p>\n`, htmlEscape(metadata.ISBN)))
+		buf.WriteString(fmt.Sprintf(`<p>ISBN: %s</p>\n`, html.EscapeString(metadata.ISBN)))
 	}
 
 	buf.WriteString("</div>\n")
@@ -264,15 +265,6 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 	return buf.String()
 }
 
-// htmlEscape escapes HTML special characters
-func htmlEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	return s
-}
 
 // Cleanup removes temporary/cleanup markers from HTML
 func (p *HTMLProcessor) Cleanup(html string) string {
