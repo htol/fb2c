@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var htmlTagRe = regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9]*)(?:\s[^>]*)?(/?)>`)
+
 const (
 	// KF8 constants
 	KF8Version      = 8
@@ -130,11 +132,7 @@ func (s *Skeleton) ChunkHTML(html string) error {
 func parseHTMLTags(html string) ([]TagPosition, error) {
 	positions := make([]TagPosition, 0)
 
-	// Regex to find HTML tags
-	// Matches: <tag>, </tag>, <tag/>, <tag attr="value">
-	re := regexp.MustCompile(`<(/?)([a-zA-Z][a-zA-Z0-9]*)(?:\s[^>]*)?(/?)>`)
-
-	matches := re.FindAllStringSubmatchIndex(html, -1)
+	matches := htmlTagRe.FindAllStringSubmatchIndex(html, -1)
 	for _, match := range matches {
 		if len(match) < 8 {
 			continue

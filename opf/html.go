@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+var (
+	xmlDeclRe     = regexp.MustCompile(`^<\?xml[^>]*\?>\s*`)
+	paragraphRe   = regexp.MustCompile(`<div\s+class=["']paragraph["']\s*>(.*?)</div>`)
+	divTextRe     = regexp.MustCompile(`<div\s*>([^<]+)</div>`)
+	emptyPRe      = regexp.MustCompile(`<p>\s*</p>`)
+	emptyDivRe    = regexp.MustCompile(`<div>\s*</div>`)
+	emptySpanRe   = regexp.MustCompile(`<span>\s*</span>`)
+	multiSpaceRe  = regexp.MustCompile(`\s+`)
+	htmlCommentRe = regexp.MustCompile(`<!--.*?-->`)
+	htmlPIRe      = regexp.MustCompile(`<\?.*?\?>`)
+)
+
 // HTMLProcessor processes HTML content for OEB format
 type HTMLProcessor struct {
 	// Options
@@ -55,9 +67,7 @@ func (p *HTMLProcessor) Process(html string) string {
 
 // stripXMLDeclaration removes the XML declaration from HTML
 func (p *HTMLProcessor) stripXMLDeclaration(html string) string {
-	// Remove <?xml ...?> declaration
-	re := regexp.MustCompile(`^<\?xml[^>]*\?>\s*`)
-	return re.ReplaceAllString(html, "")
+	return xmlDeclRe.ReplaceAllString(html, "")
 }
 
 // normalizeLineBreaks normalizes line endings to \n
@@ -72,13 +82,11 @@ func (p *HTMLProcessor) normalizeLineBreaks(html string) string {
 // convertParagraphDivs converts <div class="paragraph"> to <p> tags
 func (p *HTMLProcessor) convertParagraphDivs(html string) string {
 	// Convert <div class="paragraph">...</div> to <p>...</p>
-	re := regexp.MustCompile(`<div\s+class=["']paragraph["']\s*>(.*?)</div>`)
-	html = re.ReplaceAllString(html, "<p>$1</p>")
+	html = paragraphRe.ReplaceAllString(html, "<p>$1</p>")
 
 	// Convert <div>text</div> without other content to <p>text</p>
 	// Only if div contains only text (no nested divs, tables, etc.)
-	re = regexp.MustCompile(`<div\s*>([^<]+)</div>`)
-	html = re.ReplaceAllString(html, "<p>$1</p>")
+	html = divTextRe.ReplaceAllString(html, "<p>$1</p>")
 
 	return html
 }
@@ -102,26 +110,16 @@ func (p *HTMLProcessor) fixHTMLEncoding(html string) string {
 
 // removeEmptyElements removes empty elements
 func (p *HTMLProcessor) removeEmptyElements(html string) string {
-	// Remove empty p tags
-	re := regexp.MustCompile(`<p>\s*</p>`)
-	html = re.ReplaceAllString(html, "")
-
-	// Remove empty div tags
-	re = regexp.MustCompile(`<div>\s*</div>`)
-	html = re.ReplaceAllString(html, "")
-
-	// Remove empty span tags
-	re = regexp.MustCompile(`<span>\s*</span>`)
-	html = re.ReplaceAllString(html, "")
-
+	html = emptyPRe.ReplaceAllString(html, "")
+	html = emptyDivRe.ReplaceAllString(html, "")
+	html = emptySpanRe.ReplaceAllString(html, "")
 	return html
 }
 
 // normalizeWhitespace normalizes whitespace in HTML
 func (p *HTMLProcessor) normalizeWhitespace(html string) string {
 	// Collapse multiple spaces into one (outside of tags)
-	re := regexp.MustCompile(`\s+`)
-	html = re.ReplaceAllString(html, " ")
+	html = multiSpaceRe.ReplaceAllString(html, " ")
 
 	// Remove leading/trailing whitespace from lines
 	lines := strings.Split(html, "\n")
@@ -268,13 +266,7 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 
 // Cleanup removes temporary/cleanup markers from HTML
 func (p *HTMLProcessor) Cleanup(html string) string {
-	// Remove any comments that might be used for processing
-	re := regexp.MustCompile(`<!--.*?-->`)
-	html = re.ReplaceAllString(html, "")
-
-	// Remove processing instructions
-	re = regexp.MustCompile(`<\?.*?\?>`)
-	html = re.ReplaceAllString(html, "")
-
+	html = htmlCommentRe.ReplaceAllString(html, "")
+	html = htmlPIRe.ReplaceAllString(html, "")
 	return html
 }

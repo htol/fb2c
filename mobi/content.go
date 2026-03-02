@@ -9,6 +9,13 @@ import (
 	"github.com/htol/fb2c/opf"
 )
 
+var (
+	srcAttrRe   = regexp.MustCompile(`src=["']([^"']+)["']`)
+	hrefHashRe  = regexp.MustCompile(`href=["']#([^"']+)["']`)
+	anchorIDRe  = regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
+	fileposZeRe = regexp.MustCompile(`filepos=["']0000000000["']`)
+)
+
 // resolveImageSources replaces src="filename" with src="recindex:N"
 // If baseIndex is 0, it uses relative indexing (1, 2, 3...)
 // If baseIndex is > 0, it uses absolute 1-based indexing (baseIndex + 1, baseIndex + 2...)
@@ -47,8 +54,7 @@ func resolveImageSources(book *opf.OEBBook, hasCover bool, content string) strin
 	}
 
 	// 4. Perform replacements
-	re := regexp.MustCompile(`src=["']([^"']+)["']`)
-	return re.ReplaceAllStringFunc(content, func(match string) string {
+	return srcAttrRe.ReplaceAllStringFunc(content, func(match string) string {
 		quote := match[4]
 		url := match[5 : len(match)-1]
 		// Remove # prefix if present
@@ -68,23 +74,21 @@ func resolveImageSources(book *opf.OEBBook, hasCover bool, content string) strin
 // This is a multi-pass process to ensure correct offset calculation after string length changes
 func resolveFileposLinks(content string) string {
 	// Pass 1: Collect all href="#ID" matches and their anchor IDs
-	hrefRe := regexp.MustCompile(`href=["']#([^"']+)["']`)
-	hrefMatches := hrefRe.FindAllStringSubmatch(content, -1)
+	hrefMatches := hrefHashRe.FindAllStringSubmatch(content, -1)
 	if len(hrefMatches) == 0 {
 		return content
 	}
 
 	// Pass 2: Replace all href="#X" with placeholder "filepos=Q0000000000Q" (same length for any anchor ID)
 	// We use placeholder value 0 first, which keeps consistent length
-	placeholderContent := hrefRe.ReplaceAllStringFunc(content, func(match string) string {
+	placeholderContent := hrefHashRe.ReplaceAllStringFunc(content, func(match string) string {
 		quote := match[5]
 		return fmt.Sprintf("filepos=%c%010d%c", quote, 0, quote)
 	})
 
 	// Pass 3: Find anchor positions in the modified content
-	anchorRe := regexp.MustCompile(`<a\s+id=["']([^"']+)["']`)
 	anchorMap := make(map[string]int)
-	for _, match := range anchorRe.FindAllStringSubmatchIndex(placeholderContent, -1) {
+	for _, match := range anchorIDRe.FindAllStringSubmatchIndex(placeholderContent, -1) {
 		if len(match) >= 4 {
 			anchorID := placeholderContent[match[2]:match[3]]
 			position := match[0]
@@ -93,9 +97,8 @@ func resolveFileposLinks(content string) string {
 	}
 
 	// Pass 4: Replace placeholder filepos values with actual positions
-	fileposRe := regexp.MustCompile(`filepos=["']0000000000["']`)
 	idx := 0
-	result := fileposRe.ReplaceAllStringFunc(placeholderContent, func(match string) string {
+	result := fileposZeRe.ReplaceAllStringFunc(placeholderContent, func(match string) string {
 		if idx >= len(hrefMatches) {
 			return match
 		}
