@@ -12,9 +12,7 @@ import (
 
 func convertCmd(args []string) {
 	fs := flag.NewFlagSet("convert", flag.ExitOnError)
-	if err := fs.Parse(args); err != nil {
-		os.Exit(1)
-	}
+	fs.Parse(args)
 
 	cmdArgs := fs.Args()
 	if len(cmdArgs) < 2 {
