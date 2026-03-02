@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"log/slog"
+
 	"github.com/htol/fb2c/fb2"
 	"github.com/htol/fb2c/opf"
 )
@@ -56,6 +58,7 @@ func FromFB2(metadata *fb2.Metadata, html string, tocData *fb2.TOCData, fb2Doc *
 			// Decode data using the helper that hides base64 details
 			data, err := binary.Bytes()
 			if err != nil {
+				slog.Warn("mapper: failed to decode binary resource", "id", binary.ID, "error", err)
 				continue
 			}
 
