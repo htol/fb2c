@@ -43,16 +43,20 @@ FB2 to MOBI/EPUB converter in Go. Parses FictionBook 2.0 XML and generates e-boo
 | Transformer | struct | fb2/transformer.go | FB2 → HTML converter |
 | MOBIHeader | struct | mobi/header.go | MOBI 6 header (232 bytes) |
 | MOBIWriter | struct | mobi/writer.go | MOBI file assembly |
+| ReadDump | func | mobi/reader.go | Parse MOBI bytes into dump model |
+| ExtractRawML | func | mobi/reader.go | Concatenate text records into book text |
+| Diff | func | mobi/reader.go | Record-by-record comparison of two MOBI files |
 | OEBBook | struct | opf/book.go | OPF package metadata |
-| ConvertFileWithOptions | func | converter.go | Main conversion entry |
-| ConvertFile | func | converter.go | Simplified conversion wrapper |
+| Converter | struct | converter.go | Conversion facade (Convert) |
 
 ## CONVENTIONS
 
 - **Standard Go layout**: cmd/ for binaries, flat packages otherwise
-- **Testing**: _test.go files alongside source, testdata/ for fixtures
+- **Testing**: golden + round-trip tests via own reader, zero external tools (docs/TESTING.md); `_test.go` alongside source; fixtures in `testdata/fb2/`, goldens in `testdata/golden/`
+- **Determinism**: two conversions of the same input must be byte-identical (fixed seeds/IDs, UUIDv5 for EPUB, zeroed timestamps). No randomness or wall-clock time in output
+- **testdata/ is fully tracked** (inputs and goldens). Scratch and debug artifacts go to `./tmp/`, never testdata/
 - **Build**: Makefile with build/test/lint/validate targets
-- **Encoding**: FB2 files auto-detected (UTF-8, CP1251, KOI8-R), output UTF-8
+- **Encoding**: FB2 files auto-detected (UTF-8, CP1251, KOI8-R), output UTF-8; corrupt binaries (bad base64) and empty bodies fail conversion
 - **MOBI format**: Default = old MOBI 6; KF8. Use only old MOBI 6 unless explicitly instructed to use other format
 - **Compression**: no compression for now. it's broken. TODO: fix
 - **Debug logging**: Use slog for structured debug output; enabled via --debug/-d flag after app name; prioritize debug logging over creating debug scripts where possible
@@ -101,7 +105,9 @@ import "log/slog"
 ## AGENT RULES
 
 - **Never enable compression**: The compression implementation in `mobi` package is broken and produces garbage output. Always use `NoCompression` (default) for MOBI generation. Do not attempt to fix or enable `PalmDOCCompression` unless explicitly instructed to debug it *and* verification proves it works.
-- **Use**: ./tmp/ for temporary artifacts
+- **Use**: ./tmp/ for temporary artifacts; NEVER testdata/ (inputs are hand-written, goldens come from `fb2c regen-testdata` only)
+- **Never**: edit goldens by hand — if output legitimately changed, run `fb2c regen-testdata`, review the diff, commit
+- **Never**: add randomness, wall-clock time or unsorted map iteration to output — it breaks byte goldens
 - **Never**: use 'git push' without explicit permission
 - **Never**: use 'git reset --hard' without explicit permission
 - **Prioritize**: mobi specification over assumptions and reverse engineering
@@ -127,7 +133,7 @@ import "log/slog"
 ## UNIQUE STYLES
 
 - **Encoding detection**: Russian-specific encoding detection with confidence scoring
-- **Validation pipeline**: Shell script compares fb2c output against Calibre ebook-convert
+- **Testing**: byte goldens of own output + round-trip through own reader; Calibre comparison (legacy) lives only in `scripts/`, outside `go test`
 - **No external deps**: Only golang.org/x/text for encoding support
 - **Structured debug**: JSON-formatted debug logs with component, operation, and metrics
 
@@ -135,14 +141,18 @@ import "log/slog"
 
 ```bash
 make build         # Build fb2c binary
-make test          # Run all tests
-make validate      # Build + validate against Calibre
+make test          # Run all tests (offline, no Calibre/mobitool)
+make validate      # Legacy: validate against Calibre
 make benchmark     # Performance comparison (fb2c vs Calibre)
 make clean         # Remove build artifacts
 
 # CLI usage with debug
 fb2c [--debug|-d] convert input.fb2 output.mobi   # Convert with debug output
-fb2c [--debug|-d] metadata input.fb2               # Extract metadata with debug
+fb2c [--debug|-d] metadata input.fb2              # Extract metadata with debug
+fb2c dump [--json] file.mobi                      # Decode PalmDB/MOBI/EXTH/INDX headers
+fb2c dump --rawml file.mobi                       # Extract book text
+fb2c dump --diff a.mobi b.mobi                    # Record-by-record diff (exit 1 on difference)
+fb2c regen-testdata                               # Regenerate testdata/golden (never inputs)
 ```
 
 ## NOTES

@@ -60,9 +60,9 @@ mkdir -p "$OUTPUT_DIR" "$REFERENCE_DIR" "$FB2C_DIR" "$EXTRACT_REF_DIR" "$EXTRACT
 
 echo_ok "Директории для валидации созданы"
 
-# Find test files (from both testdata and testdata2)
+# Find test files (from the fixture corpus)
 TEST_FILES=()
-for dir in testdata testdata2; do
+for dir in testdata/fb2 testdata2; do
     if [ -d "$dir" ]; then
         while IFS= read -r -d '' file; do
             TEST_FILES+=("$file")
@@ -71,7 +71,7 @@ for dir in testdata testdata2; do
 done
 
 if [ ${#TEST_FILES[@]} -eq 0 ]; then
-    echo_err "Не найдено тестовых FB2 файлов в testdata/ или testdata2/"
+    echo_err "Не найдено тестовых FB2 файлов в testdata/fb2/ или testdata2/"
     exit 1
 fi
 

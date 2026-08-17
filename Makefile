@@ -27,9 +27,9 @@ benchmark: build ## Run performance benchmark (fb2c vs Calibre)
 	@echo "Running benchmark..."
 	@if command -v ebook-convert > /dev/null 2>&1; then \
 		echo "Benchmarking fb2c vs Calibre..."; \
-		FB2_FILE=$$(ls testdata/*.fb2 2>/dev/null | head -1); \
+		FB2_FILE=$$(ls testdata/fb2/*.fb2 2>/dev/null | head -1); \
 		if [ -z "$$FB2_FILE" ]; then \
-			echo "No FB2 files found in testdata/"; \
+			echo "No FB2 files found in testdata/fb2/"; \
 			exit 1; \
 		fi; \
 		echo "Testing with: $$FB2_FILE"; \
