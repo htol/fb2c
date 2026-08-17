@@ -302,7 +302,7 @@ compressor invites "round-trip" tests that prove nothing.
 **Resolution:** deleted (no callers). Implement from spec §11 when compression is
 repaired (AGENTS.md keeps compression disabled until then).
 
-### 17. `CompressPalmDOC` overlap byte is wrong
+### 17. `CompressPalmDOC` overlap byte is wrong — **DEFERRED to the compression rewrite**
 
 **File:** `mobi/compression.go:17–22`
 
@@ -311,6 +311,10 @@ mechanism is a *trailing entry* (Extra Data Flags bit 0) on the uncompressed tex
 not an extra byte after compression. Dead path (production uses `compressRecord`), but
 wrong if ever called. Fold into the compression rewrite (AGENTS.md: compression is known
 broken; do not enable).
+
+**Note (2026-08-17):** not fully dead — `mobi/kf8/writer.go` calls `CompressPalmDOC` on
+the standalone-KF8 path, so KF8 output inherits this bug. Still deferred: AGENTS.md keeps
+compression untouched until the planned rewrite (see also #29).
 
 ### 18. Dead code: `splitTextRecords`, exported `CompressRecord`
 
