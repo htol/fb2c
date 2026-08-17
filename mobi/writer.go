@@ -33,14 +33,9 @@ func DefaultWriteOptions() WriteOptions {
 	}
 }
 
-// generateThumbnail creates a thumbnail from cover image
-// For now, returns the original image as thumbnail (simplified approach)
-// A full implementation would resize to thumbnail dimensions (e.g., 154x240)
+// generateThumbnail creates a small library-list thumbnail from the cover
 func (w *Writer) generateThumbnail(coverData []byte) []byte {
-	// Simplified: return the same image as thumbnail
-	// In a full implementation, this would resize the image to thumbnail dimensions
-	// using an image processing library
-	return coverData
+	return buildThumbnail(coverData)
 }
 
 // CalculateRecordCount calculates the number of records for text

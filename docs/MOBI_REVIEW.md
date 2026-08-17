@@ -415,7 +415,7 @@ byte verbatim, so UTF-8 text (continuation bytes 0x80–0xBF) corrupts the strea
 immediately. Together with #17 this is why compression output is garbage. Stays
 disabled per AGENTS.md; documented for the eventual rewrite.
 
-### 30. "Thumbnail" record is a full copy of the cover
+### 30. "Thumbnail" record is a full copy of the cover — **FIXED 2026-08-17**
 
 **File:** `mobi/writer.go:37–44` (`generateThumbnail` returns its input)
 
@@ -423,6 +423,14 @@ Doubles the cover storage; Kindle expects a small (≈154×240) thumbnail. Works
 scale or ignore), costs file size.
 
 **Fix:** resize, or skip the thumbnail record and EXTH 202.
+
+**Resolution:** `buildThumbnail` (mobi/thumbnail.go) decodes the cover (JPEG/PNG/GIF),
+box-filter-downscales to ≤240 px height, re-encodes as JPEG q75 — stdlib only,
+deterministic; undecodable or already-small covers fall back to the original bytes.
+Cover+thumbnail now share one blob only when the cover needs no scaling (EXTH 202 is a
+record index, so pointing both at one record is legal but keeps full-size list decoding;
+resize chosen instead). Tests: TestBuildThumbnail, TestBuildThumbnailFallback. Goldens
+regenerated (cover/src_ref); make test and mobitool pass.
 
 ## Verified correct (no action)
 
