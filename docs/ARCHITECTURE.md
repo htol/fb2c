@@ -115,31 +115,28 @@ verify each item against current code before acting.
 5. **Metadata extracted twice.** `converter.go:183` calls `fb2.ExtractMetadata`; then
    `Transformer.Transform` calls it again (`fb2/transformer.go:56`) on the same document.
    `Transformer` also duplicates output in fields and in `TransformResult`.
-6. **`mobi.Writer.Write()` is a ~180-line god method** with hand-managed `recordIndex` and a
-   two-phase record-0 header. A declarative record layout would remove
-   the index-drift bug class.
 
 ### Correctness (non-mobi)
 
-7. **Three inconsistent section-ID schemes.** For sections without an explicit `id`:
+6. **Three inconsistent section-ID schemes.** For sections without an explicit `id`:
    inline TOC uses per-slice indices (`fb2/transformer.go:221`), HTML anchors use a global
    counter (`fb2/renderer.go:69`), NCX/INDX TOC uses entry count (`fb2/toc.go:50`). They
    coincide only for flat books; nested sections get colliding/wrong anchors. ID generation
    must live in one place and be shared by all three consumers.
-8. **EPUB cover `meta` points to a non-existent manifest item.** `epub/writer.go:202`
+7. **EPUB cover `meta` points to a non-existent manifest item.** `epub/writer.go:202`
    writes `content="cover-<CoverID>"` but items are emitted with `id="res-<id>"`
    (`epub/writer.go:232`). Readers cannot find the cover.
-9. **EPUB navPoints all lead to the top of the document.** `convertToXHTML`
+8. **EPUB navPoints all lead to the top of the document.** `convertToXHTML`
    (`epub/writer.go:~430–445`) injects all `toc-N` anchor spans *before* the body content.
    Fix by placing anchors at the actual section positions.
-10. **`fb2.Parser` state leaks between books.** The parser is created once per `Converter`
+9. **`fb2.Parser` state leaks between books.** The parser is created once per `Converter`
     (`converter.go:59`) and `imageData`/`imageTypes` (`fb2/parser.go:41–42`) are never reset
     in `ParseBytes`. A second `Convert` on the same `Converter` inherits the previous book's
     images. Reset maps per parse (or create a parser per conversion).
 
 ### Hygiene
 
-11. **Dead code:** `sanitizeFilename` (`fb2/parser.go:188`), `CalculateRecordCount` /
+10. **Dead code:** `sanitizeFilename` (`fb2/parser.go:188`), `CalculateRecordCount` /
     `SortManifestIDs` / `ConvertStream` (`mobi/writer.go:47–75`, `converter.go:98`),
     `CompressRecord` / `DecompressPalmDOC` / `splitTextRecords`
     (`mobi/compression.go`, `mobi/content.go:120`), unused option fields

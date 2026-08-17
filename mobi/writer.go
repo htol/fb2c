@@ -98,9 +98,12 @@ func (w *Writer) GetBookName() string {
 	return w.book.Metadata.Title
 }
 
-// Write writes the MOBI file
+// Write writes the MOBI file.
+//
+// Declarative layout: every record is built as a byte slice first, all
+// header indices are derived from the slice lengths, and record 0 is built
+// exactly once from the finished layout.
 func (w *Writer) Write(output io.Writer) error {
-
 	w.options.Logger.Debug("starting MOBI file assembly",
 		"component", "MOBIWriter",
 		"operation", "Write",
@@ -110,139 +113,103 @@ func (w *Writer) Write(output io.Writer) error {
 		"compressionType", w.options.CompressionType,
 	)
 
-	// 1. Resolve image sources and links in the book text
+	// 1. Book text: resolve image sources and links, split into records.
+	// PalmDOC compression (disabled for now) would compress each 4096-byte
+	// chunk of this UNCOMPRESSED text.
 	textData := w.prepareTextContent()
 	uncompressedSize := len(textData)
-	// resolvedContent is needed for TOC generation later
-	resolvedContent := string(textData)
+	textRecords := w.splitAndCompressRecords(textData)
 
 	w.options.Logger.Debug("processing text data",
 		"component", "MOBIWriter",
 		"operation", "Write",
 		"uncompressedSize", uncompressedSize,
+		"textRecordCount", len(textRecords),
 		"compressionEnabled", w.options.CompressionType == PalmDOCCompression,
 	)
 
-	// PalmDOC compresses 4096-byte chunks of UNCOMPRESSED text (disabled for now)
-	textRecords := w.splitAndCompressRecords(textData)
+	// 2. Lay out every record that follows record 0.
+	tocRecords, err := w.buildTOCRecords(string(textData), textRecords)
+	if err != nil {
+		return err
+	}
+	imageRecords := w.buildImageRecords()
 
-	w.options.Logger.Debug("creating PalmDBWriter with records",
-		"component", "MOBIWriter",
-		"operation", "Write",
-		"textRecordCount", len(textRecords),
-		"bookName", w.GetBookName(),
-	)
+	// 3. Derive all header indices from the layout.
+	// Final record order: header | text | TOC | images | FLIS | FCIS | EOF.
+	const firstTextRecord = 1 // after the record-0 header
+	lastTextRecord := firstTextRecord + len(textRecords) - 1
+	next := uint32(firstTextRecord + len(textRecords)) //nolint:gosec // Book sizes are far below uint32
 
-	palmWriter := NewPalmDBWriter(w.GetBookName(), w.options.Logger)
+	firstNonBookIndex := next
+	tocIndexOffset := uint32(0xFFFFFFFF)
+	if len(tocRecords) > 0 {
+		tocIndexOffset = next
+		next += uint32(len(tocRecords)) //nolint:gosec // Count fits
+	}
 
-	// Calculate record information before creating header
-	// Record count is exact number of records we generated
-	recordCount := len(textRecords)
-
-	recordIndex := 0
-	firstTextRecord := 1 // After MOBI header record 0
-	// lastTextRecord is approximated here for the wrapper, but real value is set later
-	lastTextRecord := firstTextRecord + recordCount - 1
-
-	// The preliminary record 0 is replaced by the extended header after all
-	// records are placed (SetRecord below), so its image index is a
-	// placeholder; the real FirstImageIndex is set in the image-adding step.
 	firstImageIndex := uint32(0xFFFFFFFF)
-	firstNonBookIndex := uint32(0xFFFFFFFF)
+	if len(imageRecords) > 0 {
+		firstImageIndex = next
+		next += uint32(len(imageRecords)) //nolint:gosec // Count fits
+	}
 
-	// Create MOBI header with correct record indices
-	// Use uncompressedSize for header
-	mobiHeaderRecord, err := w.createMOBIHeaderRecord(uncompressedSize, firstTextRecord, lastTextRecord, firstImageIndex, firstNonBookIndex)
+	// Spec §3/§12: the content-record range spans text records PLUS images
+	// (reference: LastContentRec=368, the last image record, text ends at 363).
+	lastContentRec := uint32(lastTextRecord) //nolint:gosec // Book sizes are far below uint32
+	if len(imageRecords) > 0 {
+		lastContentRec = next - 1
+	}
+
+	flisIndex := next
+	fcisIndex := next + 1
+
+	// With a TOC, FirstNonBookIndex points at it for best compatibility.
+	firstNonBookIndexField := firstNonBookIndex
+	if tocIndexOffset != 0xFFFFFFFF {
+		firstNonBookIndexField = tocIndexOffset
+	}
+
+	// 4. Build record 0 once, from the complete layout.
+	mobiHeaderRecord, err := w.createMOBIHeaderRecordExtended(uncompressedSize,
+		len(textRecords),
+		firstTextRecord, int(lastContentRec),
+		firstImageIndex, firstNonBookIndexField,
+		flisIndex, fcisIndex, tocIndexOffset)
 	if err != nil {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
 
-	palmWriter.AddRecord(mobiHeaderRecord, 0, uint32(recordIndex)) //nolint:gosec // Record index fits
-	recordIndex++
+	// 5. Assemble and write.
+	all := make([][]byte, 0, 1+len(textRecords)+len(tocRecords)+len(imageRecords)+3)
+	all = append(all, mobiHeaderRecord)
+	all = append(all, textRecords...)
+	all = append(all, tocRecords...)
+	all = append(all, imageRecords...)
+	all = append(all, createFLISRecord(), createFCISRecord(uint32(uncompressedSize)),
+		// EOF record (MOBI spec: E9 8E 0D 0A)
+		[]byte{0xE9, 0x8E, 0x0D, 0x0A})
 
-	// 2. Add text records
-	for _, rec := range textRecords {
-		palmWriter.AddRecord(rec, 0, uint32(recordIndex)) //nolint:gosec // Record index fits
-		recordIndex++
+	palmWriter := NewPalmDBWriter(w.GetBookName(), w.options.Logger)
+	for i, rec := range all {
+		palmWriter.AddRecord(rec, 0, uint32(i)) //nolint:gosec // Index fits
 	}
 
-	// Provisional LastContentRec: the last text record. Spec §3/§12: the
-	// content-record range spans text PLUS image records, so it is extended
-	// below whenever image records are added.
-	lastContentRec := uint32(recordIndex - 1) //nolint:gosec // Record index fits
-
-	// FirstNonBookIndex starts here (next record)
-	firstNonBookIndex = uint32(recordIndex) //nolint:gosec // Record index fits
-
-	// 3. Add TOC Index Records (NCX) - Two-record structure for native Kindle TOC
-	// Note: We don't need to return tocIndexOffset here because it's not used later in this function
-	var tocIndexOffset uint32
-	if tocIndexOffset, err = w.addTOCIndexRecords(palmWriter, &recordIndex, resolvedContent, textRecords); err != nil {
-		return err
-	}
-
-	// 4. Add Images in consistent order: Cover -> Thumbnail -> Manifest
-	firstImageIndex = uint32(0xFFFFFFFF)
-	coverID := w.book.Metadata.CoverID
-
-	if w.options.CoverImage != nil || w.book.HasImages() {
-		firstImageIndex = uint32(recordIndex) //nolint:gosec // Record index fits
-
-		// 1. Add cover image if present
-		if w.options.CoverImage != nil {
-			coverRecord := w.options.CoverImage
-			palmWriter.AddRecord(coverRecord, 0, uint32(recordIndex)) //nolint:gosec // Record index fits
-			recordIndex++
-
-			// 2. Add thumbnail immediately after cover
-			thumbnailData := w.generateThumbnail(w.options.CoverImage)
-			if thumbnailData != nil {
-				thumbnailRecord := thumbnailData
-				palmWriter.AddRecord(thumbnailRecord, 0, uint32(recordIndex)) //nolint:gosec // Record index fits
-				recordIndex++
-			}
-		}
-
-		// 3. Add other images from manifest (excluding cover if already added)
-		w.addImagesFiltered(palmWriter, &recordIndex, coverID)
-	}
-
-	// Spec §3/§12: with images present, LastContentRec is the last image record
-	// (reference: 368 = last image, not the last text record 363).
-	if firstImageIndex != 0xFFFFFFFF {
-		lastContentRec = uint32(recordIndex - 1) //nolint:gosec // Record index fits
-	}
-
-	// 5. Add Mandatory Structural Records (FLIS, FCIS, EOF)
-	flisIndex := uint32(recordIndex) //nolint:gosec // Record index fits
-	palmWriter.AddRecord(createFLISRecord(), 0, flisIndex)
-	recordIndex++
-
-	fcisIndex := uint32(recordIndex)                                               //nolint:gosec // Record index fits
-	palmWriter.AddRecord(createFCISRecord(uint32(uncompressedSize)), 0, fcisIndex) //nolint:gosec // Size fits
-	recordIndex++
-
-	// EOF record (MOBI spec: E9 8E 0D 0A)
-	palmWriter.AddRecord([]byte{0xE9, 0x8E, 0x0D, 0x0A}, 0, uint32(recordIndex)) //nolint:gosec // Index fits
-	recordIndex++
-
-	// If TOC exists, FirstNonBookIndex should point to it for best compatibility
-	fnbi := firstNonBookIndex
-	if tocIndexOffset != 0xFFFFFFFF {
-		fnbi = tocIndexOffset
-	}
-
-	// Refactoring createMOBIHeaderRecord call to include FLIS/FCIS/INDX
-	mobiHeaderRecord, err = w.createMOBIHeaderRecordExtended(uncompressedSize,
-		len(textRecords), // Text record count MUST match the number of text records
-		firstTextRecord, int(lastContentRec),
-		firstImageIndex, fnbi,
-		flisIndex, fcisIndex, tocIndexOffset)
-	if err != nil {
-		return fmt.Errorf("failed to create extended MOBI header: %w", err)
-	}
-	w.options.Logger.Debug("mobiHeaderRecord size before SetRecord(0)", "size", len(mobiHeaderRecord))
-	palmWriter.SetRecord(0, mobiHeaderRecord)
+	w.options.Logger.Debug("record layout assembled",
+		"component", "MOBIWriter",
+		"operation", "Write",
+		"totalRecords", len(all),
+		"textRecords", len(textRecords),
+		"tocRecords", len(tocRecords),
+		"imageRecords", len(imageRecords),
+		"firstTextRecord", firstTextRecord,
+		"lastContentRec", lastContentRec,
+		"firstImageIndex", firstImageIndex,
+		"firstNonBookIndex", firstNonBookIndexField,
+		"indxRecordOffset", tocIndexOffset,
+		"flisIndex", flisIndex,
+		"fcisIndex", fcisIndex,
+	)
 
 	if err := palmWriter.Write(output); err != nil {
 		return fmt.Errorf("failed to write PalmDB: %w", err)
@@ -280,15 +247,9 @@ func localeForLanguage(lang string) uint32 {
 	}
 }
 
-// createMOBIHeaderRecord creates the MOBI header record
-func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex uint32) ([]byte, error) {
-	// Wrapper to maintain backward compatibility if needed, but we'll use Extended internally
-	// For legacy wrapper, assume textRecordCount matches range
-	textCount := lastTextRec - firstTextRec + 1
-	return w.createMOBIHeaderRecordExtended(textSize, textCount, firstTextRec, lastTextRec, firstImageIndex, firstNonBookIndex, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
-}
-
-// createMOBIHeaderRecordExtended is an extended version that includes mandatory indices
+// createMOBIHeaderRecordExtended builds record 0: PalmDOC header, MOBI
+// header and (optionally) EXTH metadata plus the full name, from the
+// finished record layout.
 func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex, flisIndex, fcisIndex, indxOffset uint32) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -399,24 +360,32 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	return buf.Bytes(), nil
 }
 
-// addImagesFiltered adds images from manifest, skipping the cover if provided
-func (w *Writer) addImagesFiltered(palmWriter *PalmDBWriter, recordIndex *int, skipID string) {
+// buildImageRecords lays out the image records in stable order: the cover,
+// its thumbnail, then every manifest image (the cover excluded), sorted by
+// resource ID.
+func (w *Writer) buildImageRecords() [][]byte {
+	var records [][]byte
+	if w.options.CoverImage != nil {
+		records = append(records, w.options.CoverImage)
+		if thumb := w.generateThumbnail(w.options.CoverImage); thumb != nil {
+			records = append(records, thumb)
+		}
+	}
+
+	skipID := w.book.Metadata.CoverID // already added above, if present
 	ids := w.book.GetManifestIDs()
 	sort.Strings(ids)
-
 	for _, id := range ids {
 		if id == skipID {
-			continue // Skip cover, already added
-		}
-		res, ok := w.book.GetResource(id)
-		const imageType = "image"
-		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != imageType {
 			continue
 		}
-
-		palmWriter.AddRecord(res.Data, 0, uint32(*recordIndex)) //nolint:gosec // Index fits
-		(*recordIndex)++
+		res, ok := w.book.GetResource(id)
+		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
+			continue
+		}
+		records = append(records, res.Data)
 	}
+	return records
 }
 
 // createFLISRecord creates a standard FLIS record (36 bytes)
