@@ -33,6 +33,8 @@ const (
 	EXTHCurrency        = 119
 	EXTHKF8Bounded      = 121
 	EXTHResourceCount   = 125
+	// 200 = dictionary short name (spec §4); the constant stays for the
+	// reader.go dump label. fb2c does not write this record.
 	EXTHCreatorSoftware = 200
 	EXTHCoverOffset     = 201
 	EXTHThumbOffset     = 202
@@ -164,11 +166,6 @@ func (w *EXTHWriter) AddHasFakeCover(hasFake uint32) {
 // AddK8CoverImage adds a K8 cover image record
 func (w *EXTHWriter) AddK8CoverImage(imageID string) {
 	w.addStringRecord(EXTHK8CoverImage, imageID)
-}
-
-// AddCreatorSoftware adds a creator software record
-func (w *EXTHWriter) AddCreatorSoftware(software string) {
-	w.addStringRecord(EXTHCreatorSoftware, software)
 }
 
 // AddReview adds a review record
@@ -323,7 +320,6 @@ func (w *EXTHWriter) AddFromMetadata(title, author, publisher, isbn, year, descr
 	if language != "" {
 		w.AddLanguage(language)
 	}
-	w.AddCreatorSoftware("fb2c - FB2 to MOBI Converter")
 }
 
 // AddKF8Boundary adds the KF8 boundary record (type 121)

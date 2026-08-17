@@ -310,7 +310,7 @@ strings are UTF-8. Readers tolerate it today.
 
 **Fix:** `NewINDX(65001, …)`; keep language 0xFFFFFFFF (the reference value).
 
-### 26. EXTH 200 misused as a creator-software string
+### 26. EXTH 200 misused as a creator-software string — **FIXED 2026-08-17**
 
 **File:** `mobi/exth.go:169–172` (`AddCreatorSoftware`), called from `AddFromMetadata`
 (`exth.go:339`)
@@ -320,6 +320,10 @@ Spec §4 / wiki: type 200 = *dictionary short name* (dictionaries only). fb2c wr
 204 (numeric — see #2).
 
 **Fix:** drop the record and the call; emit 204–207 properly instead.
+
+**Resolution:** `AddCreatorSoftware` and its call from `AddFromMetadata` removed. fb2c writes
+no creator records at all (204–207 also removed with #2) — nothing masquerades as another
+tool. Verified: no EXTH 200 in regenerated goldens; make test and mobitool pass.
 
 ### 27. `mobi/varint` package comment swaps forward and backward
 
