@@ -169,7 +169,7 @@ path, but the output is format-invalid.
 **Fix:** clear `EXTHFlags` in the `else` branch (or default it to 0 in `NewHeader` and
 set it wherever EXTH is actually emitted).
 
-### 24. Full Name truncated by bytes — can split a UTF-8 character
+### 24. Full Name truncated by bytes — can split a UTF-8 character — **FIXED 2026-08-17**
 
 **File:** `mobi/writer.go:102–103` and `276–277` (both `getBookName` copies do
 `name[:31]`), written as the Full Name at `writer.go:389, 395`
@@ -180,6 +180,11 @@ rune (invalid UTF-8 in the output). Spec §5 puts no 31-byte limit on the Full N
 
 **Fix:** truncate on a rune boundary (or keep the full title for the Full Name); see
 #13 for the duplicate-function cleanup.
+
+**Resolution:** `GetBookName` now returns the untruncated title; the duplicate private
+copy is gone. PalmDB keeps its 31-char limit, applied inside `NewPalmDBHeader` after
+transliteration (ASCII-safe). Regression tests: `TestFullNameAndPalmDBName` (mobi) and
+the FullName==title assertion in `TestRoundTripMOBI6` (corpus). Goldens regenerated.
 
 ## Minor issues
 

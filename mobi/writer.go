@@ -12,8 +12,6 @@ import (
 	"github.com/htol/fb2c/opf"
 )
 
-const maxBookNameLen = 31
-
 // WriteOptions contains options for writing MOBI files
 type WriteOptions struct {
 	CompressionType int // NoCompression=1, PalmDOCCompression=2, HuffCDCompression=17480
@@ -93,16 +91,15 @@ func (w *Writer) SetOptions(options WriteOptions) {
 	w.options = options
 }
 
-// GetBookName returns the book name for the database
+// GetBookName returns the book title (options.Title override wins). It is
+// intentionally NOT truncated: the MOBI FullName field is offset+length in
+// record 0 with no size limit, and the PalmDB name is transliterated to ASCII
+// and truncated to 31 chars by NewPalmDBHeader, after transliteration.
 func (w *Writer) GetBookName() string {
-	name := w.options.Title
-	if name == "" {
-		name = w.book.Metadata.Title
+	if w.options.Title != "" {
+		return w.options.Title
 	}
-	if len(name) > maxBookNameLen {
-		name = name[:maxBookNameLen]
-	}
-	return name
+	return w.book.Metadata.Title
 }
 
 // Write writes the MOBI file
@@ -141,10 +138,10 @@ func (w *Writer) Write(output io.Writer) error {
 		"component", "MOBIWriter",
 		"operation", "Write",
 		"textRecordCount", len(textRecords),
-		"bookName", w.getBookName(),
+		"bookName", w.GetBookName(),
 	)
 
-	palmWriter := NewPalmDBWriter(w.getBookName(), w.options.Logger)
+	palmWriter := NewPalmDBWriter(w.GetBookName(), w.options.Logger)
 
 	// Calculate record information before creating header
 	// Record count is exact number of records we generated
@@ -267,18 +264,6 @@ func (w *Writer) Write(output io.Writer) error {
 	return nil
 }
 
-// getBookName returns the book name for the database
-func (w *Writer) getBookName() string {
-	name := w.options.Title
-	if name == "" {
-		name = w.book.Metadata.Title
-	}
-	if len(name) > maxBookNameLen {
-		name = name[:maxBookNameLen]
-	}
-	return name
-}
-
 // createMOBIHeaderRecord creates the MOBI header record
 func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex uint32) ([]byte, error) {
 	// Wrapper to maintain backward compatibility if needed, but we'll use Extended internally
@@ -323,7 +308,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.FirstNonBookIndex = firstNonBookIndex
 
 	// Set title
-	bookName := w.getBookName()
+	bookName := w.GetBookName()
 	mobiHeader.SetFullName(bookName)
 	mobiHeader.UniqueID = generateUniqueID(bookName)
 

@@ -61,12 +61,45 @@ func TestGetBookName(t *testing.T) {
 		t.Errorf("GetBookName() with custom = %v, want '%s'", name, customTitle)
 	}
 
-	// Test long title truncation
-	book.Metadata.Title = "This is a very long book title that should be truncated to 31 characters"
+	// Long titles are NOT truncated here: FullName has no size limit, and the
+	// PalmDB name is transliterated+truncated by NewPalmDBHeader (regression:
+	// byte-level truncation used to split a UTF-8 codepoint).
+	longTitle := "Книга со сносками и очень длинным заголовком"
+	book.Metadata.Title = longTitle
 	writer.options.Title = ""
-	name = writer.GetBookName()
-	if len(name) > 31 {
-		t.Errorf("GetBookName() length = %v, want max 31", len(name))
+	if name := writer.GetBookName(); name != longTitle {
+		t.Errorf("GetBookName() = %q, want the full title %q", name, longTitle)
+	}
+}
+
+// TestFullNameAndPalmDBName verifies the written file: FullName carries the
+// full title (valid UTF-8, untruncated) while the PalmDB name is ASCII and
+// fits the 31-byte field limit.
+func TestFullNameAndPalmDBName(t *testing.T) {
+	title := "Книга со сносками и очень длинным заголовком"
+	book := opf.NewOEBBook()
+	book.Metadata = opf.Metadata{Title: title, Authors: []opf.Author{{FullName: "Автор"}}}
+	book.Content = "<html><body><p>x</p></body></html>"
+
+	var buf bytes.Buffer
+	if err := ConvertOEBToMOBI(book, &buf); err != nil {
+		t.Fatalf("ConvertOEBToMOBI failed: %v", err)
+	}
+
+	dump, err := ReadDump(buf.Bytes())
+	if err != nil {
+		t.Fatalf("ReadDump failed: %v", err)
+	}
+	if dump.MOBI.FullName != title {
+		t.Errorf("FullName = %q, want full title %q", dump.MOBI.FullName, title)
+	}
+	if len(dump.PalmDB.Name) > 31 {
+		t.Errorf("PalmDB name %q is %d bytes, want max 31", dump.PalmDB.Name, len(dump.PalmDB.Name))
+	}
+	for i := 0; i < len(dump.PalmDB.Name); i++ {
+		if c := dump.PalmDB.Name[i]; c > 0x7F {
+			t.Errorf("PalmDB name %q contains non-ASCII byte at %d", dump.PalmDB.Name, i)
+		}
 	}
 }
 

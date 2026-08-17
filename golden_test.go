@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/htol/fb2c/epub"
+	"github.com/htol/fb2c/fb2"
 	"github.com/htol/fb2c/mobi"
 )
 
@@ -91,7 +92,8 @@ func TestGoldenMOBI6(t *testing.T) {
 }
 
 // TestRoundTripMOBI6 is the validity oracle: read the generated MOBI back
-// through our own reader; the extracted rawml must equal the content golden.
+// through our own reader; the extracted rawml must equal the content golden,
+// and header fields must match the source document semantically.
 func TestRoundTripMOBI6(t *testing.T) {
 	for _, name := range happyFixtures(t) {
 		t.Run(name, func(t *testing.T) {
@@ -105,6 +107,20 @@ func TestRoundTripMOBI6(t *testing.T) {
 			if rawml != string(want) {
 				t.Errorf("extracted rawml differs from content golden (got %d bytes, golden %d bytes)",
 					len(rawml), len(want))
+			}
+
+			// The header must carry the book's FULL title, untruncated
+			// (regression: byte-level truncation used to split UTF-8 codepoints).
+			metadata, err := fb2.GetMetadataFromFile(filepath.Join(fixtureDir, name+".fb2"))
+			if err != nil {
+				t.Fatalf("GetMetadataFromFile failed: %v", err)
+			}
+			dump, err := mobi.ReadDump(got)
+			if err != nil {
+				t.Fatalf("ReadDump failed: %v", err)
+			}
+			if dump.MOBI.FullName != metadata.Title {
+				t.Errorf("FullName = %q, want full title %q", dump.MOBI.FullName, metadata.Title)
 			}
 		})
 	}
