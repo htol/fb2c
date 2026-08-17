@@ -61,13 +61,6 @@ func ConvertOEBToMOBIWithOptions(book *opf.OEBBook, output io.Writer, options Wr
 	return writer.Write(output)
 }
 
-// SortManifestIDs returns sorted manifest resource IDs
-func SortManifestIDs(book *opf.OEBBook) []string {
-	ids := book.GetManifestIDs()
-	sort.Strings(ids)
-	return ids
-}
-
 // Writer writes MOBI files
 type Writer struct {
 	options WriteOptions

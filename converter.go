@@ -95,24 +95,6 @@ func (c *Converter) Convert(inputPath, outputPath string) error {
 	return c.writeOutput(book, outputFile)
 }
 
-// ConvertStream converts FB2 from reader to MOBI writer
-func (c *Converter) ConvertStream(input io.Reader, output io.Writer) error {
-	// Read FB2
-	data, err := io.ReadAll(input)
-	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-
-	// Process FB2 data (Parse -> Metadata -> HTML -> OPF)
-	book, err := c.processFB2(data)
-	if err != nil {
-		return err
-	}
-
-	// Write MOBI
-	return c.writeOutput(book, output)
-}
-
 // applyMetadataOverrides applies user-specified metadata overrides
 func (c *Converter) applyMetadataOverrides(metadata *fb2.Metadata) {
 	if c.options.Title != "" {

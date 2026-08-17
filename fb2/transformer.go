@@ -13,7 +13,6 @@ type Transformer struct {
 	parser *Parser
 
 	// Options
-	ProcessCSS  bool
 	UseDataURLs bool   // If true, images are embedded as data URLs. If false, href is used.
 	Title       string // Override title
 	MOBIMode    bool   // If true, generate minimalist HTML for MOBI
@@ -33,9 +32,8 @@ type Transformer struct {
 // NewTransformer creates a new FB2 transformer
 func NewTransformer() *Transformer {
 	return &Transformer{
-		parser:     NewParser(),
-		ProcessCSS: true,
-		MOBIMode:   true,
+		parser:   NewParser(),
+		MOBIMode: true,
 	}
 }
 
@@ -253,4 +251,3 @@ func (t *Transformer) countSectionDepth(_ Section) int {
 	// For now, we'll just use a heuristic
 	return 1 // Default to h2 for top-level sections under body
 }
-

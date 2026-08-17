@@ -136,11 +136,11 @@ verify each item against current code before acting.
 
 ### Hygiene
 
-10. **Dead code:** `sanitizeFilename` (`fb2/parser.go:188`), `SortManifestIDs`
-    (`mobi/writer.go:65`), `ConvertStream` (`converter.go:99`), unused option fields
-    (`Parser.NoInlineTOC`, `Parser.ProcessCSS`, `Transformer.ProcessCSS`).
-    (Re-checked 2026-08-17: `CompressRecord`/`DecompressPalmDOC`/`splitTextRecords`
-    were deleted in the cleanup; `CalculateRecordCount` is used by the KF8 writer;
+10. **Dead code:** none known. (Sweep completed 2026-08-17: `sanitizeFilename`,
+    `SortManifestIDs`, `ConvertStream` and the unused `Parser.NoInlineTOC` /
+    `Parser.ProcessCSS` / `Transformer.ProcessCSS` option fields were deleted;
+    `CompressRecord`/`DecompressPalmDOC`/`splitTextRecords` went earlier in the
+    cleanup; `CalculateRecordCount` turned out to be used by the KF8 writer;
     `joinNonEmpty` is used and skips empty parts, which `strings.Join` cannot;
     `epub.Writer.uuid` was removed with the deterministic-UUID work.)
 11. **Test coverage gaps** (re-checked 2026-08-17, testing-infra landed): `epub` now has

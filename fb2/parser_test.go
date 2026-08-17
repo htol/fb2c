@@ -280,29 +280,6 @@ func TestHTMLEscape(t *testing.T) {
 	}
 }
 
-func TestSanitizeFilename(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"normal_file.txt", "normal_file.txt"},
-		{"file:with:bad:chars.txt", "file_with_bad_chars.txt"},
-		{"file<>with\"bad|chars?.txt", "file_with_bad_chars_.txt"},
-		{"file/with\\slashes.txt", "file_with_slashes.txt"},
-		{"...leading...", "leading"},
-		{"  spaces  ", "spaces"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := sanitizeFilename(tt.input)
-			if got != tt.want {
-				t.Errorf("sanitizeFilename(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestFormatAuthorName(t *testing.T) {
 	tests := []struct {
 		author Author

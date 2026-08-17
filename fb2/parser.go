@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/htol/fb2c/fb2/b64"
@@ -18,8 +17,6 @@ import (
 // Parser parses FB2 files
 type Parser struct {
 	// Options
-	NoInlineTOC   bool
-	ProcessCSS    bool
 	ExtractImages bool
 
 	// Internal state
@@ -34,8 +31,6 @@ type Parser struct {
 // NewParser creates a new FB2 parser
 func NewParser() *Parser {
 	return &Parser{
-		NoInlineTOC:   false,
-		ProcessCSS:    true,
 		ExtractImages: true,
 		imageData:     make(map[string][]byte),
 		imageTypes:    make(map[string]string),
@@ -182,25 +177,4 @@ func fixXMLErrors(text string) string {
 	text = strings.ReplaceAll(text, "& ", "&amp; ")
 
 	return text
-}
-
-// sanitizeFilename sanitizes a filename by removing dangerous characters
-func sanitizeFilename(name string) string {
-	// Remove or replace dangerous characters
-	reg := regexp.MustCompile(`[<>:"/\\|?*]`)
-	name = reg.ReplaceAllString(name, "_")
-
-	// Collapse multiple consecutive underscores to single underscore
-	reg = regexp.MustCompile(`_+`)
-	name = reg.ReplaceAllString(name, "_")
-
-	// Remove leading/trailing dots and spaces
-	name = strings.Trim(name, ". ")
-
-	// Limit length
-	if len(name) > 255 {
-		name = name[:255]
-	}
-
-	return name
 }
