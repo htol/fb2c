@@ -1,4 +1,4 @@
-.PHONY: help build test validate clean benchmark
+.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview
 
 # Default target
 .DEFAULT_GOAL := build
@@ -43,6 +43,12 @@ benchmark: build ## Run performance benchmark (fb2c vs Calibre)
 		echo "Calibre not found. Install with: sudo pacman -S calibre"; \
 		exit 1; \
 	fi
+
+test-validate-by-mobitool: build ## Validate fb2c MOBI output with mobitool (independent strict parser)
+	@./scripts/validate_mobitool.sh
+
+preview: build ## Render corpus via Kindle Previewer CLI (closest to a real device; needs kindlepreviewer)
+	@./scripts/preview.sh
 
 clean: ## Clean build artifacts and validation output
 	@echo "Cleaning..."

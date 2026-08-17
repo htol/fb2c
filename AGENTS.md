@@ -143,6 +143,8 @@ import "log/slog"
 make build         # Build fb2c binary
 make test          # Run all tests (offline, no Calibre/mobitool)
 make validate      # Legacy: validate against Calibre
+make test-validate-by-mobitool  # Validate MOBI output with mobitool (independent strict parser)
+make preview       # Render corpus with Kindle Previewer (closest to a real device; xvfb-run on headless)
 make benchmark     # Performance comparison (fb2c vs Calibre)
 make clean         # Remove build artifacts
 
