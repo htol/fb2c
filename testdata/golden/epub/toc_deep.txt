@@ -1,0 +1,132 @@
+=== mimetype (20 bytes) ===
+application/epub+zip
+
+=== META-INF/container.xml (252 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+
+=== OEBPS/content.opf (714 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:9d6bdbdc-535e-50e8-89fc-e24ae5c86694</dc:identifier>
+    <dc:title>Книга с глубоким оглавлением</dc:title>
+    <dc:creator>Иван Тестовый</dc:creator>
+    <dc:language>ru</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="content"/>
+  </spine>
+</package>
+
+=== OEBPS/toc.ncx (2025 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:9d6bdbdc-535e-50e8-89fc-e24ae5c86694"/>
+    <meta name="dtb:depth" content="3"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>Книга с глубоким оглавлением</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel>
+        <text>Часть 1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-1"/>
+    </navPoint>
+    <navPoint id="navPoint-2" playOrder="2">
+      <navLabel>
+        <text>Глава 1.1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-2"/>
+    </navPoint>
+    <navPoint id="navPoint-3" playOrder="3">
+      <navLabel>
+        <text>Раздел 1.1.1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-3"/>
+    </navPoint>
+    <navPoint id="navPoint-4" playOrder="4">
+      <navLabel>
+        <text>Очень длинный заголовок раздела, превышающий ограничение оглавления в двести пятьдесят пять символов, избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация конец.</text>
+      </navLabel>
+      <content src="content.xhtml#toc-4"/>
+    </navPoint>
+    <navPoint id="navPoint-5" playOrder="5">
+      <navLabel>
+        <text>Глава 1.2</text>
+      </navLabel>
+      <content src="content.xhtml#toc-5"/>
+    </navPoint>
+  </navMap>
+</ncx>
+
+=== OEBPS/content.xhtml (2801 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Книга с глубоким оглавлением</title>
+</head>
+<body>
+<div class="toc-anchors"><span id="toc-1"></span>
+<span id="toc-2"></span>
+<span id="toc-3"></span>
+<span id="toc-4"></span>
+<span id="toc-5"></span>
+</div>
+
+<a id="toc"></a>
+<ul>
+  <li><a href="#section_1">Часть 1</a>
+<ul>
+  <li><a href="#section_1">Глава 1.1</a>
+<ul>
+  <li><a href="#section_1">Раздел 1.1.1</a>
+<ul>
+  <li><a href="#section_1">Очень длинный заголовок раздела, превышающий ограничение оглавления в двести пятьдесят пять символов, избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация конец.</a></li>
+</ul>
+</li>
+</ul>
+</li>
+  <li><a href="#section_2">Глава 1.2</a></li>
+</ul>
+</li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Часть 1<br/>
+</h2>
+<p class="paragraph">Текст первой части.</p>
+<a id="section_2"></a>
+<h2>Глава 1.1<br/>
+</h2>
+<p class="paragraph">Текст на втором уровне вложенности.</p>
+<a id="section_3"></a>
+<h2>Раздел 1.1.1<br/>
+</h2>
+<p class="paragraph">Текст на третьем уровне вложенности.</p>
+<a id="section_4"></a>
+<h2>Очень длинный заголовок раздела, превышающий ограничение оглавления в двести пятьдесят пять символов, избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация конец.<br/>
+</h2>
+<p class="paragraph">Текст на четвёртом уровне вложенности.</p>
+<a id="section_5"></a>
+<h2>Глава 1.2<br/>
+</h2>
+<p class="paragraph">Вторая глава первой части.</p>
+
+</body>
+</html>
+

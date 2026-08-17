@@ -1,0 +1,86 @@
+=== mimetype (20 bytes) ===
+application/epub+zip
+
+=== META-INF/container.xml (252 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+
+=== OEBPS/content.opf (853 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:b13b0ccd-dfec-5645-888a-8cb1b8b2d741</dc:identifier>
+    <dc:title>Книга с иллюстрациями</dc:title>
+    <dc:creator>Иван Тестовый</dc:creator>
+    <dc:language>ru</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+    <item id="res-img_blue.png" href="img_blue.png" media-type="image/png"/>
+    <item id="res-img_red.png" href="img_red.png" media-type="image/png"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="content"/>
+  </spine>
+</package>
+
+=== OEBPS/toc.ncx (637 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:b13b0ccd-dfec-5645-888a-8cb1b8b2d741"/>
+    <meta name="dtb:depth" content="3"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>Книга с иллюстрациями</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel>
+        <text>Глава 1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-1"/>
+    </navPoint>
+  </navMap>
+</ncx>
+
+=== OEBPS/content.xhtml (659 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Книга с иллюстрациями</title>
+</head>
+<body>
+<div class="toc-anchors"><span id="toc-1"></span>
+</div>
+
+<a id="toc"></a>
+<ul>
+  <li><a href="#section_1">Глава 1</a></li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Глава 1<br/>
+</h2>
+<img src="img_red.png" alt=""/>
+<img src="img_blue.png" alt=""/>
+<p class="paragraph">Красная иллюстрация:</p>
+<p class="paragraph">Синяя иллюстрация:</p>
+
+</body>
+</html>
+
+=== OEBPS/img_blue.png (74 bytes) ===
+[binary]
+
+=== OEBPS/img_red.png (74 bytes) ===
+[binary]
+

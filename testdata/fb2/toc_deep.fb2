@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+  <title-info>
+    <genre>sf</genre>
+    <author>
+      <first-name>Иван</first-name>
+      <last-name>Тестовый</last-name>
+    </author>
+    <book-title>Книга с глубоким оглавлением</book-title>
+    <lang>ru</lang>
+  </title-info>
+  <document-info>
+    <program-name>fb2c fixture</program-name>
+  </document-info>
+</description>
+<body>
+  <section>
+    <title><p>Часть 1</p></title>
+    <section>
+      <title><p>Глава 1.1</p></title>
+      <section>
+        <title><p>Раздел 1.1.1</p></title>
+        <section>
+          <title><p>Очень длинный заголовок раздела, превышающий ограничение оглавления в двести пятьдесят пять символов, избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация избыточная детализация конец.</p></title>
+          <p>Текст на четвёртом уровне вложенности.</p>
+        </section>
+        <p>Текст на третьем уровне вложенности.</p>
+      </section>
+      <p>Текст на втором уровне вложенности.</p>
+    </section>
+    <section>
+      <title><p>Глава 1.2</p></title>
+      <p>Вторая глава первой части.</p>
+    </section>
+    <p>Текст первой части.</p>
+  </section>
+</body>
+</FictionBook>

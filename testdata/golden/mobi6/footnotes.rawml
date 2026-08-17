@@ -1,0 +1,29 @@
+<html>
+<head>
+</head>
+<body>
+<a id="toc"></a>
+<ul>
+  <li><a filepos="0000000175">Глава 1</a></li>
+  <li><a filepos="0000000393">Примечания</a></li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Глава 1<br/>
+</h2>
+<p class="paragraph">Текст со сноской<sup>1</sup> в абзаце.</p>
+<p class="paragraph">Второй абзац со сноской<sup>2</sup>.</p>
+<a id="notes"></a>
+<p align="center"><b>Примечания</b></p>
+<a id="note_1"></a>
+<h2>1<br/>
+</h2>
+<p class="paragraph">Первая сноска: пояснение к первому упоминанию.</p>
+ <a filepos="0000000000" class="noteback">↩</a>
+<a id="note_2"></a>
+<h2>2<br/>
+</h2>
+<p class="paragraph">Вторая сноска: пояснение ко второму упоминанию.</p>
+ <a filepos="0000000000" class="noteback">↩</a>
+</body>
+</html>

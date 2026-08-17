@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+  <title-info>
+    <genre>sf</genre>
+    <author>
+      <first-name>Иван</first-name>
+      <last-name>Тестовый</last-name>
+    </author>
+    <book-title>Стихи и таблицы</book-title>
+    <lang>ru</lang>
+  </title-info>
+  <document-info>
+    <program-name>fb2c fixture</program-name>
+  </document-info>
+</description>
+<body>
+  <section>
+    <title><p>Глава 1</p></title>
+    <poem>
+      <title><p>Эпиграф</p></title>
+      <stanza>
+        <v>Первая строка первой строфы,</v>
+        <v>Вторая строка первой строфы.</v>
+      </stanza>
+      <stanza>
+        <v>Первая строка второй строфы,</v>
+        <v>Вторая строка второй строфы.</v>
+      </stanza>
+      <text-author>Поэт</text-author>
+    </poem>
+    <p>Таблица характеристик:</p>
+    <table>
+      <tr>
+        <td>Параметр</td>
+        <td>Значение</td>
+      </tr>
+      <tr>
+        <td>Формат</td>
+        <td>FB2</td>
+      </tr>
+      <tr>
+        <td>Выход</td>
+        <td>MOBI</td>
+      </tr>
+    </table>
+  </section>
+</body>
+</FictionBook>

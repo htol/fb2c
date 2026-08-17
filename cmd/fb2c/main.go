@@ -41,6 +41,9 @@ func main() {
 	case "dump":
 		dumpCmd(flag.Args()[1:])
 
+	case "regen-testdata":
+		regenTestdataCmd(flag.Args()[1:])
+
 	default:
 		printUsage()
 		os.Exit(1)

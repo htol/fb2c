@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+  <title-info>
+    <genre>sf</genre>
+    <author>
+      <first-name>Иван</first-name>
+      <last-name>Тестовый</last-name>
+    </author>
+    <book-title>Пустая книга</book-title>
+    <lang>ru</lang>
+  </title-info>
+  <document-info>
+    <program-name>fb2c fixture</program-name>
+  </document-info>
+</description>
+<body>
+</body>
+</FictionBook>

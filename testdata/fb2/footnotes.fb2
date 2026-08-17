@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+  <title-info>
+    <genre>sf</genre>
+    <author>
+      <first-name>Иван</first-name>
+      <last-name>Тестовый</last-name>
+    </author>
+    <book-title>Книга со сносками</book-title>
+    <lang>ru</lang>
+  </title-info>
+  <document-info>
+    <program-name>fb2c fixture</program-name>
+  </document-info>
+</description>
+<body>
+  <section>
+    <title><p>Глава 1</p></title>
+    <p>Текст со сноской<sup>1</sup> в абзаце.</p>
+    <p>Второй абзац со сноской<sup>2</sup>.</p>
+  </section>
+</body>
+<body name="notes">
+  <title><p>Примечания</p></title>
+  <section id="note_1">
+    <title><p>1</p></title>
+    <p>Первая сноска: пояснение к первому упоминанию.</p>
+  </section>
+  <section id="note_2">
+    <title><p>2</p></title>
+    <p>Вторая сноска: пояснение ко второму упоминанию.</p>
+  </section>
+</body>
+</FictionBook>

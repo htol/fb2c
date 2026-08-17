@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+  <title-info>
+    <genre>sf</genre>
+    <author>
+      <first-name>Иван</first-name>
+      <last-name>Тестовый</last-name>
+    </author>
+    <book-title>Книга с иллюстрациями</book-title>
+    <lang>ru</lang>
+  </title-info>
+  <document-info>
+    <program-name>fb2c fixture</program-name>
+  </document-info>
+</description>
+<body>
+  <section>
+    <title><p>Глава 1</p></title>
+    <p>Красная иллюстрация:</p>
+    <image l:href="#img_red.png"/>
+    <p>Синяя иллюстрация:</p>
+    <image l:href="#img_blue.png"/>
+  </section>
+</body>
+<binary id="img_red.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=</binary>
+<binary id="img_blue.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGOQkzuBFTEMLQkAO79BAXNTPmcAAAAASUVORK5CYII=</binary>
+</FictionBook>

@@ -1,0 +1,357 @@
+=== mimetype (20 bytes) ===
+application/epub+zip
+
+=== META-INF/container.xml (252 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+
+=== OEBPS/content.opf (2862 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:6560a3c7-b375-5e9f-8ef1-a11967046fc4</dc:identifier>
+    <dc:title>Тестовый ознакомительный документ FictionBook 2.1</dc:title>
+    <dc:creator>Дмитрий Петрович Грибов</dc:creator>
+    <dc:language>ru</dc:language>
+    <dc:description>
+      При оформлении документа были использованы новые возможности формата FB2.1.
+      В частности, документ имеет разную доступность в зависимости от
+      уровня доступа пользователя (подписчик/посторонний). Часть документа является
+      полностью скрытой ото всех, кроме владельца документа. Оформлять таким образом следует, к примеру, документы,
+      на публикацию которых имеется запрет правообладателя. Такой формат публикаций,
+      помимо прочего, является полностью легитимным ? цитирование объектов авторского права
+      является законным. Вероятно, авторы тоже не будут против такого рода публикаций, так как
+      это может способствовать росту популярности их книг. Впрочем, это одинаково
+      может помешать втюхать читателям какую-то ерунду. Ну что ж? Для этого
+      и придумано цитирование, не так ли? Попробуем играть друг с другом честно. Документация по новым возможностям fb2.1 находится в стадии разработки.
+    </dc:description>
+    <meta name="cover" content="cover-fish1.png"/>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+    <item id="res-fish.jpg" href="fish.jpg" media-type="image/jpeg"/>
+    <item id="res-fish1.png" href="fish1.png" media-type="image/png"/>
+    <item id="res-free.png" href="free.png" media-type="image/png"/>
+    <item id="res-paid.png" href="paid.png" media-type="image/png"/>
+    <item id="res-subs.png" href="subs.png" media-type="image/png"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="content"/>
+  </spine>
+</package>
+
+=== OEBPS/toc.ncx (3146 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:6560a3c7-b375-5e9f-8ef1-a11967046fc4"/>
+    <meta name="dtb:depth" content="3"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>Тестовый ознакомительный документ FictionBook 2.1</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel>
+        <text>Часть I. Типа пролог</text>
+      </navLabel>
+      <content src="content.xhtml#toc-1"/>
+    </navPoint>
+    <navPoint id="navPoint-2" playOrder="2">
+      <navLabel>
+        <text>Глава I. Типа начало</text>
+      </navLabel>
+      <content src="content.xhtml#toc-2"/>
+    </navPoint>
+    <navPoint id="navPoint-3" playOrder="3">
+      <navLabel>
+        <text>Глава II. Типа процесс пошел</text>
+      </navLabel>
+      <content src="content.xhtml#toc-3"/>
+    </navPoint>
+    <navPoint id="navPoint-4" playOrder="4">
+      <navLabel>
+        <text>Глава III. Процесс идет полным ходом</text>
+      </navLabel>
+      <content src="content.xhtml#toc-4"/>
+    </navPoint>
+    <navPoint id="navPoint-5" playOrder="5">
+      <navLabel>
+        <text>Глава IV. Неожиданный поворот</text>
+      </navLabel>
+      <content src="content.xhtml#toc-5"/>
+    </navPoint>
+    <navPoint id="navPoint-6" playOrder="6">
+      <navLabel>
+        <text>Неожиданный поворот 1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-6"/>
+    </navPoint>
+    <navPoint id="navPoint-7" playOrder="7">
+      <navLabel>
+        <text>Неожиданный поворот 2</text>
+      </navLabel>
+      <content src="content.xhtml#toc-7"/>
+    </navPoint>
+    <navPoint id="navPoint-8" playOrder="8">
+      <navLabel>
+        <text>Неожиданный поворот 3</text>
+      </navLabel>
+      <content src="content.xhtml#toc-8"/>
+    </navPoint>
+    <navPoint id="navPoint-9" playOrder="9">
+      <navLabel>
+        <text>Часть II. Типа текст</text>
+      </navLabel>
+      <content src="content.xhtml#toc-9"/>
+    </navPoint>
+    <navPoint id="navPoint-10" playOrder="10">
+      <navLabel>
+        <text>Глава I. Текст начало</text>
+      </navLabel>
+      <content src="content.xhtml#toc-10"/>
+    </navPoint>
+    <navPoint id="navPoint-11" playOrder="11">
+      <navLabel>
+        <text>Глава II. Текст середина</text>
+      </navLabel>
+      <content src="content.xhtml#toc-11"/>
+    </navPoint>
+    <navPoint id="navPoint-12" playOrder="12">
+      <navLabel>
+        <text>Глава III. Текст конец</text>
+      </navLabel>
+      <content src="content.xhtml#toc-12"/>
+    </navPoint>
+    <navPoint id="navPoint-13" playOrder="13">
+      <navLabel>
+        <text>Часть II. Типа эпилог</text>
+      </navLabel>
+      <content src="content.xhtml#toc-13"/>
+    </navPoint>
+  </navMap>
+</ncx>
+
+=== OEBPS/content.xhtml (10121 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Тестовый ознакомительный документ FictionBook 2.1</title>
+</head>
+<body>
+<div class="toc-anchors"><span id="toc-1"></span>
+<span id="toc-2"></span>
+<span id="toc-3"></span>
+<span id="toc-4"></span>
+<span id="toc-5"></span>
+<span id="toc-6"></span>
+<span id="toc-7"></span>
+<span id="toc-8"></span>
+<span id="toc-9"></span>
+<span id="toc-10"></span>
+<span id="toc-11"></span>
+<span id="toc-12"></span>
+<span id="toc-13"></span>
+</div>
+
+<a id="cover"></a>
+<p align="center"><img src="fish1.png" alt="Cover"/>
+</p>
+<p>&nbsp;</p>
+<div>При оформлении документа были использованы новые возможности формата FB2.1.
+В частности, документ имеет разную доступность в зависимости от
+уровня доступа пользователя (подписчик/посторонний). Часть документа является
+полностью скрытой ото всех, кроме владельца документа. Оформлять таким образом следует, к примеру, документы,
+на публикацию которых имеется запрет правообладателя. Такой формат публикаций,
+помимо прочего, является полностью легитимным ? цитирование объектов авторского права
+является законным. Вероятно, авторы тоже не будут против такого рода публикаций, так как
+это может способствовать росту популярности их книг. Впрочем, это одинаково
+может помешать втюхать читателям какую-то ерунду. Ну что ж? Для этого
+и придумано цитирование, не так ли? Попробуем играть друг с другом честно. Документация по новым возможностям fb2.1 находится в стадии разработки.</div>
+<hr/>
+<a id="toc"></a>
+<ul>
+  <li><a href="#half0">Часть I. Типа пролог</a>
+<ul>
+  <li><a href="#half0_1">Глава I. Типа начало</a></li>
+  <li><a href="#half0_2">Глава II. Типа процесс пошел</a></li>
+  <li><a href="#half0_3">Глава III. Процесс идет полным ходом</a></li>
+  <li><a href="#half0_4">Глава IV. Неожиданный поворот</a>
+<ul>
+  <li><a href="#half0_4_1">Неожиданный поворот 1</a></li>
+  <li><a href="#half0_4_2">Неожиданный поворот 2</a></li>
+  <li><a href="#half0_4_3">Неожиданный поворот 3</a></li>
+</ul>
+</li>
+</ul>
+</li>
+  <li><a href="#half1">Часть II. Типа текст</a>
+<ul>
+  <li><a href="#half1_1">Глава I. Текст начало</a></li>
+  <li><a href="#half1_2">Глава II. Текст середина</a></li>
+  <li><a href="#half1_3">Глава III. Текст конец</a></li>
+</ul>
+</li>
+  <li><a href="#half2">Часть II. Типа эпилог</a></li>
+  <li><a href="#notes">notes</a></li>
+</ul>
+<hr/>
+<a id="half0"></a>
+<h2>Часть I. Типа пролог<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Корневая section, видима везде как контейнер с видимыми подсекциями. Содержит дугие секции, которые замысловато  попрятаны.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<a id="half0_1"></a>
+<h2>Глава I. Типа начало<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Первая глава, видима всем. Содержит текст.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<img src="free.png" alt=""/>
+<p class="paragraph">Эта глава I первой части тестового документа. Она состоит из одного абзаца. Для теста нам этого хватит. Еще тут
+есть <a id="noteref_note_1" name="noteref_note_1"></a><a href="#note_1" class="noteref">сноска 1</a>
+</p>
+<a id="half0_2"></a>
+<h2>Глава II. Типа процесс пошел<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Вторая глава, видима только подписчикам. Содержит текст.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<img src="subs.png" alt=""/>
+<p class="paragraph">Эта глава II первой части тестового документа. Она тоже состоит из одного абзаца. Тут есть и 
+<a id="noteref_note_2" name="noteref_note_2"></a><a href="#note_2" class="noteref">сноска 2</a>. Если вы видите этот текст - вы подписчик!</p>
+<a id="half0_3"></a>
+<h2>Глава III. Процесс идет полным ходом<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Третяя глава, видима только в платной версии. Содержит текст.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<img src="paid.png" alt=""/>
+<p class="paragraph">Эта глава III первой части тестового документа. Она тоже состоит из одного абзаца.
+Если вы видите этот текст - вы владелец документа или купили его. А вот и
+<a id="noteref_note_3" name="noteref_note_3"></a><a href="#note_3" class="noteref">сноска 3</a>
+</p>
+<a id="half0_4"></a>
+<h2>Глава IV. Неожиданный поворот<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Эта глава, состоящая из подглав, видима частично только в платной версии,
+а частично - во всех! Содержит другие части.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<a id="half0_4_1"></a>
+<h2>Неожиданный поворот 1<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Эта глава видна только в платной версии.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Этот текст должно быть видно в платной версии</p>
+<a id="half0_4_2"></a>
+<h2>Неожиданный поворот 2<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Эта глава видна только в платной и подписочной версиях.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Этот текст должно быть видно в подписочной и платной версиях</p>
+<a id="half0_4_3"></a>
+<h2>Неожиданный поворот 3<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Эта глава видна только в бесплатной и подписочной версиях!!! В платной ее нет.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Этот текст должно быть видно только халявщикам.</p>
+<a id="half1"></a>
+<h2>Часть II. Типа текст<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Центральная часть, только за деньги. Содержит дугие секции, которые тож все только за $$, поэтому и сама  невидима.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<a id="half1_1"></a>
+<h2>Глава I. Текст начало<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Первая глава второй части. Только за $$</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Эта глава I второй части тестового документа.</p>
+<a id="half1_2"></a>
+<h2>Глава II. Текст середина<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Вторая глава второй части. Только за $$</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Эта глава II второй части тестового документа.</p>
+<a id="half1_3"></a>
+<h2>Глава III. Текст конец<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Третяя глава второй части. Только за $$</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Эта глава III второй части тестового документа.</p>
+<a id="half2"></a>
+<h2>Часть II. Типа эпилог<br/>
+</h2>
+<blockquote class="epigraph">
+  <p>Заключительная часть, только за деньги. Содержит текст.</p>
+  <p>Грибов Дмитрий</p>
+</blockquote>
+<p class="paragraph">Это эпиграф. Его тоже видно только за деньги.</p>
+<a id="notes"></a>
+<p align="center"><b>notes</b></p>
+<a id="section_14"></a>
+ <a href="#noteref_section_14" class="noteback">↩</a>
+<a id="note_1"></a>
+<h2>[1]<br/>
+</h2>
+<p class="paragraph">Это текст сноски 1. На сноску 1 ссылаются из свободной части.</p>
+ <a href="#noteref_note_1" class="noteback">↩</a>
+<a id="note_2"></a>
+<h2>[2]<br/>
+</h2>
+<p class="paragraph">Это текст сноски 2. На сноску 2 ссылаются из подписочной части.</p>
+ <a href="#noteref_note_2" class="noteback">↩</a>
+<a id="section_17"></a>
+ <a href="#noteref_section_17" class="noteback">↩</a>
+<a id="note_3"></a>
+<h2>[3]<br/>
+</h2>
+<p class="paragraph">Это текст сноски 3. На сноску 3 ссылаются из платной части.</p>
+ <a href="#noteref_note_3" class="noteback">↩</a>
+
+</body>
+</html>
+
+=== OEBPS/fish.jpg (3898 bytes) ===
+[binary]
+
+=== OEBPS/fish1.png (9935 bytes) ===
+[binary]
+
+=== OEBPS/free.png (178 bytes) ===
+[binary]
+
+=== OEBPS/paid.png (182 bytes) ===
+[binary]
+
+=== OEBPS/subs.png (182 bytes) ===
+[binary]
+

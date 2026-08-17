@@ -1,0 +1,75 @@
+=== mimetype (20 bytes) ===
+application/epub+zip
+
+=== META-INF/container.xml (252 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+
+=== OEBPS/content.opf (718 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:5a8e1e97-e8a1-5010-a990-43621a93823a</dc:identifier>
+    <dc:title>Книга в однобайтовой кодировке</dc:title>
+    <dc:creator>Иван Тестовый</dc:creator>
+    <dc:language>ru</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="content"/>
+  </spine>
+</package>
+
+=== OEBPS/toc.ncx (654 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:5a8e1e97-e8a1-5010-a990-43621a93823a"/>
+    <meta name="dtb:depth" content="3"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>Книга в однобайтовой кодировке</text>
+  </docTitle>
+  <navMap>
+    <navPoint id="navPoint-1" playOrder="1">
+      <navLabel>
+        <text>Глава 1</text>
+      </navLabel>
+      <content src="content.xhtml#toc-1"/>
+    </navPoint>
+  </navMap>
+</ncx>
+
+=== OEBPS/content.xhtml (632 bytes) ===
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Книга в однобайтовой кодировке</title>
+</head>
+<body>
+<div class="toc-anchors"><span id="toc-1"></span>
+</div>
+
+<a id="toc"></a>
+<ul>
+  <li><a href="#section_1">Глава 1</a></li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Глава 1<br/>
+</h2>
+<p class="paragraph">Абзац с русским текстом: съешь ещё этих мягких французских булок.</p>
+
+</body>
+</html>
+

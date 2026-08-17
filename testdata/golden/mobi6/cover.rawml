@@ -1,0 +1,23 @@
+<html>
+<head>
+<guide>
+  <reference type="cover" title="Cover" filepos="0000000184" />
+  <reference type="toc" title="Table of Contents" filepos="0000000276" />
+</guide>
+</head>
+<body>
+<a id="cover"></a>
+<p align="center"><img recindex="00001" alt="Cover"/>
+</p>
+<p>&nbsp;</p>
+<a id="toc"></a>
+<ul>
+  <li><a filepos="0000000362">Глава 1</a></li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Глава 1<br/>
+</h2>
+<p class="paragraph">Абзац с обложкой на титульной странице.</p>
+</body>
+</html>

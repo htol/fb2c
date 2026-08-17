@@ -1,0 +1,1 @@
+failed to parse FB2: failed to extract embedded content: fb2: failed to decode binary "broken.png": invalid base64 character '!': b64: invalid base64 data

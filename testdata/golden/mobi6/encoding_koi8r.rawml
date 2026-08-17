@@ -1,0 +1,15 @@
+<html>
+<head>
+</head>
+<body>
+<a id="toc"></a>
+<ul>
+  <li><a filepos="0000000115">Глава 1</a></li>
+</ul>
+<hr/>
+<a id="section_1"></a>
+<h2>Глава 1<br/>
+</h2>
+<p class="paragraph">Абзац с русским текстом: съешь ещё этих мягких французских булок.</p>
+</body>
+</html>

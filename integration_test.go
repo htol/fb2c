@@ -14,7 +14,7 @@ import (
 
 // TestConvertSimpleFB2 tests end-to-end conversion of a simple FB2 file
 const (
-	testRefFB2 = "testdata/src_ref.fb2"
+	testRefFB2 = "testdata/fb2/src_ref.fb2"
 	bookType   = "BOOK"
 )
 
@@ -279,7 +279,7 @@ func TestMetadataExtraction(t *testing.T) {
 		wantSeries string
 	}{
 		{
-			file:       "testdata/src_ref.fb2",
+			file:       "testdata/fb2/src_ref.fb2",
 			wantTitle:  "Тестовый ознакомительный документ FictionBook 2.1",
 			wantAuthor: "Дмитрий Петрович Грибов",
 			wantSeries: "",
@@ -324,11 +324,11 @@ func TestValidateFB2(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			file:    "testdata/src_ref.fb2",
+			file:    "testdata/fb2/src_ref.fb2",
 			wantErr: false,
 		},
 		{
-			file:    "testdata/src_ref.fb2",
+			file:    "testdata/fb2/src_ref.fb2",
 			wantErr: false,
 		},
 		{
@@ -349,7 +349,7 @@ func TestValidateFB2(t *testing.T) {
 
 // BenchmarkConversion benchmarks the conversion process
 func BenchmarkConversion(b *testing.B) {
-	testFile := "testdata/src_ref.fb2"
+	testFile := "testdata/fb2/src_ref.fb2"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -8,8 +8,8 @@
 
 # Test binary, built with `go test -c`
 *.test
-testdata/
-tmp
+# Scratch directory for debug artifacts (never testdata/ — see AGENTS.md)
+/tmp
 
 # Temporary files
 *.tmp
