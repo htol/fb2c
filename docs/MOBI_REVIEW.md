@@ -68,7 +68,7 @@ library grouping. Reference uses a per-book UUID in EXTH 113 (and Calibre mirror
 **Fix:** generate a random UUID per book (the `epub` package already has `generateUUID`)
 or omit the record entirely.
 
-### 22. INDX tag values encoded backward instead of forward — corrupts the TOC of every real book
+### 22. INDX tag values encoded backward instead of forward — corrupts the TOC of every real book — **FIXED 2026-08-17**
 
 **File:** `mobi/index/indx.go:582–586` (`encodeVarint` → `varint.EncodeBackward`), used for
 all entry tag values (`indx.go:471–483`, `indx.go:683–725`)
@@ -89,6 +89,14 @@ CNCX label offset, so the native Kindle TOC points into random positions.
 
 **Fix:** `encodeVarint` must call `varint.EncodeForward`; the comment at indx.go:582–584
 claiming it "matches the actual binary found in reference" is false. See also #27.
+
+**Resolution:** `encodeVarint` now returns `varint.EncodeForward`; comment corrected.
+Verified: entry tag values of the regenerated `src_ref` golden forward-decode to the
+intended offset/length/CNCX/depth (before: garbage); `make test` and
+`make test-validate-by-mobitool` pass on the regenerated corpus. All 9 mobi6 goldens
+regenerated — every book has tag values ≥ 128, so the old encodings were all corrupt.
+The varint package's `EncodeBackward` stays (spec §10 uses backward VWI for
+trailing-entry sizes).
 
 ## Significant issues
 
@@ -361,8 +369,8 @@ These were checked against spec §1–§12 and the reference — leave as is:
 - INDX record headers: meta `indexType=0, gen=2, language=0xFFFFFFFF`; entry
   `indexType=1, gen=0, encoding/language=0xFFFFFFFF, total=0` (`mobi/index/indx.go:299–306, 425–432`)
   — match reference records 364/365 in every field **except** meta `Encoding` (fb2c 1252
-  vs reference 65001 — #25). The header *fields* match; the entry tag *values* do not:
-  they are backward-VWI where the reference is forward-VWI (#22).
+  vs reference 65001 — #25). The header *fields* match; the entry tag *values* were
+  backward-VWI where the reference is forward-VWI — fixed as #22.
 - UTF-8-safe record splitting with Extra Data Flags = 0 and no trailing entries
   (`mobi/writer_records.go`) — valid per spec §6.
 - No compression (`compression = 1`) — per AGENTS.md, compression stays off.

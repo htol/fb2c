@@ -579,11 +579,12 @@ func (i *INDX) encodeCNCX() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// encodeVarint encodes a uint32 as a variable length integer (MOBI format)
-// Uses backward encoding where the MSB is set on the last byte
-// This matches the actual binary found in reference MOBI 6 INDX tags.
+// encodeVarint encodes a uint32 as a variable-width integer for index entry
+// tag values. Spec §10: index entry tag values are forward-encoded VWI
+// (MSB set on the last byte), like the CNCX string lengths. Only trailing-entry
+// sizes use backward encoding.
 func encodeVarint(val uint32) []byte {
-	return varint.EncodeBackward(val)
+	return varint.EncodeForward(val)
 }
 
 // TAGXEntry represents a single tag definition
