@@ -136,21 +136,21 @@ verify each item against current code before acting.
 
 ### Hygiene
 
-10. **Dead code:** `sanitizeFilename` (`fb2/parser.go:188`), `CalculateRecordCount` /
-    `SortManifestIDs` / `ConvertStream` (`mobi/writer.go:47–75`, `converter.go:98`),
-    `CompressRecord` / `DecompressPalmDOC` / `splitTextRecords`
-    (`mobi/compression.go`, `mobi/content.go:120`), unused option fields
-    (`Parser.NoInlineTOC`, `Parser.ProcessCSS`, `Transformer.ProcessCSS`),
-    `joinNonEmpty` (`opf/book.go:231` — reinvents `strings.Join`).
-    (`epub.Writer.uuid` was removed with the deterministic-UUID work.)
-12. **Test coverage gaps** (re-checked 2026-08-17, testing-infra landed): `epub` now has
+10. **Dead code:** `sanitizeFilename` (`fb2/parser.go:188`), `SortManifestIDs`
+    (`mobi/writer.go:65`), `ConvertStream` (`converter.go:99`), unused option fields
+    (`Parser.NoInlineTOC`, `Parser.ProcessCSS`, `Transformer.ProcessCSS`).
+    (Re-checked 2026-08-17: `CompressRecord`/`DecompressPalmDOC`/`splitTextRecords`
+    were deleted in the cleanup; `CalculateRecordCount` is used by the KF8 writer;
+    `joinNonEmpty` is used and skips empty parts, which `strings.Join` cannot;
+    `epub.Writer.uuid` was removed with the deterministic-UUID work.)
+11. **Test coverage gaps** (re-checked 2026-08-17, testing-infra landed): `epub` now has
     byte + content goldens via the corpus, and `mobi` has a reader with tests;
-    still 0%: `internal/mapper`, `cmd`. Priorities: mapper unit tests; items 8–9
+    still 0%: `internal/mapper`, `cmd`. Priorities: mapper unit tests; items 7–8
     (EPUB cover manifest id, navPoint anchors) are locked into current goldens and
     remain open bugs.
-13. **Docs drift:** AGENTS.md still names `fb2encoding/` (actual: `fb2/encoding/`) and
+12. **Docs drift:** AGENTS.md still names `fb2encoding/` (actual: `fb2/encoding/`) and
     `ConvertFile`/`ConvertFileWithOptions` (actual: `Converter.Convert`).
     (Fixed in AGENTS.md with the testing-infra docs update, 2026-08-17.)
-14. **Workspace residue:** `debug_records/`, `final_v2_records/`, `ref_records/`,
+13. **Workspace residue:** `debug_records/`, `final_v2_records/`, `ref_records/`,
     built `fb2c` binary are untracked and not in `.gitignore`.
     (Resolved 2026-08-17: debug dirs and legacy testdata artifacts deleted; `tmp/` ignored.)
