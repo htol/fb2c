@@ -383,12 +383,16 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			return nil, fmt.Errorf("failed to write EXTH: %w", err)
 		}
 		buf.WriteString(bookName)
+		// Spec §5: the full name is followed by two NUL bytes, then the record
+		// is padded to a 4-byte boundary.
+		buf.Write([]byte{0, 0})
 	} else {
 		mobiHeader.FullNameOffset = uint32(16 + HeaderSize)
 		if err := mobiHeader.Write(&buf); err != nil {
 			return nil, err
 		}
 		buf.WriteString(bookName)
+		buf.Write([]byte{0, 0})
 	}
 
 	// Pad with zeros to ensure 4-byte alignment
