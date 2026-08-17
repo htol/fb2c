@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/htol/fb2c/opf"
 )
@@ -269,6 +270,35 @@ func (w *Writer) Write(output io.Writer) error {
 	return nil
 }
 
+// localeForLanguage maps the book language (BCP-47-ish code, e.g. "ru",
+// "en", "en-GB") to the Windows locale identifier expected in MOBI+0x5C
+// (spec §3). Unknown or empty languages fall back to neutral English (9),
+// the primary-language-only form the reference file uses for Russian (25).
+func localeForLanguage(lang string) uint32 {
+	parts := strings.FieldsFunc(strings.ToLower(strings.TrimSpace(lang)), func(r rune) bool {
+		return r == '-' || r == '_'
+	})
+	if len(parts) == 0 {
+		return 9
+	}
+	primary, region := parts[0], ""
+	if len(parts) > 1 {
+		region = parts[1]
+	}
+
+	switch primary {
+	case "ru":
+		return 1049 // ru-RU
+	case "en":
+		if region == "gb" {
+			return 2057 // en-GB
+		}
+		return 1033 // en-US
+	default:
+		return 9
+	}
+}
+
 // createMOBIHeaderRecord creates the MOBI header record
 func (w *Writer) createMOBIHeaderRecord(textSize int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex uint32) ([]byte, error) {
 	// Wrapper to maintain backward compatibility if needed, but we'll use Extended internally
@@ -291,7 +321,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 
 	// Set header flags for UTF-8 and structure
 	mobiHeader.TextEncoding = UTF8Encoding
-	mobiHeader.Locale = 1049 // Russian (Language 25 + Sublanguage 1<<10)
+	mobiHeader.Locale = localeForLanguage(w.book.Metadata.Language)
 
 	// ExtraRecordFlags = 0 means no trailing data on text records
 	// We don't use TBS indexing - TOC works via INDX records without it

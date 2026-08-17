@@ -134,7 +134,7 @@ text end from the MOBI header's text `RecordCount` (+0x08). Verified: cover/imag
 goldens show LastContentRec = last image record, imageless books unchanged, rawml
 extraction byte-identical; make test and mobitool validation pass.
 
-### 5. `Locale` hardcoded to 1049 (Russian)
+### 5. `Locale` hardcoded to 1049 (Russian) — **FIXED 2026-08-17**
 
 **File:** `mobi/writer.go:304`
 
@@ -142,6 +142,11 @@ Correct for Russian books (reference writes 25 — also Russian, dialect 0), wro
 everything else. Spec §3: en-US = 1033, en-GB = 2057, ru = 1049.
 
 **Fix:** map `book.Metadata.Language` → locale code (fallback 9/en or 0).
+
+**Resolution:** `localeForLanguage` maps ru→1049, en→1033, en-GB→2057 (both `-` and `_`
+region forms), unknown/empty→9 (neutral English, the primary-language-only form the
+reference uses for Russian: 25). Regression test `TestLocaleForLanguage`. Goldens
+unchanged (corpus is entirely ru).
 
 ### 6. Preliminary MOBI header built with wrong `firstImageIndex`
 

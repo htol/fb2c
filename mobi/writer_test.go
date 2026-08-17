@@ -331,3 +331,27 @@ func TestNoEXTHWritesNoEXTHFlag(t *testing.T) {
 		t.Errorf("EXTH header parsed from a no-EXTH file: %+v", dump.EXTH)
 	}
 }
+
+// TestLocaleForLanguage verifies the book-language to MOBI locale mapping
+// (spec §3): hardcoded 1049 made every non-Russian book declare Russian.
+func TestLocaleForLanguage(t *testing.T) {
+	tests := []struct {
+		lang string
+		want uint32
+	}{
+		{"ru", 1049},   // ru-RU
+		{"RU", 1049},   // case-insensitive
+		{" ru ", 1049}, // surrounding whitespace
+		{"en", 1033},   // en-US
+		{"en-US", 1033},
+		{"en-GB", 2057},
+		{"en_GB", 2057}, // underscore form
+		{"", 9},         // neutral English fallback
+		{"xx", 9},       // unknown language
+	}
+	for _, tt := range tests {
+		if got := localeForLanguage(tt.lang); got != tt.want {
+			t.Errorf("localeForLanguage(%q) = %d, want %d", tt.lang, got, tt.want)
+		}
+	}
+}
