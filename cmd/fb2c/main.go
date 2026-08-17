@@ -59,6 +59,7 @@ Usage:
   fb2c dump [--json] <file.mobi>                               Decode PalmDB/MOBI/EXTH/INDX headers and records
   fb2c dump --rawml <file.mobi>                                Extract the book text (rawml)
   fb2c dump --diff <a.mobi> <b.mobi>                           Compare two MOBI files record by record
+  fb2c regen-testdata                                          Regenerate golden files under testdata/golden/
   fb2c help                                                   Show this help
 
 Global Options:
