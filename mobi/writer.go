@@ -128,10 +128,7 @@ func (w *Writer) Write(output io.Writer) error {
 		"compressionEnabled", w.options.CompressionType == PalmDOCCompression,
 	)
 
-	// Split and compress records
-	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
-	// Split and compress records
-	// PalmDOC requires comperssing 4096-byte chunks of UNCOMPRESSED text
+	// PalmDOC compresses 4096-byte chunks of UNCOMPRESSED text (disabled for now)
 	textRecords := w.splitAndCompressRecords(textData)
 
 	w.options.Logger.Debug("creating PalmDBWriter with records",
@@ -188,8 +185,6 @@ func (w *Writer) Write(output io.Writer) error {
 	if tocIndexOffset, err = w.addTOCIndexRecords(palmWriter, &recordIndex, resolvedContent, textRecords); err != nil {
 		return err
 	}
-
-	// 4. Add Images in consistent order: Cover -> Thumbnail -> Manifest
 
 	// 4. Add Images in consistent order: Cover -> Thumbnail -> Manifest
 	firstImageIndex = uint32(0xFFFFFFFF)
