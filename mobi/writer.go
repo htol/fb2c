@@ -115,9 +115,8 @@ func (w *Writer) Write(output io.Writer) error {
 		"compressionType", w.options.CompressionType,
 	)
 
-	// 1. Resolve image sources and calculate final text size
-	// We do this in two passes to get absolute record indices
-	textData, firstImageRecord := w.prepareTextContent()
+	// 1. Resolve image sources and links in the book text
+	textData := w.prepareTextContent()
 	uncompressedSize := len(textData)
 	// resolvedContent is needed for TOC generation later
 	resolvedContent := string(textData)
@@ -153,18 +152,10 @@ func (w *Writer) Write(output io.Writer) error {
 	// lastTextRecord is approximated here for the wrapper, but real value is set later
 	lastTextRecord := firstTextRecord + recordCount - 1
 
-	// Calculate first image index (after text records)
-	// If cover exists, it will be at firstTextRecord + recordCount
-	// Otherwise, it's after all text records
-	// hasCover := w.options.CoverImage != nil
-	// hasImages := w.book.HasImages()
-	// FirstNonBookIndex should point to the first record that is NOT content (e.g. INDX, Images)
-	// We'll determine it dynamically.
+	// The preliminary record 0 is replaced by the extended header after all
+	// records are placed (SetRecord below), so its image index is a
+	// placeholder; the real FirstImageIndex is set in the image-adding step.
 	firstImageIndex := uint32(0xFFFFFFFF)
-	// Update firstImageIndex if we have images
-	if w.book.HasImages() || w.options.CoverImage != nil {
-		firstImageIndex = uint32(firstImageRecord) //nolint:gosec // Record index fits
-	}
 	firstNonBookIndex := uint32(0xFFFFFFFF)
 
 	// Create MOBI header with correct record indices

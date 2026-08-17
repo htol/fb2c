@@ -155,11 +155,15 @@ unchanged (corpus is entirely ru).
 `firstImageIndex = uint32(firstImageRecord)` where `firstImageRecord = 1` (the first
 *text* record). Spec §3: First Image index = first *image* record number. The preliminary
 record-0 header is later replaced via `SetRecord(0, …)`, so output is correct — but the
-dead preliminary computation invites regressions.
+de preliminary computation invites regressions.
 
 **Fix:** fold into the cleanup of the two-phase header pattern (see #9).
 
-### 7. `prepareTextContent()` returns a `firstImageRecord` nobody uses — and it is wrong anyway
+**Resolution (partial, 2026-08-17):** the misleading computation is gone (with #7/#8): the
+preliminary header now carries an explicit 0xFFFFFFFF placeholder. The full two-phase
+cleanup remains deferred to #9.
+
+### 7. `prepareTextContent()` returns a `firstImageRecord` nobody uses — and it is wrong anyway — **FIXED 2026-08-17**
 
 **Files:** `mobi/writer_helper.go:11–19`, `mobi/writer.go:122`
 
@@ -169,7 +173,11 @@ computes `firstImageIndex` fresh).
 
 **Fix:** drop the return value; see also #8.
 
-### 8. Double call to `resolveImageSources` with identical arguments
+**Resolution:** `prepareTextContent` now returns only the resolved text data. The wrong
+`firstImageRecord` arithmetic (TOC counted as 1 record) is gone together with its only
+consumer — the dead preliminary header value (#6).
+
+### 8. Double call to `resolveImageSources` with identical arguments — **FIXED 2026-08-17**
 
 **File:** `mobi/writer_helper.go:14, 21`
 
@@ -178,6 +186,10 @@ same function with the same arguments. Pass 1 is wasted work and the comments pr
 scheme the code does not implement.
 
 **Fix:** single pass; delete the misleading comments.
+
+**Resolution:** `prepareTextContent` resolves once (the two calls were identical, pass 1
+existed only to feed the wrong `firstImageRecord` of #7). Output byte-identical; make test
+and mobitool pass.
 
 ### 9. Two-phase record-0 header pattern
 
