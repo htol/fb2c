@@ -127,8 +127,8 @@ func TestHeaderDefaults(t *testing.T) {
 		t.Errorf("FileVersion = %d, want 6", h.FileVersion)
 	}
 
-	if h.EXTHFlags != 0x40 {
-		t.Errorf("EXTHFlags = 0x%X, want 0x40 (has EXTH)", h.EXTHFlags)
+	if h.EXTHFlags != 0 {
+		t.Errorf("EXTHFlags = 0x%X, want 0 (flag set only when EXTH is written)", h.EXTHFlags)
 	}
 
 	if h.FirstContentRec != 1 {

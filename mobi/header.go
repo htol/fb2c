@@ -138,7 +138,7 @@ func NewHeader(textSize, recordCount int) *Header {
 		HuffmanRecordCount:  0,
 		HuffmanTableOffset:  0,
 		HuffmanTableLength:  0,
-		EXTHFlags:           0x40, // Has EXTH header
+		EXTHFlags:           0, // set by the writer when an EXTH header is actually emitted
 		Unknown1:            [32]byte{},
 		Unknown2:            0xFFFFFFFF,
 		DRMOffset:           0xFFFFFFFF,

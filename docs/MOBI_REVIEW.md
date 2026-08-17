@@ -186,7 +186,7 @@ offsets, so output is correct, but `Write()` is a ~180-line procedure mutating
 **Fix (structural, optional for a first pass):** lay out records into a slice first
 (declarative), compute all indices from it, then build record 0 once.
 
-### 23. `EXTHFlags` stays 0x40 when `WithEXTH = false`
+### 23. `EXTHFlags` stays 0x40 when `WithEXTH = false` — **FIXED 2026-08-17**
 
 **File:** `mobi/header.go:141` (default 0x40), `mobi/writer.go:334` (0x50 set only inside
 the `WithEXTH` branch)
@@ -197,6 +197,11 @@ path, but the output is format-invalid.
 
 **Fix:** clear `EXTHFlags` in the `else` branch (or default it to 0 in `NewHeader` and
 set it wherever EXTH is actually emitted).
+
+**Resolution:** `NewHeader` now defaults `EXTHFlags` to 0; both EXTH-emitting paths
+(mobi writer WithEXTH branch, kf8 writer) set 0x50 explicitly. Regression test
+`TestNoEXTHWritesNoEXTHFlag`. Goldens unchanged (production always emits EXTH); make test
+and mobitool pass.
 
 ### 24. Full Name truncated by bytes — can split a UTF-8 character — **FIXED 2026-08-17**
 

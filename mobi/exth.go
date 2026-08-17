@@ -10,29 +10,29 @@ import (
 
 // EXTH record type constants
 const (
-	EXTHAuthor          = 100
-	EXTHPublisher       = 101
-	EXTHImprint         = 102
-	EXTHDescription     = 103
-	EXTHISBN            = 104
-	EXTHSubject         = 105
-	EXTHPublishedDate   = 106
-	EXTHReview          = 107
-	EXTHContributor     = 108
-	EXTHRights          = 109
-	EXTHSubjectCode     = 110
-	EXTHType            = 501
-	EXTHLanguage        = 524
-	EXTHSource          = 112
-	EXTHASIN            = 113
-	EXTHVersion         = 114
-	EXTHSample          = 115
-	EXTHStartReading    = 116
-	EXTHAdultRating     = 117
-	EXTHRetailPrice     = 118
-	EXTHCurrency        = 119
-	EXTHKF8Bounded      = 121
-	EXTHResourceCount   = 125
+	EXTHAuthor        = 100
+	EXTHPublisher     = 101
+	EXTHImprint       = 102
+	EXTHDescription   = 103
+	EXTHISBN          = 104
+	EXTHSubject       = 105
+	EXTHPublishedDate = 106
+	EXTHReview        = 107
+	EXTHContributor   = 108
+	EXTHRights        = 109
+	EXTHSubjectCode   = 110
+	EXTHType          = 501
+	EXTHLanguage      = 524
+	EXTHSource        = 112
+	EXTHASIN          = 113
+	EXTHVersion       = 114
+	EXTHSample        = 115
+	EXTHStartReading  = 116
+	EXTHAdultRating   = 117
+	EXTHRetailPrice   = 118
+	EXTHCurrency      = 119
+	EXTHKF8Bounded    = 121
+	EXTHResourceCount = 125
 	// 200 = dictionary short name (spec §4); the constant stays for the
 	// reader.go dump label. fb2c does not write this record.
 	EXTHCreatorSoftware = 200
@@ -241,7 +241,7 @@ func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 	// Write header
 	header := EXTHHeader{
 		Identifier:   [4]byte{'E', 'X', 'T', 'H'},
-		HeaderLength: uint32(pureLength),    //nolint:gosec // Length fits
+		HeaderLength: uint32(pureLength),     //nolint:gosec // Length fits
 		RecordCount:  uint32(len(w.records)), //nolint:gosec // Count fits
 	}
 

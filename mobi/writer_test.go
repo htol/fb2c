@@ -303,3 +303,31 @@ func TestPalmDOCCompression(t *testing.T) {
 		})
 	}
 }
+
+// TestNoEXTHWritesNoEXTHFlag verifies that with WithEXTH=false record 0 does
+// not announce an EXTH header (flags bit 6) — otherwise readers parse the
+// full-name tail as EXTH.
+func TestNoEXTHWritesNoEXTHFlag(t *testing.T) {
+	book := opf.NewOEBBook()
+	book.Metadata = opf.Metadata{Title: "No EXTH"}
+	book.Content = "<html><body><p>x</p></body></html>"
+
+	w := NewWriter(book)
+	w.options.WithEXTH = false
+
+	var buf bytes.Buffer
+	if err := w.Write(&buf); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+
+	dump, err := ReadDump(buf.Bytes())
+	if err != nil {
+		t.Fatalf("ReadDump failed: %v", err)
+	}
+	if dump.MOBI.EXTHFlags&0x40 != 0 {
+		t.Errorf("EXTHFlags = 0x%X, want bit 6 clear without an EXTH header", dump.MOBI.EXTHFlags)
+	}
+	if dump.EXTH != nil {
+		t.Errorf("EXTH header parsed from a no-EXTH file: %+v", dump.EXTH)
+	}
+}
