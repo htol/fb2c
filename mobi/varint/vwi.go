@@ -3,8 +3,8 @@
 // Varint encoding uses 7 bits per byte in big-endian format.
 // The most significant bit (bit 8) indicates termination.
 //
-// Forward encoding: MSB is set on the first byte
-// Backward encoding: MSB is set on the last byte
+// Forward encoding: MSB is set on the last byte
+// Backward encoding: MSB is set on the first byte
 package varint
 
 import (
