@@ -67,7 +67,7 @@ through MOBI+0xF4 (`INDXRecordOffset`), which fb2c already sets correctly.
 MOBI+0xF4 (`INDXRecordOffset`). The 204–207 constants remain for reader.go dump labels.
 Verified: regenerated goldens carry no EXTH 204–207; make test and mobitool validation pass.
 
-### 3. ASIN hardcoded as `"B00TEST001"`
+### 3. ASIN hardcoded as `"B00TEST001"` — **FIXED 2026-08-17**
 
 **File:** `mobi/writer.go:357`
 
@@ -76,6 +76,11 @@ library grouping. Reference uses a per-book UUID in EXTH 113 (and Calibre mirror
 
 **Fix:** generate a random UUID per book (the `epub` package already has `generateUUID`)
 or omit the record entirely.
+
+**Resolution:** EXTH 113 now carries the deterministic UUIDv5 book ID (moved to
+`opf.BookID`, shared with EPUB — repo rule: no randomness in output, so a random UUID
+was not an option). EPUB goldens byte-identical after the move; every corpus book gets a
+distinct ID and repeated conversion is byte-stable. make test and mobitool pass.
 
 ### 22. INDX tag values encoded backward instead of forward — corrupts the TOC of every real book — **FIXED 2026-08-17**
 

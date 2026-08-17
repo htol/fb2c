@@ -344,8 +344,9 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 		// Critical for Kindle: CDEType=EBOK (preferred for books)
 		exthWriter.AddType("EBOK")
 
-		// Add ASIN (Type 113) - Use standard format
-		exthWriter.AddASIN("B00TEST001")
+		// Add ASIN (Type 113): deterministic per-book UUID (reference carries
+		// a per-book UUID here too); a constant broke Kindle library grouping
+		exthWriter.AddASIN(opf.BookID(w.book))
 
 		if w.options.CoverImage != nil {
 			exthWriter.AddCoverOffset(0)
