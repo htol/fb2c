@@ -38,6 +38,9 @@ func main() {
 	case "metadata":
 		metadataCmd(flag.Args()[1:])
 
+	case "dump":
+		dumpCmd(flag.Args()[1:])
+
 	default:
 		printUsage()
 		os.Exit(1)
@@ -50,6 +53,9 @@ func printUsage() {
 Usage:
   fb2c [--debug|-d] convert <input.fb2> <output.(mobi|epub)>   Convert FB2 to MOBI or EPUB
   fb2c [--debug|-d] metadata <input.fb2>                        Extract and display metadata
+  fb2c dump [--json] <file.mobi>                               Decode PalmDB/MOBI/EXTH/INDX headers and records
+  fb2c dump --rawml <file.mobi>                                Extract the book text (rawml)
+  fb2c dump --diff <a.mobi> <b.mobi>                           Compare two MOBI files record by record
   fb2c help                                                   Show this help
 
 Global Options:
