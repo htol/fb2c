@@ -191,7 +191,7 @@ scheme the code does not implement.
 existed only to feed the wrong `firstImageRecord` of #7). Output byte-identical; make test
 and mobitool pass.
 
-### 9. Two-phase record-0 header pattern
+### 9. Two-phase record-0 header pattern — **DEFERRED (optional structural cleanup)**
 
 **File:** `mobi/writer.go:121–283`
 
@@ -202,6 +202,13 @@ offsets, so output is correct, but `Write()` is a ~180-line procedure mutating
 
 **Fix (structural, optional for a first pass):** lay out records into a slice first
 (declarative), compute all indices from it, then build record 0 once.
+
+**Plain-language summary:** `Write()` first writes a placeholder record 0 (header with
+"to be refined" values), then places all other records, then builds the real header and
+replaces the placeholder. Correct, but the two header builds can drift apart (that is how
+#6/#7 happened). The cleanup would build the record list first, derive every index from
+it, and write the header exactly once. Deferred: pure refactoring of a currently correct
+path; the misleading in-between values were already removed with #7/#8.
 
 ### 23. `EXTHFlags` stays 0x40 when `WithEXTH = false` — **FIXED 2026-08-17**
 
@@ -455,6 +462,12 @@ These were checked against spec §1–§12 and the reference — leave as is:
 - No compression (`compression = 1`) — per AGENTS.md, compression stays off.
 
 ## Priority for fix agents
+
+Status 2026-08-17: #1–#8, #10 (decided), #11–#16, #18–#21, #23, #25, #26, #28, #30 are
+FIXED (see per-item resolutions). Open: #9 and #6 (structural, optional), #17 and #29
+(deferred to the compression rewrite — AGENTS.md keeps compression disabled).
+
+Original priority order (kept for reference):
 
 1. #22 INDX tag VWI backward → forward (critical: breaks the TOC of every real book)
 2. #1 EXTH HeaderLength (spec violation, output-level)
