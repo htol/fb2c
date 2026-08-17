@@ -29,7 +29,7 @@ Reference-file facts used throughout:
 
 ## Critical errors
 
-### 1. EXTH `HeaderLength` includes padding — spec and reference say it must not
+### 1. EXTH `HeaderLength` includes padding — spec and reference say it must not — **FIXED 2026-08-17**
 
 **File:** `mobi/exth.go`, `Write()` (padding folded into `totalLength` at exth.go:241–249,
 header written from it at exth.go:249)
@@ -41,6 +41,11 @@ Reference: headerLength 491, padded length 492. The code comment at exth.go:297�
 **Fix:** write the pure (unpadded) length into `HeaderLength`, keep padding bytes after the
 records. `GetTotalLength()` (exth.go:313–327) must keep returning the **padded** length —
 it is used for `FullNameOffset`, which must point past the padded EXTH (spec §5).
+
+**Resolution:** `Write()` now writes the pure length into `HeaderLength` and returns the
+padded byte count; `GetTotalLength()` unchanged (padded). Verified on regenerated goldens:
+EXTH headerLength=250/1939 (non-4-aligned, pure) while FullNameOffset points at
+EXTH start + padded length. Regression test `TestEXTHHeaderLengthExcludesPadding`.
 
 ### 2. EXTH record types 204–207 misused for NCX metadata
 

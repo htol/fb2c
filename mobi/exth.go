@@ -224,29 +224,27 @@ func (w *EXTHWriter) AddStartReading(offset uint32) {
 	w.addRecord(EXTHStartReading, data)
 }
 
-// Write writes the EXTH header and records
+// Write writes the EXTH header and records.
+//
+// HeaderLength (spec §4) includes the 12-byte header and all records but
+// EXCLUDES the final padding; the returned byte count INCLUDES the padding,
+// because FullNameOffset must point past the padded EXTH (spec §5).
 func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 	if len(w.records) == 0 {
 		return 0, nil
 	}
 
-	// Calculate total length
-	// Header: 12 bytes (4 identifier + 4 length + 4 count)
-	// Each record: 8 bytes overhead (4 type + 4 length) + data length
-	totalLength := 12
+	// Pure length: 12-byte header (identifier + length + count) plus each
+	// record's 8 bytes of overhead (type + length) and its data.
+	pureLength := 12
 	for _, record := range w.records {
-		totalLength += 8 + len(record.Data)
-	}
-
-	// Add padding to HeaderLength
-	if padding := totalLength % 4; padding != 0 {
-		totalLength += 4 - padding
+		pureLength += 8 + len(record.Data)
 	}
 
 	// Write header
 	header := EXTHHeader{
 		Identifier:   [4]byte{'E', 'X', 'T', 'H'},
-		HeaderLength: uint32(totalLength),    //nolint:gosec // Length fits
+		HeaderLength: uint32(pureLength),    //nolint:gosec // Length fits
 		RecordCount:  uint32(len(w.records)), //nolint:gosec // Count fits
 	}
 
@@ -274,28 +272,15 @@ func (w *EXTHWriter) Write(output io.Writer) (int, error) {
 		}
 	}
 
-	// Write padding to ensure 4-byte alignment
-	// Wait, start of function: totalLength := 12 + ... (pure sum)
-	// We need to re-calculate desired total length OR just pad based on pure sum
-
-	// Let's recalculate pure length first
-	pureLength := 12
-	for _, record := range w.records {
-		pureLength += 8 + len(record.Data)
-	}
-
+	// Pad to a 4-byte boundary after the records; the padding is not counted
+	// in HeaderLength.
 	padBytes := 0
 	if pureLength%4 != 0 {
 		padBytes = 4 - (pureLength % 4)
-		// Write padding zeros
 		if _, err := output.Write(make([]byte, padBytes)); err != nil {
 			return 0, fmt.Errorf("failed to write EXTH padding: %w", err)
 		}
 	}
-
-	// Double check returned length matches header length written
-	// Header included padding in valid MOBI?
-	// Yes, header.HeaderLength should be the padded length.
 
 	return pureLength + padBytes, nil
 }
@@ -305,7 +290,9 @@ func (w *EXTHWriter) GetRecordCount() int {
 	return len(w.records)
 }
 
-// GetTotalLength returns the total EXTH length including header
+// GetTotalLength returns the total EXTH byte count on disk, i.e. the pure
+// length plus alignment padding. Used for FullNameOffset, which must point
+// past the padded EXTH (spec §5).
 func (w *EXTHWriter) GetTotalLength() int {
 	if len(w.records) == 0 {
 		return 0
