@@ -28,21 +28,21 @@ func (w *Writer) addTOCIndexRecords(palmWriter *PalmDBWriter, recordIndex *int, 
 				return 0, fmt.Errorf("failed to encode TOC INDX: %w", encErr)
 			}
 			tocIndexOffset = uint32(*recordIndex) //nolint:gosec // Index fits
-			palmWriter.AddRecord(indxData, 0, tocIndexOffset*2)
+			palmWriter.AddRecord(indxData, 0, tocIndexOffset)
 			*recordIndex++
 		} else {
 			// Add primary INDX (meta record) - this is what INDXRecordOffset points to
 			tocIndexOffset = uint32(*recordIndex) //nolint:gosec // Index fits
-			palmWriter.AddRecord(ncxResult.PrimaryINDX, 0, tocIndexOffset*2)
+			palmWriter.AddRecord(ncxResult.PrimaryINDX, 0, tocIndexOffset)
 			*recordIndex++
 
 			// Add secondary INDX (data record with actual TOC entries)
-			palmWriter.AddRecord(ncxResult.SecondaryINDX, 0, uint32(*recordIndex)*2) //nolint:gosec // Index fits
+			palmWriter.AddRecord(ncxResult.SecondaryINDX, 0, uint32(*recordIndex)) //nolint:gosec // Index fits
 			*recordIndex++
 
 			// Add CNCX record (string table with chapter names)
 			if len(ncxResult.CNCXRecord) > 0 {
-				palmWriter.AddRecord(ncxResult.CNCXRecord, 0, uint32(*recordIndex)*2) //nolint:gosec // Index fits
+				palmWriter.AddRecord(ncxResult.CNCXRecord, 0, uint32(*recordIndex)) //nolint:gosec // Index fits
 				*recordIndex++
 			}
 

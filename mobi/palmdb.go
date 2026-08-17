@@ -52,7 +52,7 @@ func NewPalmDBHeader(name string, numRecords int) *PalmDBHeader {
 		ModificationNumber: 0,
 		AppInfoOffset:      0,
 		SortInfoOffset:     0,
-		UniqueIDSeed:       generateRandomUniqueIDSeed(),
+		UniqueIDSeed:       generateUniqueIDSeed(numRecords),
 		NextRecordListID:   0,
 		NumRecords:         uint16(numRecords), //nolint:gosec // 64K record limit is standard for PDB
 	}

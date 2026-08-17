@@ -1,8 +1,7 @@
 package mobi
 
 import (
-	"crypto/rand"
-	"math/big"
+	"hash/fnv"
 	"strings"
 )
 
@@ -17,18 +16,19 @@ func timestampToPalmTime(unix int64) uint32 {
 	return uint32(unix + unixToPalmOffset) //nolint:gosec // 2106 issue acknowledged
 }
 
-// generateRandomUniqueIDSeed generates a random unique ID seed
-func generateRandomUniqueIDSeed() uint32 {
-	// Generate random number between 1 and 2^32-1
-	n, _ := rand.Int(rand.Reader, big.NewInt(0xFFFFFFFF))
-	return uint32(n.Uint64()) + 1 //nolint:gosec // Range is guaranteed by big.NewInt
+// generateUniqueIDSeed returns the PalmDB unique-ID seed. Record unique IDs are
+// assigned sequentially 0..numRecords-1, so numRecords+1 is always greater
+// than every ID in use, as the PalmDB spec requires.
+func generateUniqueIDSeed(numRecords int) uint32 {
+	return uint32(numRecords) + 1 //nolint:gosec // Record count is bounded by the 16-bit NumRecords field
 }
 
-// generateRandomID generates a random MOBI ID
-func generateRandomID() uint32 {
-	// Generate random number between 1 and 2^32-1
-	n, _ := rand.Int(rand.Reader, big.NewInt(0xFFFFFFFF))
-	return uint32(n.Uint64()) + 1 //nolint:gosec // Range is guaranteed by big.NewInt
+// generateUniqueID derives the MOBI header unique ID from the book name via
+// FNV-1a: deterministic output (same book -> same ID), distinct between books.
+func generateUniqueID(name string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(name))
+	return h.Sum32()
 }
 
 // transliterateName converts Cyrillic characters to Latin transliteration

@@ -114,7 +114,7 @@ func NewHeader(textSize, recordCount int) *Header {
 		HeaderLength:        232, // Standard MOBI header length (0xE8)
 		MOBIType:            2,   // MOBI type 2 = book
 		TextEncoding:        UTF8Encoding,
-		UniqueID:            generateRandomID(),
+		UniqueID:            0, // Derived from the book name by the writer; 0 keeps files deterministic
 		FileVersion:         6,
 		OrthographicIndex:   0xFFFFFFFF,
 		InflectionIndex:     0xFFFFFFFF,
