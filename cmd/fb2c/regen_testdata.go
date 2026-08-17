@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/htol/fb2c"
+	"github.com/htol/fb2c/epub"
 	"github.com/htol/fb2c/mobi"
 )
 
@@ -79,9 +78,11 @@ func regenTestdataCmd(args []string) {
 
 		epubData, readErr := os.ReadFile(epubPath)
 		exitOnError(readErr)
+		listing, listErr := epub.TextListing(epubData)
+		exitOnError(listErr)
 		exitOnError(os.WriteFile(
 			filepath.Join(goldenRoot, "epub", name+".txt"),
-			[]byte(EPUBTextListing(epubData)), 0o644))
+			[]byte(listing), 0o644))
 
 		fmt.Printf("  %-24s mobi6 + epub goldens regenerated\n", name)
 		converted++
@@ -95,49 +96,4 @@ func regenTestdataCmd(args []string) {
 func convertTo(input, output string) error {
 	converter := fb2c.NewConverter()
 	return converter.Convert(input, output)
-}
-
-// EPUBTextListing renders the text members of an EPUB archive as readable
-// text; binary members are listed with their size only.
-func EPUBTextListing(epubData []byte) string {
-	r, err := zip.NewReader(bytes.NewReader(epubData), int64(len(epubData)))
-	if err != nil {
-		return fmt.Sprintf("failed to open EPUB archive: %v\n", err)
-	}
-
-	var b strings.Builder
-	for _, f := range r.File {
-		fmt.Fprintf(&b, "=== %s (%d bytes) ===\n", f.Name, f.UncompressedSize64)
-		if !isTextMember(f.Name) {
-			fmt.Fprintf(&b, "[binary]\n\n")
-			continue
-		}
-		rc, err := f.Open()
-		if err != nil {
-			fmt.Fprintf(&b, "[open error: %v]\n\n", err)
-			continue
-		}
-		buf := new(bytes.Buffer)
-		if _, err := buf.ReadFrom(rc); err != nil {
-			fmt.Fprintf(&b, "[read error: %v]\n\n", err)
-			rc.Close()
-			continue
-		}
-		rc.Close()
-		b.WriteString(buf.String())
-		if !strings.HasSuffix(buf.String(), "\n") {
-			b.WriteString("\n")
-		}
-		b.WriteString("\n")
-	}
-	return b.String()
-}
-
-// isTextMember reports whether an EPUB archive member is human-readable text.
-func isTextMember(name string) bool {
-	switch filepath.Ext(name) {
-	case ".xml", ".opf", ".ncx", ".xhtml", ".html", ".css", ".txt":
-		return true
-	}
-	return name == "mimetype"
 }

@@ -26,7 +26,7 @@ func TestDeterministicOutput(t *testing.T) {
 			for i := range outputs {
 				out := filepath.Join(dir, "out"+tt.ext)
 				converter := NewConverter()
-				if err := converter.Convert(testRefFB2, out); err != nil {
+				if err := converter.Convert(filepath.Join(fixtureDir, "src_ref.fb2"), out); err != nil {
 					t.Fatalf("conversion %d failed: %v", i, err)
 				}
 				data, err := os.ReadFile(out)

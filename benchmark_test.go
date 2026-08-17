@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -106,7 +107,7 @@ func generateLargeFB2(paragraphs int) []byte {
 
 func TestPerformanceRealFile(t *testing.T) {
 	// Use the constant that already exists
-	filePath := testRefFB2
+	filePath := filepath.Join(fixtureDir, "src_ref.fb2")
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		t.Skipf("Skipping test: file %s not found", filePath)

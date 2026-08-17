@@ -1,374 +1,166 @@
 package fb2c
 
 import (
-	"bytes"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/htol/fb2c/fb2"
-	"github.com/htol/fb2c/mobi"
-	"github.com/htol/fb2c/opf"
 )
 
-// TestConvertSimpleFB2 tests end-to-end conversion of a simple FB2 file
+// End-to-end API tests on the fixture corpus. Byte-level output correctness
+// is covered by golden_test.go; these tests exercise the converter API,
+// metadata extraction and parse validation.
+
 const (
-	testRefFB2 = "testdata/fb2/src_ref.fb2"
-	bookType   = "BOOK"
+	srcRefFixture = "testdata/fb2/src_ref.fb2"
+	srcRefTitle   = "Тестовый ознакомительный документ FictionBook 2.1"
+	srcRefAuthor  = "Дмитрий Петрович Грибов"
 )
 
-func TestConvertSimpleFB2(t *testing.T) { //nolint:gocyclo
-	testFile := testRefFB2
-
-	// Parse FB2
-	parser := fb2.NewParser()
-
-	// Read the file
-	fb2Data, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("Failed to read FB2 file: %v", err)
-	}
-
-	fb2Doc, err := parser.ParseBytes(fb2Data)
-	if err != nil {
-		t.Fatalf("Failed to parse FB2: %v", err)
-	}
-
-	// Extract metadata
-	metadata, err := fb2.ExtractMetadata(fb2Doc, parser)
-	if err != nil {
-		t.Fatalf("Failed to extract metadata: %v", err)
-	}
-
-	// Verify metadata
-	if metadata.Title != "Тестовый ознакомительный документ FictionBook 2.1" {
-		t.Errorf("Title = %q, want 'Тестовый ознакомительный документ FictionBook 2.1'", metadata.Title)
-	}
-
-	if len(metadata.Authors) != 1 {
-		t.Fatalf("Author count = %v, want 1", len(metadata.Authors))
-	}
-
-	if metadata.Authors[0] != "Дмитрий Петрович Грибов" {
-		t.Errorf("Author = %q, want 'Дмитрий Петрович Грибов'", metadata.Authors[0])
-	}
-
-	if metadata.Publisher != "" {
-		t.Errorf("Publisher = %q, want ''", metadata.Publisher)
-	}
-
-	if metadata.Series != "" {
-		t.Errorf("Series = %q, want ''", metadata.Series)
-	}
-
-	if metadata.SeriesIndex != 0 {
-		t.Errorf("SeriesIndex = %v, want 0", metadata.SeriesIndex)
-	}
-
-	// Transform to HTML
-	transformer := fb2.NewTransformer()
-	transformer.SetParser(parser) // Share the parser state
-	result, err := transformer.Transform(fb2Doc)
-	if err != nil {
-		t.Fatalf("Failed to transform FB2: %v", err)
-	}
-
-	html := result.HTML
-	if html == "" {
-		t.Error("HTML output is empty")
-	}
-
-	// Convert to MOBI
-	book := opf.NewOEBBook()
-	book.Metadata = opf.ConvertMetadataFromFB2(
-		metadata.Title,
-		metadata.Authors,
-		metadata.AuthorSort,
-		metadata.Publisher,
-		metadata.ISBN,
-		metadata.Year,
-		metadata.Language,
-		metadata.PubDate,
-		metadata.Series,
-		metadata.SeriesIndex,
-		metadata.Genres,
-		metadata.Keywords,
-		metadata.Annotation,
-		metadata.Cover,
-		metadata.CoverID,
-		metadata.CoverExt,
-	)
-	book.Content = html
-
-	// Generate MOBI
-	var output bytes.Buffer
-	err = mobi.ConvertOEBToMOBI(book, &output)
-	if err != nil {
-		t.Fatalf("Failed to convert to MOBI: %v", err)
-	}
-
-	// Verify MOBI output
-	mobiData := output.Bytes()
-	if len(mobiData) < 78 {
-		t.Fatalf("MOBI output too short: %d bytes", len(mobiData))
-	}
-
-	// Check PalmDB header
-	if string(mobiData[60:64]) != bookType {
-		t.Errorf("PalmDB type = %v, want 'BOOK'", string(mobiData[60:64]))
-	}
-
-	if string(mobiData[64:68]) != "MOBI" {
-		t.Errorf("PalmDB creator = %v, want 'MOBI'", string(mobiData[64:68]))
-	}
-
-	t.Logf("Generated MOBI: %d bytes", len(mobiData))
-}
-
-// TestConvertFB2WithCover tests conversion with cover image
-func TestConvertFB2WithCover(t *testing.T) {
-	testFile := testRefFB2
-
-	// Read the file
-	fb2Data, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("Failed to read FB2 file: %v", err)
-	}
-
-	parser := fb2.NewParser()
-	parser.ExtractImages = true // Enable image extraction
-	fb2Doc, err := parser.ParseBytes(fb2Data)
-	if err != nil {
-		t.Fatalf("Failed to parse FB2: %v", err)
-	}
-
-	metadata, err := fb2.ExtractMetadata(fb2Doc, parser)
-	if err != nil {
-		t.Fatalf("Failed to extract metadata: %v", err)
-	}
-
-	// Verify cover was extracted
-	if metadata.CoverID == "" {
-		t.Error("Cover ID not found")
-	}
-
-	if len(metadata.Cover) == 0 {
-		t.Error("Cover image not extracted")
-	}
-
-	// Verify annotation
-	/*
-		if metadata.Annotation == "" {
-			t.Error("Annotation not extracted")
+// TestConvertCorpusAPI drives the public Converter API over every happy
+// fixture for both output formats.
+func TestConvertCorpusAPI(t *testing.T) {
+	for _, name := range happyFixtures(t) {
+		for _, ext := range []string{".mobi", ".epub"} {
+			t.Run(name+ext, func(t *testing.T) {
+				out := filepath.Join(t.TempDir(), name+ext)
+				if err := NewConverter().Convert(filepath.Join(fixtureDir, name+".fb2"), out); err != nil {
+					t.Fatalf("Convert() failed: %v", err)
+				}
+				info, err := os.Stat(out)
+				if err != nil {
+					t.Fatalf("output not created: %v", err)
+				}
+				if info.Size() == 0 {
+					t.Error("output is empty")
+				}
+			})
 		}
-	*/
-
-	t.Logf("Cover: %s, %d bytes, %s", metadata.CoverID, len(metadata.Cover), metadata.CoverExt)
-}
-
-// TestConverterEndToEnd tests the full converter API
-func TestConverterEndToEnd(t *testing.T) {
-	converter := NewConverter()
-
-	// Convert simple FB2
-	inputFile := testRefFB2
-	outputFile := filepath.Join(os.TempDir(), "test_output.mobi")
-	defer os.Remove(outputFile)
-
-	err := converter.Convert(inputFile, outputFile)
-	if err != nil {
-		t.Fatalf("Convert() failed: %v", err)
-	}
-
-	// Verify output file exists
-	info, err := os.Stat(outputFile)
-	if err != nil {
-		t.Fatalf("Output file not created: %v", err)
-	}
-
-	if info.Size() == 0 {
-		t.Error("Output file is empty")
-	}
-
-	// Read and verify output
-	data, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Failed to read output: %v", err)
-	}
-
-	if len(data) < 100 {
-		t.Errorf("Output too small: %d bytes", len(data))
-	}
-
-	// Check for PalmDB signature
-	if string(data[60:64]) != bookType {
-		t.Errorf("Invalid PalmDB type: %s", string(data[60:64]))
-	}
-
-	t.Logf("Generated MOBI: %s (%d bytes)", outputFile, info.Size())
-}
-
-// TestConverterOptions tests different conversion options
-func TestConverterOptions(t *testing.T) {
-	tests := []struct {
-		name    string
-		options ConvertOptions
-	}{
-		{
-			name: "MOBI 6 only",
-			options: ConvertOptions{
-				MobiType:    "old",
-				Compression: true,
-				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
-			},
-		},
-		{
-			name: "KF8 only",
-			options: ConvertOptions{
-				MobiType:    "new",
-				Compression: true,
-				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
-			},
-		},
-		{
-			name: "No compression",
-			options: ConvertOptions{
-				MobiType:    "both",
-				Compression: false,
-				Logger:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			converter := NewConverter()
-			converter.SetOptions(tt.options)
-
-			inputFile := testRefFB2
-			outputFile := filepath.Join(os.TempDir(), "test_opts.mobi")
-			defer os.Remove(outputFile)
-
-			err := converter.Convert(inputFile, outputFile)
-			if err != nil {
-				t.Fatalf("Convert() failed: %v", err)
-			}
-
-			// Verify output
-			info, err := os.Stat(outputFile)
-			if err != nil {
-				t.Fatalf("Output file not created: %v", err)
-			}
-
-			if info.Size() < 100 {
-				t.Errorf("Output too small: %d bytes", info.Size())
-			}
-
-			t.Logf("Generated with options '%s': %d bytes", tt.name, info.Size())
-		})
 	}
 }
 
-// TestMetadataExtraction tests metadata extraction from various files
+// TestCoverExtraction verifies parser-level cover extraction from cover.fb2.
+func TestCoverExtraction(t *testing.T) {
+	parser := fb2.NewParser()
+	data, err := os.ReadFile(filepath.Join(fixtureDir, "cover.fb2"))
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+	fb2Doc, err := parser.ParseBytes(data)
+	if err != nil {
+		t.Fatalf("ParseBytes failed: %v", err)
+	}
+
+	metadata, err := fb2.ExtractMetadata(fb2Doc, parser)
+	if err != nil {
+		t.Fatalf("ExtractMetadata failed: %v", err)
+	}
+	if metadata.CoverID == "" {
+		t.Error("cover ID not extracted")
+	}
+	if len(metadata.Cover) == 0 {
+		t.Error("cover image not extracted")
+	}
+}
+
+// TestMetadataExtraction checks metadata against known fixture values.
 func TestMetadataExtraction(t *testing.T) {
 	tests := []struct {
 		file       string
 		wantTitle  string
 		wantAuthor string
-		wantSeries string
 	}{
-		{
-			file:       "testdata/fb2/src_ref.fb2",
-			wantTitle:  "Тестовый ознакомительный документ FictionBook 2.1",
-			wantAuthor: "Дмитрий Петрович Грибов",
-			wantSeries: "",
-		},
+		{file: srcRefFixture, wantTitle: srcRefTitle, wantAuthor: srcRefAuthor},
+		{file: filepath.Join(fixtureDir, "minimal.fb2"), wantTitle: "Минимальная книга", wantAuthor: "Иван Тестовый"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.file, func(t *testing.T) {
+		t.Run(filepath.Base(tt.file), func(t *testing.T) {
 			metadata, err := fb2.GetMetadataFromFile(tt.file)
 			if err != nil {
-				t.Fatalf("ExtractMetadata() failed: %v", err)
+				t.Fatalf("GetMetadataFromFile() failed: %v", err)
 			}
-
 			if metadata.Title != tt.wantTitle {
 				t.Errorf("Title = %q, want %q", metadata.Title, tt.wantTitle)
 			}
-
-			foundAuthor := false
+			found := false
 			for _, author := range metadata.Authors {
 				if author == tt.wantAuthor {
-					foundAuthor = true
+					found = true
 					break
 				}
 			}
-			if !foundAuthor {
-				t.Errorf("Author %q not found in %v", tt.wantAuthor, metadata.Authors)
+			if !found {
+				t.Errorf("author %q not found in %v", tt.wantAuthor, metadata.Authors)
 			}
-
-			if metadata.Series != tt.wantSeries {
-				t.Errorf("Series = %q, want %q", metadata.Series, tt.wantSeries)
-			}
-
-			t.Logf("✓ %s: '%s' by %s", tt.file, metadata.Title, metadata.Authors)
 		})
 	}
 }
 
-// TestValidateFB2 validates FB2 file structure
+// TestConvertOptions exercises the conversion option matrix on a corpus file.
+func TestConvertOptions(t *testing.T) {
+	quietLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	tests := []struct {
+		name    string
+		options ConvertOptions
+	}{
+		{name: "MOBI 6 only", options: ConvertOptions{MobiType: "old", Logger: quietLogger}},
+		{name: "KF8 only", options: ConvertOptions{MobiType: "new", Logger: quietLogger}},
+		{name: "Joint", options: ConvertOptions{MobiType: "both", Compression: false, Logger: quietLogger}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "opts.mobi")
+			converter := NewConverter()
+			converter.SetOptions(tt.options)
+			if err := converter.Convert(filepath.Join(fixtureDir, "minimal.fb2"), out); err != nil {
+				t.Fatalf("Convert() failed: %v", err)
+			}
+			if info, err := os.Stat(out); err != nil || info.Size() < 100 {
+				t.Errorf("output missing or too small: %v, %v", info, err)
+			}
+		})
+	}
+}
+
+// TestValidateFB2 checks parse validation, including negative fixtures that
+// must fail at parse time.
 func TestValidateFB2(t *testing.T) {
 	tests := []struct {
 		file    string
 		wantErr bool
 	}{
-		{
-			file:    "testdata/fb2/src_ref.fb2",
-			wantErr: false,
-		},
-		{
-			file:    "testdata/fb2/src_ref.fb2",
-			wantErr: false,
-		},
-		{
-			file:    "nonexistent.fb2",
-			wantErr: true,
-		},
+		{file: srcRefFixture, wantErr: false},
+		{file: filepath.Join(fixtureDir, "minimal.fb2"), wantErr: false},
+		{file: filepath.Join(fixtureDir, "broken_xml.fb2"), wantErr: true},
+		{file: filepath.Join(fixtureDir, "bad_base64.fb2"), wantErr: true},
+		{file: "nonexistent.fb2", wantErr: true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.file, func(t *testing.T) {
-			err := validateFB2(tt.file)
+		t.Run(filepath.Base(tt.file), func(t *testing.T) {
+			parser := fb2.NewParser()
+			_, err := parser.ParseFile(tt.file)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateFB2() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-// BenchmarkConversion benchmarks the conversion process
+// BenchmarkConversion benchmarks the conversion process.
 func BenchmarkConversion(b *testing.B) {
-	testFile := "testdata/fb2/src_ref.fb2"
+	input := filepath.Join(fixtureDir, "src_ref.fb2")
+	output := filepath.Join(b.TempDir(), "bench.mobi")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		converter := NewConverter()
-		inputFile := testFile
-		outputFile := filepath.Join(os.TempDir(), "bench.mobi")
-
-		err := converter.Convert(inputFile, outputFile)
-		if err != nil {
+		if err := NewConverter().Convert(input, output); err != nil {
 			b.Fatalf("Convert() failed: %v", err)
 		}
-
-		os.Remove(outputFile)
 	}
-}
-
-// validateFB2 is a local helper since we removed the public wrapper
-func validateFB2(path string) error {
-	parser := fb2.NewParser()
-	_, err := parser.ParseFile(path)
-	return err
 }
