@@ -114,4 +114,3 @@ func resolveFileposLinks(content string) string {
 
 	return result
 }
-

@@ -10,69 +10,39 @@ import (
 func createMinimalMOBI() []byte {
 	var buf bytes.Buffer
 
-	// PalmDB header structure:
-	// 0-31: Database name (32 bytes)
-	// 32-33: Attributes (2 bytes)
-	// 34-35: Version (2 bytes)
-	// 36-43: Creation date (8 bytes)
-	// 44-51: Modification date (8 bytes)
-	// 52-59: Last backup date (8 bytes)
-	// 60-63: Modification number (4 bytes)
-	// 64-67: App info ID (4 bytes)
-	// 68-71: Sort info ID (4 bytes)
-	// 72-75: Type (4 bytes) - "BOOK"
-	// 76-79: Creator (4 bytes) - "MOBI"
-
-	// Write database name (32 bytes)
+	// Realistic PalmDB layout (spec §1):
+	// 0-31 name, 32-59 attributes/version/dates/modnum/appInfo/sortInfo,
+	// 60-63 type "BOOK", 64-67 creator "MOBI", 68-71 uniqueID seed,
+	// 72-75 nextRecordListID, 76-77 numRecords, 78+ record index (8 bytes/entry).
 	name := "Test Book"
-	buf.Write([]byte(name))
-	for i := len(name); i < 32; i++ {
+	buf.WriteString(name)
+	for i := len(name); i < 60; i++ {
 		buf.WriteByte(0)
 	}
-
-	// Write filler to get to offset 72 (Type field)
-	for i := 32; i < 72; i++ {
+	buf.WriteString("BOOK")
+	buf.WriteString("MOBI")
+	for i := 68; i < 76; i++ {
 		buf.WriteByte(0)
 	}
+	_ = binary.Write(&buf, binary.BigEndian, uint16(1)) // numRecords
 
-	// Type: "BOOK" at offset 72
-	buf.Write([]byte("BOOK"))
-
-	// Creator: "MOBI" at offset 76
-	buf.Write([]byte("MOBI"))
-
-	// Rest of PalmDB header to offset 80
-	for i := 80; i < 80; i++ {
-		buf.WriteByte(0)
-	}
-
-	// MOBI header starts after PalmDB header (offset 80+)
-	buf.Write([]byte("MOBI")) // Magic
-
-	// Header length (4 bytes)
-	headerLen := make([]byte, 4)
-	binary.BigEndian.PutUint32(headerLen, 232)
-	buf.Write(headerLen)
-
-	// MOBI version (4 bytes)
-	version := make([]byte, 4)
-	binary.BigEndian.PutUint32(version, 6)
-	buf.Write(version)
-
-	// MOBI flags (4 bytes)
+	// Record index entry 0: data at 86 (78 + 8), attributes 0, uniqueID 0
+	_ = binary.Write(&buf, binary.BigEndian, uint32(86))
 	buf.Write([]byte{0, 0, 0, 0})
 
-	// Padding to offset 28 where encoding goes
+	// Record 0: 16-byte PalmDOC header, then the MOBI header
+	for i := 0; i < 16; i++ {
+		buf.WriteByte(0)
+	}
+	buf.WriteString("MOBI")                               // Magic
+	_ = binary.Write(&buf, binary.BigEndian, uint32(232)) // Header length
+	_ = binary.Write(&buf, binary.BigEndian, uint32(6))   // MOBI version
+	buf.Write([]byte{0, 0, 0, 0})                         // Flags
 	for i := 16; i < 28; i++ {
 		buf.WriteByte(0)
 	}
-
-	// Encoding: 65001 (UTF-8) at offset 28 from MOBI header start
-	encoding := make([]byte, 4)
-	binary.BigEndian.PutUint32(encoding, 65001)
-	buf.Write(encoding)
-
-	// Rest of MOBI header to 232 bytes
+	// Encoding: 65001 (UTF-8) at MOBI header offset 28
+	_ = binary.Write(&buf, binary.BigEndian, uint32(65001))
 	for i := 32; i < 232; i++ {
 		buf.WriteByte(0)
 	}
@@ -131,11 +101,11 @@ func TestValidateValidMOBI(t *testing.T) {
 // TestValidateInvalidType tests detection of invalid file type
 func TestValidateInvalidType(t *testing.T) {
 	mobi := createMinimalMOBI()
-	// Change type from "BOOK" to "TEST" at offset 72
-	mobi[72] = 'T'
-	mobi[73] = 'E'
-	mobi[74] = 'S'
-	mobi[75] = 'T'
+	// Change type from "BOOK" to "TEST" at offset 60
+	mobi[60] = 'T'
+	mobi[61] = 'E'
+	mobi[62] = 'S'
+	mobi[63] = 'T'
 
 	validator := NewValidator(mobi)
 	validator.Validate()
@@ -154,11 +124,11 @@ func TestValidateInvalidType(t *testing.T) {
 // TestValidateInvalidCreator tests detection of invalid creator
 func TestValidateInvalidCreator(t *testing.T) {
 	mobi := createMinimalMOBI()
-	// Change creator from "MOBI" to "TEST" at offset 76
-	mobi[76] = 'T'
-	mobi[77] = 'E'
-	mobi[78] = 'S'
-	mobi[79] = 'T'
+	// Change creator from "MOBI" to "TEST" at offset 64
+	mobi[64] = 'T'
+	mobi[65] = 'E'
+	mobi[66] = 'S'
+	mobi[67] = 'T'
 
 	validator := NewValidator(mobi)
 	validator.Validate()
@@ -198,9 +168,8 @@ func TestValidateWithEXTH(t *testing.T) {
 // TestValidateMissingMOBIHeader tests detection of missing MOBI header
 func TestValidateMissingMOBIHeader(t *testing.T) {
 	var buf bytes.Buffer
-	// Write valid PalmDB header
-	buf.Write(createMinimalMOBI()[:78])
-	// Write some junk instead of MOBI header
+	// Full PalmDB header + record index, then junk instead of record 0
+	buf.Write(createMinimalMOBI()[:86])
 	buf.Write([]byte("JUNK DATA HERE"))
 
 	validator := NewValidator(buf.Bytes())
@@ -212,14 +181,14 @@ func TestValidateMissingMOBIHeader(t *testing.T) {
 
 	hasMOBIError := false
 	for _, err := range validator.Errors() {
-		if err == "MOBI header not found" {
+		if err == "MOBI header not found in record 0" {
 			hasMOBIError = true
 			break
 		}
 	}
 
 	if !hasMOBIError {
-		t.Errorf("Expected 'MOBI header not found' error, got: %v", validator.Errors())
+		t.Errorf("Expected 'MOBI header not found in record 0' error, got: %v", validator.Errors())
 	}
 }
 

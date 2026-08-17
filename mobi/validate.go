@@ -114,20 +114,41 @@ func (v *Validator) validateMOBIHeader() {
 	}
 }
 
+// record0Range returns the byte range of PDB record 0 (the header record).
+// Magic searches must stay inside it: the strings "MOBI"/"EXTH" can also
+// occur in book text.
+func (v *Validator) record0Range() (int, int, error) {
+	if len(v.data) < 86 {
+		return 0, 0, fmt.Errorf("File too short for record index")
+	}
+	numRecords := int(binary.BigEndian.Uint16(v.data[76:78])) //nolint:gosec // Bounded by file length checks below
+	if numRecords < 1 {
+		return 0, 0, fmt.Errorf("No records in file")
+	}
+	start := int(binary.BigEndian.Uint32(v.data[78:82])) //nolint:gosec // Validated below
+	end := len(v.data)
+	if numRecords > 1 {
+		end = int(binary.BigEndian.Uint32(v.data[86:90])) //nolint:gosec // Validated below
+	}
+	if start <= 0 || end <= start || end > len(v.data) {
+		return 0, 0, fmt.Errorf("Invalid record 0 range %d..%d", start, end)
+	}
+	return start, end, nil
+}
+
 func (v *Validator) findMOBIHeaderOffset() (int, error) {
-	searchStart := 78
-	if len(v.data) <= searchStart {
-		return 0, fmt.Errorf("File too short to contain MOBI header")
+	recStart, recEnd, err := v.record0Range()
+	if err != nil {
+		return 0, err
 	}
 
-	mobiOffset := bytes.Index(v.data[searchStart:], []byte(MOBIIdentifier))
+	mobiOffset := bytes.Index(v.data[recStart:recEnd], []byte(MOBIIdentifier))
 	if mobiOffset == -1 {
-		return 0, fmt.Errorf("MOBI header not found")
+		return 0, fmt.Errorf("MOBI header not found in record 0")
 	}
+	mobiOffset += recStart
 
-	mobiOffset += searchStart
-
-	for mobiOffset < len(v.data) {
+	for mobiOffset < recEnd {
 		if mobiOffset+12 <= len(v.data) {
 			headerLen := binary.BigEndian.Uint32(v.data[mobiOffset+4 : mobiOffset+8])
 			version := binary.BigEndian.Uint32(v.data[mobiOffset+8 : mobiOffset+12])
@@ -136,20 +157,20 @@ func (v *Validator) findMOBIHeaderOffset() (int, error) {
 			}
 		}
 
-		next := bytes.Index(v.data[mobiOffset+4:], []byte(MOBIIdentifier))
+		next := bytes.Index(v.data[mobiOffset+4:recEnd], []byte(MOBIIdentifier))
 		if next == -1 {
-			return 0, fmt.Errorf("MOBI header not found")
+			break
 		}
 		mobiOffset += 4 + next
 	}
-	return 0, fmt.Errorf("MOBI header not found")
+	return 0, fmt.Errorf("MOBI header not found in record 0")
 }
 
 // validateEXTH validates EXTH header
 func (v *Validator) validateEXTH() {
-	// Find MOBI header first
-	mobiOffset := bytes.Index(v.data, []byte(MOBIIdentifier))
-	if mobiOffset == -1 {
+	// Find MOBI header first (bounded to record 0)
+	mobiOffset, err := v.findMOBIHeaderOffset()
+	if err != nil {
 		return // Already reported in validateMOBIHeader
 	}
 
