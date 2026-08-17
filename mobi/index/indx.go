@@ -92,78 +92,6 @@ func (i *INDX) AddString(s string) int {
 	return index
 }
 
-// Encode encodes the INDX to bytes
-func (i *INDX) Encode() ([]byte, error) {
-	var buf bytes.Buffer
-
-	tagxData, err := i.TAGX.Encode()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode TAGX: %w", err)
-	}
-
-	cncxData, err := i.encodeCNCX()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode CNCX: %w", err)
-	}
-
-	var entryBuffers [][]byte
-	for _, entry := range i.IDXT {
-		data, err := i.encodeIDXTEntry(entry)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode IDXT entry: %w", err)
-		}
-		entryBuffers = append(entryBuffers, data)
-	}
-
-	// 4. Construct IDXT Block (The Table of Offsets)
-	// Format: "IDXT" (4) + Offsets(N*2)
-	idxtBuf := new(bytes.Buffer)
-	idxtBuf.WriteString("IDXT")
-
-	// Calculate offsets relative to the start of the INDX record
-	// Layout: Header (192) | TAGX | CNCX | Entries | IDXT
-	// Standard MOBI puts entries BEFORE IDXT block
-	entriesStartOffset := uint32(INDXHeaderSize) + uint32(len(tagxData)) + uint32(len(cncxData)) //nolint:gosec // Lengths fit in uint32 //nolint:gosec // Lengths fit in uint32
-
-	currentOffset := entriesStartOffset
-	for _, entryBuf := range entryBuffers {
-		if err := binary.Write(idxtBuf, binary.BigEndian, uint16(currentOffset)); err != nil { //nolint:gosec // Offset must fit in uint16 per strict MOBI spec
-			return nil, fmt.Errorf("failed to write IDXT offset: %w", err)
-		}
-		currentOffset += uint32(len(entryBuf)) //nolint:gosec // Length fits
-	}
-	idxtData := idxtBuf.Bytes()
-
-	// 5. Update Header Fields
-	// Layout: Header | TAGX | CNCX | Entries | IDXT
-	i.Header.Count = uint32(len(entryBuffers))            //nolint:gosec // Count fits
-	i.Header.TotalRecordCount = uint32(len(entryBuffers)) //nolint:gosec // Count fits
-	i.Header.CNCXCount = uint32(len(i.CNCX))              //nolint:gosec // Count fits
-
-	var totalEntriesSize uint32
-	for _, entryBuf := range entryBuffers {
-		totalEntriesSize += uint32(len(entryBuf)) //nolint:gosec // Size fits
-	}
-
-	i.Header.IDXTOffset = INDXHeaderSize + uint32(len(tagxData)) + uint32(len(cncxData)) + totalEntriesSize //nolint:gosec // Offset fits //nolint:gosec // Offset fits //nolint:gosec // Offset fits
-
-	if err := i.writeHeader(&buf); err != nil {
-		return nil, err
-	}
-
-	buf.Write(tagxData)
-
-	buf.Write(cncxData)
-
-	for _, entryBuf := range entryBuffers {
-		buf.Write(entryBuf)
-	}
-
-	buf.Write(idxtData)
-
-	return buf.Bytes(), nil
-}
-
 // NCXIndexResult contains primary, secondary INDX and CNCX records
 type NCXIndexResult struct {
 	PrimaryINDX   []byte // Meta INDX record (IndexType=2)
@@ -228,11 +156,9 @@ func (i *INDX) encodeCNCXRecord() ([]byte, error) {
 		buf.WriteString(s)
 	}
 
-	// Pad to even boundary if needed (though CNCX usually doesn't require strict padding at end of strings,
-	// typically the record itself is padded by the writer if necessary)
-	if buf.Len()%2 != 0 {
-		buf.WriteByte(0)
-	}
+	// Spec §9: the CNCX table is terminated by a NUL byte (a zero where a
+	// length prefix would start).
+	buf.WriteByte(0)
 	return buf.Bytes(), nil
 }
 
@@ -541,44 +467,6 @@ func writeINDXHeader(w *bytes.Buffer, h INDXHeader) error {
 	return nil
 }
 
-// writeHeader writes the INDX header
-func (i *INDX) writeHeader(w *bytes.Buffer) error {
-	fields := []interface{}{
-		i.Header.ID,
-		i.Header.HeaderLength,
-		i.Header.Unknown1,
-		i.Header.IndexType,
-		i.Header.UnknownOffset,
-		i.Header.IDXTOffset,
-		i.Header.Count,
-		i.Header.Encoding,
-		i.Header.Language,
-		i.Header.TotalRecordCount,
-		i.Header.ORDTOffset,
-		i.Header.LIGTOffset,
-		i.Header.CountNeeded,
-		i.Header.CNCXCount,
-		i.Header.Padding,
-	}
-
-	for _, field := range fields {
-		if err := binary.Write(w, binary.BigEndian, field); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// encodeCNCX encodes the CNCX (string table)
-func (i *INDX) encodeCNCX() ([]byte, error) {
-	var buf bytes.Buffer
-	for _, s := range i.CNCX {
-		buf.WriteString(s)
-		buf.WriteByte(0)
-	}
-	return buf.Bytes(), nil
-}
-
 // encodeVarint encodes a uint32 as a variable-width integer for index entry
 // tag values. Spec §10: index entry tag values are forward-encoded VWI
 // (MSB set on the last byte), like the CNCX string lengths. Only trailing-entry
@@ -638,95 +526,6 @@ func (t *TAGX) Encode() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-// encodeIDXTEntry encodes a single index entry
-// MOBI format: <label_length> <label_text> <control_byte> <tag_values...>
-// NCX Tag IDs:
-//   - Tag 1: Offset/Position (Mask 0x01)
-//   - Tag 2: Length (Mask 0x02)
-//   - Tag 3: Name index in CNCX (Mask 0x04)
-//   - Tag 4: Depth/Level (Mask 0x08)
-//   - Tag 5: Parent index (Mask 0x10)
-//   - Tag 21: First child index (Mask 0x20)
-//   - Tag 22: Last child index (Mask 0x40)
-func (i *INDX) encodeIDXTEntry(entry IDXTEntry) ([]byte, error) {
-	var buf bytes.Buffer
-
-	// 1. Write label (length-prefixed string)
-	// Label length is 1 byte for labels up to 255 chars
-	label := entry.Label
-	if len(label) > 255 {
-		label = label[:255]
-	}
-	buf.WriteByte(byte(len(label)))
-	buf.WriteString(label)
-
-	controlBytePos := buf.Len()
-	buf.WriteByte(0) // Placeholder for control byte
-
-	// 3. Write tag values based on TAGX definition (in order of tag ID)
-	controlByte := i.writeIDXTTags(&buf, entry)
-
-	data := buf.Bytes()
-	data[controlBytePos] = controlByte
-
-	return data, nil
-}
-
-// writeIDXTTags writes the tag values for an IDXT entry and returns the control byte
-func (i *INDX) writeIDXTTags(buf *bytes.Buffer, entry IDXTEntry) byte { //nolint:gocyclo
-	var controlByte byte = 0x00
-
-	// Tag 1: Offset (Mask 0x01)
-	if val, ok := entry.TagValues[1]; ok && len(val) > 0 {
-		controlByte |= 0x01
-		buf.Write(encodeVarint(val[0]))
-	} else if entry.Offset > 0 {
-		controlByte |= 0x01
-		buf.Write(encodeVarint(entry.Offset))
-	}
-
-	// Tag 2: Length (Mask 0x02)
-	if val, ok := entry.TagValues[2]; ok && len(val) > 0 {
-		controlByte |= 0x02
-		buf.Write(encodeVarint(val[0]))
-	} else if entry.Length > 0 {
-		controlByte |= 0x02
-		buf.Write(encodeVarint(entry.Length))
-	}
-
-	// Tag 3: Name Index in CNCX (Mask 0x04)
-	if val, ok := entry.TagValues[3]; ok && len(val) > 0 {
-		controlByte |= 0x04
-		buf.Write(encodeVarint(val[0]))
-	}
-
-	// Tag 4: Depth/Level (Mask 0x08)
-	if val, ok := entry.TagValues[4]; ok && len(val) > 0 {
-		controlByte |= 0x08
-		buf.Write(encodeVarint(val[0]))
-	}
-
-	// Tag 5: Parent index (Mask 0x10)
-	if val, ok := entry.TagValues[5]; ok && len(val) > 0 {
-		controlByte |= 0x10
-		buf.Write(encodeVarint(val[0]))
-	}
-
-	// Tag 21: First child index (Mask 0x20)
-	if val, ok := entry.TagValues[21]; ok && len(val) > 0 {
-		controlByte |= 0x20
-		buf.Write(encodeVarint(val[0]))
-	}
-
-	// Tag 22: Last child index (Mask 0x40)
-	if val, ok := entry.TagValues[22]; ok && len(val) > 0 {
-		controlByte |= 0x40
-		buf.Write(encodeVarint(val[0]))
-	}
-
-	return controlByte
 }
 
 // TOCEntry represents a helper entry for building TOC

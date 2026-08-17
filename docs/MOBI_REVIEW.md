@@ -384,7 +384,7 @@ beneath it (the functions and tests are correct). Actively misleading next to #2
 
 **Fix:** swap the two lines.
 
-### 28. INDX CNCX conformance nits
+### 28. INDX CNCX conformance nits — **FIXED 2026-08-17**
 
 **File:** `mobi/index/indx.go` (`encodeCNCXRecord`, `Encode`/`encodeCNCX`)
 
@@ -398,6 +398,12 @@ beneath it (the functions and tests are correct). Actively misleading next to #2
 
 **Fix:** always append the NUL terminator; delete the fallback (fail loudly) or make it
 share the conforming CNCX/offset logic.
+
+**Resolution:** `encodeCNCXRecord` always writes the NUL terminator (spec §9). The
+single-record fallback in `writer_toc.go` is deleted — on `EncodeNCXIndex` failure the
+conversion now fails loudly instead of emitting a non-conforming TOC. The dead `Encode` /
+`encodeCNCX` / `encodeIDXTEntry` / `writeIDXTTags` / `writeHeader` chain followed it out.
+Verified: CNCX goldens end with 0x00; make test and mobitool pass.
 
 ### 29. `compressRecord` emits invalid literal tokens
 
