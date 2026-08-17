@@ -212,56 +212,20 @@ func (w *PalmDBWriter) Write(output io.Writer) error {
 
 	// Update record entries with offsets
 	for i := range w.recordEntries {
-		if i == 0 {
-			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
-				"component", "PalmDBWriter",
-				"operation", "Write",
-				"dataOffset", dataOffset,
-				"numRecords", len(w.records),
-				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
-			)
-		}
 		w.recordEntries[i].Offset = uint32(dataOffset) //nolint:gosec // Offset fits
-		recordLen := len(w.records[i])
-		dataOffset += recordLen
-		if i == 0 {
-			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
-				"component", "PalmDBWriter",
-				"operation", "Write",
-				"dataOffset", dataOffset,
-				"numRecords", len(w.records),
-				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
-			)
-		}
-		if i == 1 {
-			w.logger.Debug("PalmDBWriter.Write: calculating offsets",
-				"component", "PalmDBWriter",
-				"operation", "Write",
-				"dataOffset", dataOffset,
-				"numRecords", len(w.records),
-				"numEntries", len(w.recordEntries),
-				"dataOffsetUint32", uint32(dataOffset), //nolint:gosec // Overflow checked
-				"dataOffsetHex", fmt.Sprintf("0x%x", uint32(dataOffset)), //nolint:gosec // Overflow checked
-			)
-		}
-		// Log final summary after all offsets are calculated
-		if i == len(w.recordEntries)-1 {
-			finalOffsets := make(map[int]uint32, len(w.recordEntries))
-			for idx, entry := range w.recordEntries {
-				finalOffsets[idx] = entry.Offset
-			}
-			w.logger.Debug("final record offsets calculated",
-				"component", "PalmDBWriter",
-				"operation", "Write",
-				"totalRecords", len(w.recordEntries),
-				"finalOffsets", finalOffsets,
-			)
-		}
+		dataOffset += len(w.records[i])
 	}
+
+	finalOffsets := make(map[int]uint32, len(w.recordEntries))
+	for idx, entry := range w.recordEntries {
+		finalOffsets[idx] = entry.Offset
+	}
+	w.logger.Debug("final record offsets calculated",
+		"component", "PalmDBWriter",
+		"operation", "Write",
+		"totalRecords", len(w.recordEntries),
+		"finalOffsets", finalOffsets,
+	)
 
 	// Write header
 	if err := w.header.Write(output); err != nil {
