@@ -334,7 +334,7 @@ or add a real assertion.
 **File:** `mobi/writer.go:135–137` ("comperssing" twice, duplicated comment lines),
 duplicated "// 4. Add Images" block at writer.go:205–207.
 
-### 25. INDX meta `Encoding` = 1252 while the CNCX strings are UTF-8
+### 25. INDX meta `Encoding` = 1252 while the CNCX strings are UTF-8 — **FIXED 2026-08-17**
 
 **File:** `mobi/index/indx.go:755` (`NewINDX(1252, 1033)`), copied into the NCX meta
 header by `encodePrimaryINDX`
@@ -343,6 +343,11 @@ The NCX meta record declares CP1252; the reference writes 65001, and fb2c's CNCX
 strings are UTF-8. Readers tolerate it today.
 
 **Fix:** `NewINDX(65001, …)`; keep language 0xFFFFFFFF (the reference value).
+
+**Resolution:** `NewTOCIndexBuilder` now builds the INDX with encoding 65001 and language
+0xFFFFFFFF. Verified via `tmp/verify_ref.py` on the regenerated src_ref golden: meta rec
+shows `enc=65001 lang=4294967295`, matching the reference record 364. make test and
+mobitool pass.
 
 ### 26. EXTH 200 misused as a creator-software string — **FIXED 2026-08-17**
 

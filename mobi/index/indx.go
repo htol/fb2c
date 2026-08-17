@@ -751,9 +751,9 @@ type TOCIndexBuilder struct {
 
 // NewTOCIndexBuilder creates a new TOC index builder
 func NewTOCIndexBuilder() *TOCIndexBuilder {
-	// Default to 1252 (Windows-1252) like reference, even if using UTF-8 strings
-	// This seems to be the standard expectation for MOBI headers
-	indx := NewINDX(1252, 1033)
+	// Encoding 65001 (UTF-8): the CNCX strings are UTF-8 and the reference
+	// meta record declares 65001. Language 0xFFFFFFFF matches the reference.
+	indx := NewINDX(65001, 0xFFFFFFFF)
 
 	// Initialize NCX TAGX tags for TOC navigation
 	// Match Reference (364) exactly: Tags 1, 2, 3, 4 only.
