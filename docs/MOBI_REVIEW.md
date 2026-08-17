@@ -109,7 +109,7 @@ trailing-entry sizes).
 
 ## Significant issues
 
-### 4. `LastContentRec` ignores image records
+### 4. `LastContentRec` ignores image records — **FIXED 2026-08-17**
 
 **File:** `mobi/writer.go:189` (`lastContentRec := uint32(recordIndex - 1)` after text
 records; the later comment "Do not Overwrite it" guards it)
@@ -121,6 +121,13 @@ record, not the last text record (363). fb2c always writes the last text record.
 **Fix:** after adding image records, set `LastContentRec` to the last image record when
 images exist; keep last-text-record only for imageless books. Update the misleading
 comments at writer.go:186–189.
+
+**Resolution:** writer.go now extends `LastContentRec` past the image records when images
+exist. Companion change: `ExtractRawML` no longer takes the text end from `LastContentRec`
+(our own reader swallowed INDX+JPEG once the field became spec-conformant); it derives the
+text end from the MOBI header's text `RecordCount` (+0x08). Verified: cover/images/src_ref
+goldens show LastContentRec = last image record, imageless books unchanged, rawml
+extraction byte-identical; make test and mobitool validation pass.
 
 ### 5. `Locale` hardcoded to 1049 (Russian)
 

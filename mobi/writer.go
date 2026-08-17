@@ -182,7 +182,9 @@ func (w *Writer) Write(output io.Writer) error {
 		recordIndex++
 	}
 
-	// Correctly set LastContentRec to the last text record added
+	// Provisional LastContentRec: the last text record. Spec §3/§12: the
+	// content-record range spans text PLUS image records, so it is extended
+	// below whenever image records are added.
 	lastContentRec := uint32(recordIndex - 1) //nolint:gosec // Record index fits
 
 	// FirstNonBookIndex starts here (next record)
@@ -223,8 +225,11 @@ func (w *Writer) Write(output io.Writer) error {
 		w.addImagesFiltered(palmWriter, &recordIndex, coverID)
 	}
 
-	// lastContentRec is already set correctly after text records.
-	// Do not Overwrite it.
+	// Spec §3/§12: with images present, LastContentRec is the last image record
+	// (reference: 368 = last image, not the last text record 363).
+	if firstImageIndex != 0xFFFFFFFF {
+		lastContentRec = uint32(recordIndex - 1) //nolint:gosec // Record index fits
+	}
 
 	// 5. Add Mandatory Structural Records (FLIS, FCIS, EOF)
 	flisIndex := uint32(recordIndex) //nolint:gosec // Record index fits

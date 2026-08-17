@@ -193,7 +193,9 @@ func ExtractRawML(data []byte) (string, error) {
 	}
 
 	first := int(mobiHeader.FirstContentRec)
-	last := int(mobiHeader.LastContentRec)
+	// LastContentRec spans text PLUS image records (spec §3/§12), so the
+	// text end comes from the header's text record count instead.
+	last := first + int(mobiHeader.RecordCount) - 1
 	if first < 1 || last >= len(records) || first > last {
 		return "", fmt.Errorf("invalid content record range %d..%d for %d records",
 			first, last, len(records))
