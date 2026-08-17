@@ -42,12 +42,12 @@ const (
 	EXTHMajorMajor      = 501
 	EXTHMajorMinor      = 502
 	EXTHMinorCount      = 503
-
-	// NCX-related EXTH types for native TOC support
-	EXTHNCXOffset     = 204 // Skeleton INDX first chunk: 0xC9 = 201
-	EXTHNCXChunkCount = 205 // Number of NCX chunks/records
-	EXTHNCXFlowCount  = 206 // Number of flow entries
-	EXTHNCXTotalSize  = 207 // Total size of NCX data
+	// EXTH 204–207 are creator software / major / minor / build (spec §4);
+	// fb2c does not write them. The constants stay for reader.go dump labels.
+	EXTHNCXOffset     = 204
+	EXTHNCXChunkCount = 205
+	EXTHNCXFlowCount  = 206
+	EXTHNCXTotalSize  = 207
 )
 
 // EXTHRecord represents an EXTH metadata record
@@ -334,43 +334,6 @@ func (w *EXTHWriter) AddKF8Boundary(boundaryRecordIndex uint32) {
 	w.records = append(w.records, EXTHRecord{
 		RecordType: EXTHKF8Bounded,
 		Data:       data,
-	})
-}
-
-// AddNCXMetadata adds NCX-related EXTH records needed for native TOC support
-// totalNCXSize: total size of NCX data in bytes
-// ncxRecordOffset: record index of the primary NCX INDX record
-func (w *EXTHWriter) AddNCXMetadata(totalNCXSize, ncxRecordOffset uint32) {
-	// EXTH 204: NCX offset (points to the primary INDX record)
-	data204 := make([]byte, 4)
-	binary.BigEndian.PutUint32(data204, ncxRecordOffset)
-	w.records = append(w.records, EXTHRecord{
-		RecordType: EXTHNCXOffset,
-		Data:       data204,
-	})
-
-	// EXTH 205: Number of NCX chunk records
-	data205 := make([]byte, 4)
-	binary.BigEndian.PutUint32(data205, 1) // Typically 1 for simple TOC
-	w.records = append(w.records, EXTHRecord{
-		RecordType: EXTHNCXChunkCount,
-		Data:       data205,
-	})
-
-	// EXTH 206: Number of flow entries
-	data206 := make([]byte, 4)
-	binary.BigEndian.PutUint32(data206, 2) // Typically 2
-	w.records = append(w.records, EXTHRecord{
-		RecordType: EXTHNCXFlowCount,
-		Data:       data206,
-	})
-
-	// EXTH 207: Total NCX size
-	data207 := make([]byte, 4)
-	binary.BigEndian.PutUint32(data207, totalNCXSize)
-	w.records = append(w.records, EXTHRecord{
-		RecordType: EXTHNCXTotalSize,
-		Data:       data207,
 	})
 }
 

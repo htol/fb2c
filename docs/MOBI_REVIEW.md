@@ -47,7 +47,7 @@ padded byte count; `GetTotalLength()` unchanged (padded). Verified on regenerate
 EXTH headerLength=250/1939 (non-4-aligned, pure) while FullNameOffset points at
 EXTH start + padded length. Regression test `TestEXTHHeaderLengthExcludesPadding`.
 
-### 2. EXTH record types 204–207 misused for NCX metadata
+### 2. EXTH record types 204–207 misused for NCX metadata — **FIXED 2026-08-17**
 
 **Files:** `mobi/exth.go:353–383` (`AddNCXMetadata`), called from `mobi/writer.go:364–373`
 
@@ -62,6 +62,10 @@ through MOBI+0xF4 (`INDXRecordOffset`), which fb2c already sets correctly.
 
 **Fix:** delete `AddNCXMetadata` and its call site. Optionally emit proper creator records
 (204–207) as Calibre does.
+
+**Resolution:** `AddNCXMetadata` and the call site removed; native TOC stays wired through
+MOBI+0xF4 (`INDXRecordOffset`). The 204–207 constants remain for reader.go dump labels.
+Verified: regenerated goldens carry no EXTH 204–207; make test and mobitool validation pass.
 
 ### 3. ASIN hardcoded as `"B00TEST001"`
 

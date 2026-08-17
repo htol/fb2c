@@ -347,18 +347,6 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			exthWriter.AddThumbnailOffset(1)
 		}
 
-		// Add NCX metadata EXTH records when TOC is present
-		// These are required for native TOC visibility in Kindle readers
-		if indxOffset != 0xFFFFFFFF {
-			// Calculate approximate NCX size based on TOC entry count
-			tocEntryCount := uint32(len(w.book.TOC.Flatten()) - 1) //nolint:gosec // Count fits
-			if tocEntryCount > 0 {
-				// Approximate NCX size: ~100 bytes per entry is a reasonable estimate
-				ncxSize := uint32(500 + tocEntryCount*100) //nolint:gosec // Size fits
-				exthWriter.AddNCXMetadata(ncxSize, indxOffset)
-			}
-		}
-
 		exthLength := exthWriter.GetTotalLength()
 		// FullNameOffset = PalmDOC Header (16) + MOBI Header (264 usually) + EXTH Length
 		// Use the constant to be safe
