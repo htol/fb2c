@@ -388,9 +388,9 @@ func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
 		}
 	}
 
-	// ExtraRecordFlags is at the end of the header; absent in short headers.
-	if mobiEnd >= 16+0xF0+4 {
-		h.ExtraRecordFlags = u32(0xF0)
+	// 0xF0 = fill5 (u16), 0xF2 = trailing-entry flags (u16); absent in short headers.
+	if mobiEnd >= 16+0xF2+2 {
+		h.ExtraRecordFlags = uint32(u16(0xF2))
 	}
 
 	var exth *EXTHDump

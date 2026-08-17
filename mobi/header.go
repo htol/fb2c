@@ -91,7 +91,8 @@ type Header struct {
 	FirstCompilation    uint32   // 0xE4 (+0xD4): First Compilation data section count (use 0x00000000)
 	NumCompilation      uint32   // 0xE8 (+0xD8): Number of Compilation data sections (use 0xFFFFFFFF)
 	Unknown236          uint32   // 0xEC (+0xDC): Unknown (use 0xFFFFFFFF)
-	ExtraRecordFlags    uint32   // 0xF0 (+0xE0): Extra record data flags (0 = no extra data)
+	Fill5               uint16   // 0xF0 (+0xE0): fill5 (spec §3 notes; always 0)
+	ExtraRecordFlags    uint16   // 0xF2 (+0xE2): trailing-entry flags (0 = no extra data)
 	INDXRecordOffset    uint32   // 0xF4 (+0xE4): INDX record offset (0xFFFFFFFF if none)
 	// Standard MOBI 6 header is 232 bytes (no padding)
 	// Total struct size = 16 (PalmDOC) + 232 (MOBI) = 248 bytes
@@ -158,6 +159,7 @@ func NewHeader(textSize, recordCount int) *Header {
 		FirstCompilation:    0x00000000,
 		NumCompilation:      0xFFFFFFFF,
 		Unknown236:          0xFFFFFFFF,
+		Fill5:               0,
 		ExtraRecordFlags:    0,
 		INDXRecordOffset:    0xFFFFFFFF,
 	}
