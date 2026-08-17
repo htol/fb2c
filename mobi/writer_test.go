@@ -103,7 +103,7 @@ func TestFullNameAndPalmDBName(t *testing.T) {
 	}
 }
 
-func TestSplitTextRecords(t *testing.T) {
+func TestSplitAndCompressRecords(t *testing.T) {
 
 	tests := []struct {
 		name     string
@@ -139,9 +139,10 @@ func TestSplitTextRecords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			records := splitTextRecords(tt.data)
+			w := NewWriter(opf.NewOEBBook()) // default options: NoCompression
+			records := w.splitAndCompressRecords(tt.data)
 			if len(records) != tt.wantRecs {
-				t.Errorf("splitTextRecords() returned %v records, want %v", len(records), tt.wantRecs)
+				t.Errorf("splitAndCompressRecords() returned %v records, want %v", len(records), tt.wantRecs)
 			}
 
 			// Verify each record is max 4096 bytes (no trailing bytes)

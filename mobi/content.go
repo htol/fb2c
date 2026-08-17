@@ -115,28 +115,3 @@ func resolveFileposLinks(content string) string {
 	return result
 }
 
-// splitTextRecords splits text into ~4KB records, preserving UTF-8 character boundaries,
-// and adds trailing bytes for ExtraRecordFlags
-func splitTextRecords(data []byte) [][]byte {
-	var records [][]byte
-
-	const recordSize = 4096
-	i := 0
-	for i < len(data) {
-		end := i + recordSize
-		if end > len(data) {
-			end = len(data)
-		}
-
-		// Adjust end to avoid splitting UTF-8 multibyte characters
-		end = findUTF8SafeBoundary(data, i, end)
-
-		record := data[i:end]
-		// No trailing bytes - ExtraRecordFlags=0 means no extra data
-		records = append(records, record)
-
-		i = end
-	}
-
-	return records
-}

@@ -3,6 +3,8 @@ package mobi
 import (
 	"testing"
 	"unicode/utf8"
+
+	"github.com/htol/fb2c/opf"
 )
 
 // TestSplitRecordsPreservesUTF8 verifies that text records don't split UTF-8 multibyte characters
@@ -41,7 +43,8 @@ func TestSplitRecordsPreservesUTF8(t *testing.T) {
 	// Now byte 4095 is 0xD0 (first byte of 'д'), byte 4096 is 0xB4 (second byte)
 	// Splitting at 4096 would put 0xD0 alone in record 1 - INVALID UTF-8!
 
-	records := splitTextRecords(testData)
+	w := NewWriter(opf.NewOEBBook()) // default options: NoCompression
+	records := w.splitAndCompressRecords(testData)
 
 	if len(records) < 2 {
 		t.Fatalf("Expected at least 2 records, got %d", len(records))
@@ -126,7 +129,8 @@ func TestSplitRecordsUTF8EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data := tt.makeData()
-			records := splitTextRecords(data)
+			w := NewWriter(opf.NewOEBBook()) // default options: NoCompression
+			records := w.splitAndCompressRecords(data)
 
 			for i, rec := range records {
 				// No trailing bytes to remove - records are pure text

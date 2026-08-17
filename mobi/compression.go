@@ -186,18 +186,7 @@ func DecompressPalmDOC(data []byte) []byte {
 	return output.Bytes()
 }
 
-// CompressRecord compresses a record and returns it, possibly using multiple compression methods
-func CompressRecord(data []byte, method int) []byte {
-	// method: 0 = none, 1 = PalmDOC, 2 = Huff/CD
-	switch method {
-	case 1:
-		return CompressPalmDOC(data)
-	default:
-		return data
-	}
-}
-
-// Calculate compression ratio
+// CompressionRatio returns the compressed/original size ratio.
 func CompressionRatio(original, compressed []byte) float64 {
 	if len(original) == 0 {
 		return 0
