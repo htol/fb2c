@@ -41,9 +41,6 @@ const (
 	EXTHHasFakeCover    = 203
 	EXTHK8CoverImage    = 129
 	EXTHTitle           = 503
-	EXTHMajorMajor      = 501
-	EXTHMajorMinor      = 502
-	EXTHMinorCount      = 503
 	// EXTH 204–207 are creator software / major / minor / build (spec §4);
 	// fb2c does not write them. The constants stay for reader.go dump labels.
 	EXTHNCXOffset     = 204
