@@ -291,13 +291,16 @@ unaffected; cosmetic, readers ignore it.
 Four copies of the same debug block (`i == 0` twice, `i == 1`, `i == last`), three of them
 inside the offset loop. Keep the final-offsets summary, drop the per-index noise.
 
-### 16. `DecompressPalmDOC` is a broken placeholder
+### 16. `DecompressPalmDOC` is a broken placeholder — **FIXED 2026-08-17 (deleted)**
 
 **File:** `mobi/compression.go` (~150–170)
 
 LZ77 matches are decoded as literal `'?'`. Not called in production. Either implement it
 (the spec §11 token table is complete) or delete it — a broken decompressor next to a
 compressor invites "round-trip" tests that prove nothing.
+
+**Resolution:** deleted (no callers). Implement from spec §11 when compression is
+repaired (AGENTS.md keeps compression disabled until then).
 
 ### 17. `CompressPalmDOC` overlap byte is wrong
 

@@ -140,52 +140,6 @@ func findLZMatch(data []byte, pos int) lzMatch {
 	return lzMatch{}
 }
 
-// DecompressPalmDOC decompresses PalmDOC-compressed data
-// Note: This is a simplified implementation for testing
-func DecompressPalmDOC(data []byte) []byte {
-	var output bytes.Buffer
-
-	pos := 0
-	for pos < len(data) {
-		byte1 := data[pos]
-		pos++
-
-		if byte1 == 0x80 || (byte1&0x80) != 0 {
-			// Compressed sequence
-			if pos >= len(data) {
-				break
-			}
-
-			byte2 := data[pos]
-			pos++
-
-			// Combine to 16-bit value
-			code := uint16(byte1)<<8 | uint16(byte2)
-
-			if code == 0x8000 {
-				// LZ77 match - need next byte for full offset
-				if pos >= len(data) {
-					break
-				}
-				// This is a placeholder - full decompression would be more complex
-				output.WriteByte('?')
-			} else if byte1&0x80 != 0 && byte2 != 0x00 {
-				// Space + char compression: char ^ 0x80
-				output.WriteByte(' ')
-				output.WriteByte(byte2 ^ 0x80)
-			} else {
-				// Literal
-				output.WriteByte(byte1)
-			}
-		} else {
-			// Literal byte
-			output.WriteByte(byte1)
-		}
-	}
-
-	return output.Bytes()
-}
-
 // CompressionRatio returns the compressed/original size ratio.
 func CompressionRatio(original, compressed []byte) float64 {
 	if len(original) == 0 {
