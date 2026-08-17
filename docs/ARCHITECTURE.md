@@ -47,7 +47,7 @@ Defines the `OEBBook` structure, which serves as the "universal" book format wit
 
 ### `mobi`
 
-Handles the complexity of the MOBI format. The authoritative format reference is `docs/MOBI6_SPECIFICATION.md`; the current defect list is `docs/MOBI_REVIEW.md`.
+Handles the complexity of the MOBI format. The authoritative format reference is `docs/MOBI6_SPECIFICATION.md`.
 
 * **PalmDB** (`palmdb.go`): PDB container (78-byte header + record list + records).
 * **Headers** (`header.go`, `exth.go`): MOBI header (232 bytes) and EXTH metadata records.
@@ -92,10 +92,9 @@ Design and rationale: `docs/TESTING.md` (the full specification); decisions dist
 
 ## Known issues and technical debt
 
-Cross-cutting findings from the 2026-08-17 review; MOBI-package specifics live in
-`docs/MOBI_REVIEW.md`, extended by a later spec-conformance pass — most critical there:
-#22, INDX tag values written as backward VWI, which corrupts the native TOC of any
-real-sized book. Fix agents: verify each against current code before acting.
+Cross-cutting findings from the 2026-08-17 review; the review's MOBI-package defect
+list was worked off in the same campaign (fix commits of 2026-08-17). Fix agents:
+verify each item against current code before acting.
 
 ### Architecture
 
@@ -117,7 +116,7 @@ real-sized book. Fix agents: verify each against current code before acting.
    `Transformer.Transform` calls it again (`fb2/transformer.go:56`) on the same document.
    `Transformer` also duplicates output in fields and in `TransformResult`.
 6. **`mobi.Writer.Write()` is a ~180-line god method** with hand-managed `recordIndex` and a
-   two-phase record-0 header (see MOBI_REVIEW #9). A declarative record layout would remove
+   two-phase record-0 header. A declarative record layout would remove
    the index-drift bug class.
 
 ### Correctness (non-mobi)
