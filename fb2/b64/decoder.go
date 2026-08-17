@@ -1,12 +1,14 @@
 // Package b64 provides robust base64 decoding for FB2 files.
 //
-// FB2 files often contain malformed base64 data. This decoder handles
-// invalid characters gracefully by skipping them, similar to FBReader.
+// FB2 files wrap base64 data with whitespace (newlines, spaces); the decoder
+// skips whitespace but fails on other invalid characters: a binary element
+// containing garbage is corruption, not formatting (docs/TESTING.md Q15).
 package b64
 
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 )
 
 var (
@@ -27,18 +29,21 @@ func Decode(raw []byte) ([]byte, error) {
 	return robustDecode(raw)
 }
 
-// robustDecode implements FBReader-compatible base64 decoding.
-// It skips invalid characters instead of failing.
+// robustDecode implements base64 decoding that tolerates whitespace
+// (line-wrapped base64 in FB2 binaries) and rejects other invalid characters.
 func robustDecode(raw []byte) ([]byte, error) {
 	var out []byte
 	var quad [4]byte
 	var quadPos int
 
 	for _, b := range raw {
+		if isWhitespace(b) {
+			continue
+		}
+
 		val, ok := decodeByte(b)
 		if !ok {
-			// Skip invalid character
-			continue
+			return nil, fmt.Errorf("invalid base64 character %q: %w", b, ErrInvalidData)
 		}
 
 		// Handle padding (=)
@@ -99,6 +104,11 @@ func robustDecode(raw []byte) ([]byte, error) {
 	}
 
 	return out, nil
+}
+
+// isWhitespace reports whether b is a base64-irrelevant whitespace byte.
+func isWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 }
 
 // decodeByte converts a base64 character to its 6-bit value.

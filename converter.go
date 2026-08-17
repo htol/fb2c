@@ -180,6 +180,15 @@ func (c *Converter) processFB2(data []byte) (*opf.OEBBook, error) {
 		return nil, fmt.Errorf("failed to parse FB2: %w", err)
 	}
 
+	// A document without body sections has nothing to convert (docs/TESTING.md Q15).
+	sectionCount := 0
+	for _, b := range fb2Doc.Bodies {
+		sectionCount += len(b.Sections)
+	}
+	if sectionCount == 0 {
+		return nil, fmt.Errorf("fb2: document has no body sections")
+	}
+
 	metadata, err := fb2.ExtractMetadata(fb2Doc, c.parser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract metadata: %w", err)

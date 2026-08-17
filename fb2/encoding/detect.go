@@ -40,6 +40,10 @@ var encodingAliases = map[string]string{
 	"cp1250":       "cp1250",
 	"cp1251":       "cp1251",
 	"cp1252":       "cp1252",
+	// KOI8-R (Russian)
+	"koi8-r":  "koi8-r",
+	"koi8r":   "koi8-r",
+	"cskoi8r": "koi8-r",
 }
 
 // BOM markers for different encodings
@@ -251,6 +255,8 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		encoding = charmap.Windows1251
 	case "cp1252":
 		encoding = charmap.Windows1252
+	case "koi8-r":
+		encoding = charmap.KOI8R
 	default:
 		// For other encodings, return an error
 		return "", fmt.Errorf("unsupported encoding: %s (you may need to add encoding support)", enc)

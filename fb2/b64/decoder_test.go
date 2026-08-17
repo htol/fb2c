@@ -23,14 +23,14 @@ func TestDecode(t *testing.T) {
 			want:  "ABC",
 		},
 		{
-			name:  "with whitespace",
-			input: "QU J D", // "ABC" with spaces (should skip)
-			want:  "ABC",
+			name:    "with whitespace",
+			input:   "QU J D", // "ABC" with spaces (skipped)
+			want:    "ABC",
 		},
 		{
-			name:  "with invalid chars",
-			input: "QU!@#JD", // "ABC" with invalid chars (should skip)
-			want:  "ABC",
+			name:    "with invalid chars",
+			input:   "QU!@#JD", // "ABC" with garbage (rejected)
+			wantErr: true,
 		},
 		{
 			name:  "empty",
@@ -65,9 +65,10 @@ func TestDecode(t *testing.T) {
 
 func TestDecodeRobust(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		name    string
+		input   string
+		want    string
+		wantErr bool
 	}{
 		{
 			name:  "spaces everywhere",
@@ -75,9 +76,14 @@ func TestDecodeRobust(t *testing.T) {
 			want:  "Hello World",
 		},
 		{
-			name:  "mixed invalid",
-			input: "QU!@$%^&*()JD",
-			want:  "ABC",
+			name:    "mixed invalid",
+			input:   "QU!@$%^&*()JD",
+			wantErr: true,
+		},
+		{
+			name:  "newlines",
+			input: "SGVs\nbG8g\nV29y\nbGQ=",
+			want:  "Hello World",
 		},
 		{
 			name:  "partial quads",
@@ -89,8 +95,11 @@ func TestDecodeRobust(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Decode([]byte(tt.input))
-			if err != nil {
-				t.Errorf("Decode() unexpected error = %v", err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Decode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
 				return
 			}
 			if string(got) != tt.want {

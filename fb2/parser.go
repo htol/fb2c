@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -146,8 +145,9 @@ func (p *Parser) extractEmbeddedContent(fb2 *FictionBook) error {
 
 		data, err := b64.Decode([]byte(binary.Data))
 		if err != nil {
-			slog.Warn("fb2: failed to decode binary resource", "id", binary.ID, "error", err)
-			continue
+			// A broken binary means the document cannot be faithfully converted:
+			// fail loudly instead of silently dropping the image (docs/TESTING.md Q15).
+			return fmt.Errorf("fb2: failed to decode binary %q: %w", binary.ID, err)
 		}
 
 		p.imageData[binary.ID] = data

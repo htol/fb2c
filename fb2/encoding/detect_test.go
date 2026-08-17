@@ -112,6 +112,10 @@ func TestNormalizeEncoding(t *testing.T) {
 		{"utf8", "utf-8"},
 		{"UTF8", "utf-8"},
 		{"windows-1251", "cp1251"},
+		{"koi8-r", "koi8-r"},
+		{"KOI8-R", "koi8-r"},
+		{"koi8r", "koi8-r"},
+		{"cskoi8r", "koi8-r"},
 		{"macintosh", "mac-roman"},
 		{"ascii", "utf-8"},
 		{"gb2312", "gbk"},
@@ -148,6 +152,12 @@ func TestToUTF8(t *testing.T) {
 			name:  "UTF-8 Cyrillic",
 			input: []byte{0xD0, 0xBF, 0xD1, 0x80, 0xD0, 0xB8, 0xD0, 0xB2, 0xD0, 0xB5, 0xD1, 0x82}, // "привет"
 			want:  "привет",
+		},
+		{
+			name:  "KOI8-R declared Cyrillic",
+			// <?xml version="1.0" encoding="koi8-r"?> + "привет" in KOI8-R
+			input: append([]byte(`<?xml version="1.0" encoding="koi8-r"?>`), 0xD0, 0xD2, 0xC9, 0xD7, 0xC5, 0xD4),
+			want:  `<?xml version="1.0" encoding="koi8-r"?>` + "привет",
 		},
 		{
 			name:    "UTF-16 LE with BOM",
