@@ -267,11 +267,14 @@ wrong offsets).
 `EXTHMajorMajor=501`, `EXTHMajorMinor=502`, `EXTHMinorCount=503` are never used and alias
 `EXTHType`/`EXTHTitle`. Delete them.
 
-### 13. Duplicate `getBookName()` / `GetBookName()`
+### 13. Duplicate `getBookName()` / `GetBookName()` — **FIXED with #24 (2026-08-17)**
 
 **File:** `mobi/writer.go:62, 296`
 
 Identical logic, both used (internal callers + `mobi/kf8/writer.go:205, 264`). Keep one.
+
+**Resolution:** the #24 fix already removed the private copy; only the exported
+`GetBookName` remains.
 
 ### 14. Full-name tail: two NUL bytes missing
 
