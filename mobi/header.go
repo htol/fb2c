@@ -75,7 +75,7 @@ type Header struct {
 	Unknown1            [32]byte // 0x84 (+0x74): 32 unknown bytes
 	Unknown2            uint32   // 0xA4 (+0x94): Unknown (use 0xFFFFFFFF)
 	DRMOffset           uint32   // 0xA8 (+0x98): DRM key info offset (0xFFFFFFFF if none)
-	DRMCount            uint32   // 0xAC (+0x9C): DRM entry count (0xFFFFFFFF if none)
+	DRMCount            uint32   // 0xAC (+0x9C): DRM entry count. Spec §3 says 0xFFFFFFFF when absent, but the Calibre reference writes 0 and readers accept both; we match the reference
 	DRMSize             uint32   // 0xB0 (+0xA0): DRM info size
 	DRMFlags            uint32   // 0xB4 (+0xA4): DRM flags
 	Unknown4            [8]byte  // 0xB8 (+0xA8): 8 unknown bytes

@@ -239,7 +239,7 @@ the FullName==title assertion in `TestRoundTripMOBI6` (corpus). Goldens regenera
 
 ## Minor issues
 
-### 10. `DRMCount = 0` vs spec's `0xFFFFFFFF`
+### 10. `DRMCount = 0` vs spec's `0xFFFFFFFF` — **DECIDED 2026-08-17: keep 0**
 
 **File:** `mobi/header.go:146`
 
@@ -248,6 +248,9 @@ Spec §3: DRM count = 0xFFFFFFFF if no DRM. **However the Calibre reference itse
 `DRMSize=0`/`DRMFlags=0` match spec and reference — do not "fix" those. Decide: follow
 the spec (0xFFFFFFFF) and note the divergence from Calibre, or keep 0 and note the
 divergence from the spec. Either way, document the choice here.
+
+**Resolution:** keep 0 — byte-level agreement with the reference outweighs the spec note,
+readers accept both. Divergence documented at the field (header.go) and here.
 
 ### 11. `ExtraRecordFlags` is a `uint32` at 0xF0; spec uses 16-bit at 0xF2
 
