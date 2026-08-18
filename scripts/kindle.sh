@@ -46,18 +46,45 @@
 #   make kindle                           # default fixture: testdata/fb2/src_ref.fb2
 #   ./scripts/kindle.sh path/to/book.fb2  # any other FB2 file
 #   ./scripts/kindle.sh --reset           # re-attach storage only (no conversion)
+#   make kindle-probe SUFFIX=b            # on-device A/B probe (see below)
 #   KINDLE_WAIT=120 ./scripts/kindle.sh   # longer wait if a re-plug is needed
+#
+# Probe mode rewrites the fixture's <book-title> to "fb2c probe <SUFFIX>" before
+# converting, so each probe gets a unique shelf title AND a unique ASIN (fb2c
+# derives ASIN as UUIDv5 of title+authors; the device dedups by ASIN). It also
+# purges every trace of previous probes: their documents/ files and .sdr dirs,
+# the 0-byte thumbnail corpses (*.tmp.partial) and the bookcovers/ renders.
+# Without the purge the device stitches a fresh probe onto stale shelf state —
+# observed 2026-08-18: a never-opened probe showed "3% read" and no NEW ribbon,
+# and no thumbnail regeneration was triggered.
 
 set -euo pipefail
 
 MODE=deploy
+PROBE_SUFFIX=""
 case "${1:-}" in
     --reset|-r|reset) MODE=reset; shift ;;
+    --probe|-p)
+        MODE=probe
+        PROBE_SUFFIX="${2:?--probe needs a suffix, e.g. --probe b}"
+        shift 2
+        ;;
 esac
 INPUT="${1:-testdata/fb2/src_ref.fb2}"
 NAME="$(basename "$INPUT" .fb2)"
 OUT="tmp/kindle/$NAME.mobi"
 WAIT_SECS="${KINDLE_WAIT:-60}"
+
+if [ "$MODE" = probe ]; then
+    SRC_FIXTURE="$INPUT"
+    NAME="fb2c_probe_${PROBE_SUFFIX}"
+    INPUT="tmp/kindle/$NAME.fb2"
+    OUT="tmp/kindle/$NAME.mobi"
+    mkdir -p tmp/kindle
+    grep -q '<book-title>' "$SRC_FIXTURE" || { echo "✗ $SRC_FIXTURE has no <book-title> to rewrite"; exit 1; }
+    sed "s|<book-title>[^<]*</book-title>|<book-title>fb2c probe ${PROBE_SUFFIX}</book-title>|" \
+        "$SRC_FIXTURE" > "$INPUT"
+fi
 
 UDISKS_DEST="org.freedesktop.UDisks2"
 
@@ -166,6 +193,16 @@ fi
 if [ ! -d "$MOUNTPOINT/documents" ]; then
     echo "✗ $MOUNTPOINT has no documents/ — not a Kindle volume?"
     exit 1
+fi
+
+if [ "$MODE" = probe ]; then
+    echo "Purging previous probe traces..."
+    rm -f  "$MOUNTPOINT"/documents/fb2c_probe_*.mobi
+    rm -rf "$MOUNTPOINT"/documents/fb2c_probe_*.sdr
+    rm -f  "$MOUNTPOINT"/system/thumbnails/*.tmp.partial
+    rm -f  "$MOUNTPOINT"/system/bookcovers/*/*.jpg
+    sync
+    echo "✓ Purged: probe files, .sdr dirs, thumbnail corpses, cover renders"
 fi
 
 mkdir -p tmp/kindle

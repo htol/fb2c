@@ -1,4 +1,4 @@
-.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview kindle kindle-reset kindle-udev
+.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview kindle kindle-reset kindle-udev kindle-probe
 
 # Default target
 .DEFAULT_GOAL := build
@@ -58,6 +58,10 @@ kindle-reset: ## Re-attach Kindle storage after an eject (USB reset, no conversi
 
 kindle-udev: ## Install udev rules for cable-free Kindle attach/eject (sudo, one time)
 	@./scripts/kindle-udev.sh
+
+kindle-probe: build ## Deploy a hygiene-clean probe book with a unique title/ASIN (usage: make kindle-probe SUFFIX=b [INPUT=fixture.fb2])
+	@if [ -z "$(SUFFIX)" ]; then echo "Usage: make kindle-probe SUFFIX=b [INPUT=path/to/file.fb2]"; exit 1; fi
+	@./scripts/kindle.sh --probe $(SUFFIX) $(if $(INPUT),$(INPUT),)
 
 clean: ## Clean build artifacts and validation output
 	@echo "Cleaning..."
