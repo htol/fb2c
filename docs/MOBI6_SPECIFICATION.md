@@ -293,7 +293,12 @@ Images follow the text records, one image per record, in the order referenced by
 `recindex="00000"`-based `<img>` attributes (first image = recindex 00001). The 4096-byte
 record limit does **not** apply to image records. Supported formats: GIF, JPEG (JPeg),
 PNG, BMP; Kindle devices additionally read images embedded in a HD `CONT` container (out
-of scope). First record number of the run is in MOBI+0x6C; the cover is located via
+of scope). **The cover is the exception: the Kindle firmware reliably renders only a
+baseline JPEG carrying the JFIF APP0 marker** (`FF D8 FF E0 …"JFIF"`). PNG covers are
+not rendered, and neither are JPEG streams without APP0 — Go's `image/jpeg` omits it,
+so writers must splice the marker in after the encoder's SOI (a duplicated SOI also
+breaks rendering). Verified on-device 2026-08-18. In-text images tolerate the formats
+listed above. First record number of the run is in MOBI+0x6C; the cover is located via
 EXTH 201/202.
 
 ## 8. Magic and compilation records
@@ -400,6 +405,11 @@ points into this record) and then contains, back to back:
 ```
 
 - `label length` is a raw byte (max 255);
+- **entry 00 must be the book's first section** — no root/preamble entry: the
+  Kindle firmware rejects an index whose first entry carries offset 0 with a
+  book-title label (the native TOC then degrades to Begin/Cover/End only).
+  Calibre's first entry is the first real section; verified on-device
+  2026-08-18;
 - `control bytes` is `Control byte count` bytes from the TAGX section;
 - for every tag whose control-byte bits are nonzero, the tag's VWI values follow after
   the control bytes, in tag-table order;

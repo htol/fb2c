@@ -22,20 +22,26 @@ var jfifAPP0 = []byte{
 // encodeCoverJPEG re-encodes the cover image as a baseline JPEG with a JFIF
 // APP0 marker. The Kindle firmware renders only such covers reliably: it
 // rejected fb2c's palette-PNG covers (Calibre always ships JPEG), and Go's
-// JPEG encoder alone omits the JFIF header the decoder expects. Falls back to
-// the input bytes when they cannot be decoded (already-JPEG inputs with a
-// JFIF header pass through unchanged).
+// JPEG encoder alone omits the JFIF header the decoder expects. The APP0
+// segment is spliced in after the encoder's own SOI — prepending a
+// hand-written SOI would duplicate it and the firmware renders nothing.
+// Falls back to the input bytes when they cannot be decoded.
 func encodeCoverJPEG(data []byte) []byte {
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return data
 	}
-	var buf bytes.Buffer
-	buf.WriteByte(0xFF)
-	buf.WriteByte(0xD8) // SOI
-	buf.Write(jfifAPP0)
-	if err := jpeg.Encode(&buf, src, &jpeg.Options{Quality: coverJPEGQuality}); err != nil {
+	var enc bytes.Buffer
+	if err := jpeg.Encode(&enc, src, &jpeg.Options{Quality: coverJPEGQuality}); err != nil {
 		return data
 	}
-	return buf.Bytes()
+	j := enc.Bytes()
+	if len(j) < 2 || j[0] != 0xFF || j[1] != 0xD8 {
+		return data
+	}
+	out := make([]byte, 0, len(j)+len(jfifAPP0))
+	out = append(out, j[:2]...) // the single SOI
+	out = append(out, jfifAPP0...)
+	out = append(out, j[2:]...)
+	return out
 }
