@@ -89,3 +89,15 @@
 **Context**: Warn-and-skip silently shipped broken books (dropped images, empty output); a validity oracle needs hard failures.
 
 **Rationale**: A converter must either produce a faithful book or a clear error — never a silently degraded one.
+
+## 10. The Android Kindle App Is Not a MOBI Validation Target
+
+**Decision**: MOBI output is validated with `make test-validate-by-mobitool` and `make preview` (Kindle Previewer = the Kindle rendering engine); the Android Kindle app is excluded as a MOBI validation target. It stays a viable target for EPUB (current builds import EPUB locally).
+
+**Context** (verified on an Android 15 emulator, 2026-08-17):
+
+* Kindle 8.154.0.100 (current Play Store build): no MOBI support left in the manifest — intent filters accept only `application/pdf` + `*.pdf` and `application/epub+zip` + `*.epub`. No mobi/azw/prc anywhere.
+* Kindle 8.51.1.0 (Nov 2022, last era with MOBI filters): `application/x-mobipocket-ebook` routes only to `SendToKindleActivity`, a cloud upload flow; there is no local import. The server rejects the old client (`GetOwnedListOfDevices` → HTTP 400), so even that path is dead. This version has no EPUB support either.
+* Amazon ended Send-to-Kindle MOBI ingestion on 2023-12-20 (server-side), which matches the API rejection.
+
+**Rationale**: Sideloaded MOBI in any current Kindle app is dead by Amazon policy, not by our tooling gaps; e-ink devices (USB transfer) are the only remaining real-device MOBI consumers, and they are not emulatable. mobitool (independent strict parser) plus Kindle Previewer (official engine) cover structural and rendering validation without an Amazon account.
