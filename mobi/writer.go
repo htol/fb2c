@@ -359,7 +359,7 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 func (w *Writer) buildImageRecords() [][]byte {
 	var records [][]byte
 	if w.options.CoverImage != nil {
-		records = append(records, w.options.CoverImage)
+		records = append(records, encodeCoverJPEG(w.options.CoverImage))
 		if thumb := w.generateThumbnail(w.options.CoverImage); thumb != nil {
 			records = append(records, thumb)
 		}
