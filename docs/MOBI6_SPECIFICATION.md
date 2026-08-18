@@ -293,12 +293,14 @@ Images follow the text records, one image per record, in the order referenced by
 `recindex="00000"`-based `<img>` attributes (first image = recindex 00001). The 4096-byte
 record limit does **not** apply to image records. Supported formats: GIF, JPEG (JPeg),
 PNG, BMP; Kindle devices additionally read images embedded in a HD `CONT` container (out
-of scope). **The cover is the exception: the Kindle firmware reliably renders only a
-baseline JPEG carrying the JFIF APP0 marker** (`FF D8 FF E0 …"JFIF"`). PNG covers are
-not rendered, and neither are JPEG streams without APP0 — Go's `image/jpeg` omits it,
-so writers must splice the marker in after the encoder's SOI (a duplicated SOI also
-breaks rendering). Verified on-device 2026-08-18. In-text images tolerate the formats
-listed above. First record number of the run is in MOBI+0x6C; the cover is located via
+of scope). **The cover is the exception: it must be a baseline JPEG carrying the
+JFIF APP0 marker** (`FF D8 FF E0 …"JFIF"`). Verified on-device 2026-08-18: a
+palette-PNG cover did not render (single test case; truecolor PNG untested —
+PNG itself is fine in text), and neither did a JPEG stream without APP0 —
+Go's `image/jpeg` omits it, so writers must splice the marker in after the
+encoder's SOI (a duplicated SOI also breaks rendering). In-text images render
+in all the formats listed above, palette PNG included (verified on-device).
+First record number of the run is in MOBI+0x6C; the cover is located via
 EXTH 201/202.
 
 ## 8. Magic and compilation records
