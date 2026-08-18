@@ -306,8 +306,12 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 			w.book.Metadata.Language,
 		)
 
-		// Critical for Kindle: CDEType=EBOK (preferred for books)
-		exthWriter.AddType("EBOK")
+		// cdeType must be PDOC, not EBOK: EBOK + ASIN routes the firmware into
+		// its "store book" path, where the shelf-thumbnail generator dies on an
+		// unvalidatable ASIN and leaves a 0-byte thumbnail_<ASIN>_EBOK_portrait.jpg
+		// .tmp.partial (verified on-device 2026-08-18; probes B/D–G). PDOC is the
+		// honest value for a sideload and renders tiles from the EXTH 201 cover.
+		exthWriter.AddType("PDOC")
 
 		// Add ASIN (Type 113): deterministic per-book UUID (reference carries
 		// a per-book UUID here too); a constant broke Kindle library grouping

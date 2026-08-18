@@ -233,7 +233,7 @@ Record types relevant to MOBI 6 books (strings use the record-0 text encoding):
 | 401   | 1            | clipping limit   | percent of text clippable, usually 10                                |
 | 402   | 1            | publisher limit  |                                                                      |
 | 404   | 1            | TTS flag         | 1 = text-to-speech disabled                                          |
-| 501   | 4            | cde type         | `PDOC` (personal doc), `EBOK` (ebook), `EBSP` (sample)               |
+| 501   | 4            | cde type         | `PDOC` (personal doc), `EBOK` (ebook), `EBSP` (sample). fb2c writes `PDOC`: on-device 2026-08-18, `EBOK` together with an EXTH 113 ASIN routes the book down the firmware's "store book" path, where the shelf-thumbnail generator dies on the unvalidatable ASIN (0-byte `thumbnail_<ASIN>_EBOK_portrait.jpg.tmp.partial`); `PDOC` takes the personal-document path and renders the tile from the EXTH 201 cover |
 | 502   | var          | last update time |                                                                      |
 | 503   | var          | updated title    | title used by Kindle devices (overrides Full Name)                   |
 | 504   | var          | ASIN (CDE key)   | duplicate of 113                                                     |

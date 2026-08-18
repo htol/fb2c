@@ -227,6 +227,49 @@ func TestConvertOEBToMOBI(t *testing.T) {
 	t.Logf("Generated MOBI file size: %d bytes", output.Len())
 }
 
+// TestCdeTypePDOC pins the on-device-verified shelf-thumbnail contract
+// (verified on two e-ink Kindles 2026-08-18): the EXTH pair cdeType=EBOK +
+// ASIN routes the book down the firmware's "store book" path, where the
+// thumbnail generator dies on an ASIN it cannot validate and leaves a 0-byte
+// thumbnail_<ASIN>_EBOK_portrait.jpg.tmp.partial. cdeType=PDOC (the honest
+// value for a sideload; what KindleGen and Send-to-Kindle write) takes the
+// personal-document path, which renders the shelf tile from the EXTH 201
+// cover. ASIN itself is harmless with PDOC and keeps deterministic per-book
+// identity, so it stays.
+func TestCdeTypePDOC(t *testing.T) {
+	book := opf.NewOEBBook()
+	book.Metadata = opf.Metadata{Title: "Test Book", Language: "en"}
+	book.Metadata.Authors = []opf.Author{opf.NewAuthor("John", "", "Doe", "")}
+	book.Content = "<html><body><p>Test</p></body></html>"
+
+	var output bytes.Buffer
+	if err := ConvertOEBToMOBI(book, &output); err != nil {
+		t.Fatalf("ConvertOEBToMOBI() error = %v", err)
+	}
+	dump, err := ReadDump(output.Bytes())
+	if err != nil {
+		t.Fatalf("ReadDump() error = %v", err)
+	}
+	if dump.EXTH == nil {
+		t.Fatal("no EXTH in output")
+	}
+	var cde, asin string
+	for _, r := range dump.EXTH.Records {
+		switch r.Type {
+		case 501:
+			cde = r.Text
+		case 113:
+			asin = r.Text
+		}
+	}
+	if cde != "PDOC" {
+		t.Errorf("EXTH 501 cdeType = %q, want PDOC (EBOK kills shelf thumbnails)", cde)
+	}
+	if asin == "" {
+		t.Error("EXTH 113 ASIN missing")
+	}
+}
+
 func TestJoinStrings(t *testing.T) {
 	tests := []struct {
 		strs     []string
