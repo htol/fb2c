@@ -145,6 +145,9 @@ make test          # Run all tests (offline, no Calibre/mobitool)
 make validate      # Legacy: validate against Calibre
 make test-validate-by-mobitool  # Validate MOBI output with mobitool (independent strict parser)
 make preview       # Render corpus with Kindle Previewer (closest to a real device; xvfb-run on headless)
+make kindle        # Convert a fixture and deploy it to a USB-connected Kindle (kindle.sh ejects the device)
+make kindle-reset  # Re-attach Kindle storage after an eject (USB reset, no conversion)
+make kindle-udev   # One-time udev rules for cable-free attach/eject (sudo; idempotent)
 make benchmark     # Performance comparison (fb2c vs Calibre)
 make clean         # Remove build artifacts
 
@@ -159,4 +162,5 @@ fb2c regen-testdata                               # Regenerate testdata/golden (
 
 ## NOTES
 
+- **Kindle USB behaviour** (verified 2026-08-18, e-ink Kindle, whole-disk FAT labelled `Kindle`): `Drive.Eject` over D-Bus (no root) makes the Kindle leave USB-storage mode — it shows the library and keeps charging while staying on the bus; its SCSI disk survives as a 0 B device with the medium removed. Re-attach = `sg_start --start --load` on that 0 B disk (SCSI load medium, NO re-enumeration; the LUN answers "Device not ready" while transitioning, so its exit code is meaningless — poll for the label). Fallback: `USBDEVFS_RESET` ioctl on the Kindle usbfs node (re-enumerates the gadget). Both need one-time udev rules granting the user's group rw on the nodes — see the `scripts/kindle.sh` header. `Block.Rescan` is NOT reliable: the firmware ignores it unpredictably (verified failing 1 of 2 identical attempts). NEVER call `Drive.PowerOff` on the Kindle: it cuts the port, the device drops off the bus (`usb X-Y: USB disconnect` in the kernel log) and only a cable re-plug recovers it. `scripts/kindle.sh` implements the cycle (attach → copy → eject); `make kindle-reset` re-attaches without converting; `KINDLE_WAIT` (default 60 s) is only the re-plug fallback
 - **Dependencies**: Requires Go 1.25.5; external tools (Calibre, mobitool) optional for validation

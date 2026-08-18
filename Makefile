@@ -1,4 +1,4 @@
-.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview
+.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview kindle kindle-reset kindle-udev
 
 # Default target
 .DEFAULT_GOAL := build
@@ -49,6 +49,15 @@ test-validate-by-mobitool: build ## Validate fb2c MOBI output with mobitool (ind
 
 preview: build ## Render corpus via Kindle Previewer CLI (closest to a real device; needs kindlepreviewer)
 	@./scripts/preview.sh
+
+kindle: build ## Convert src_ref.fb2 and send it to a USB-connected Kindle (ejects the device)
+	@./scripts/kindle.sh
+
+kindle-reset: ## Re-attach Kindle storage after an eject (USB reset, no conversion)
+	@./scripts/kindle.sh --reset
+
+kindle-udev: ## Install udev rules for cable-free Kindle attach/eject (sudo, one time)
+	@./scripts/kindle-udev.sh
 
 clean: ## Clean build artifacts and validation output
 	@echo "Cleaning..."
