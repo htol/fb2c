@@ -298,7 +298,11 @@ JFIF APP0 marker** (`FF D8 FF E0 …"JFIF"`). Verified on-device 2026-08-18: a
 palette-PNG cover did not render (single test case; truecolor PNG untested —
 PNG itself is fine in text), and neither did a JPEG stream without APP0 —
 Go's `image/jpeg` omits it, so writers must splice the marker in after the
-encoder's SOI (a duplicated SOI also breaks rendering). In-text images render
+encoder's SOI (a duplicated SOI also breaks rendering). The same holds for the
+EXTH 202 thumbnail record: it is decoded by the shelf pipeline, and without
+APP0 the device aborts thumbnail generation at a 0-byte
+`thumbnail_<ASIN>_<cdetype>_portrait.jpg.tmp.partial` (verified on-device
+2026-08-18). In-text images render
 in all the formats listed above, palette PNG included (verified on-device).
 First record number of the run is in MOBI+0x6C; the cover is located via
 EXTH 201/202.

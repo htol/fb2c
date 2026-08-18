@@ -35,9 +35,15 @@ func encodeCoverJPEG(data []byte) []byte {
 	if err := jpeg.Encode(&enc, src, &jpeg.Options{Quality: coverJPEGQuality}); err != nil {
 		return data
 	}
-	j := enc.Bytes()
+	return withJFIFAPP0(enc.Bytes())
+}
+
+// withJFIFAPP0 splices the APP0 segment in after the stream's own SOI —
+// prepending a hand-written SOI would duplicate it and the firmware renders
+// nothing. Streams without a leading SOI are returned unchanged.
+func withJFIFAPP0(j []byte) []byte {
 	if len(j) < 2 || j[0] != 0xFF || j[1] != 0xD8 {
-		return data
+		return j
 	}
 	out := make([]byte, 0, len(j)+len(jfifAPP0))
 	out = append(out, j[:2]...) // the single SOI

@@ -46,6 +46,36 @@ func TestBuildThumbnail(t *testing.T) {
 	}
 }
 
+// TestBuildThumbnailJFIF verifies the firmware contract on the thumbnail
+// record: the Kindle's thumbnail decoder, like its cover decoder, refuses a
+// JPEG without a JFIF APP0 marker — the device then leaves a 0-byte
+// thumbnail_<ASIN>_EBOK_portrait.jpg.tmp.partial in system/thumbnails/
+// (verified on-device 2026-08-18). The marker must sit right after the
+// single SOI; a second SOI is equally fatal.
+func TestBuildThumbnailJFIF(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 480, 800))
+	for y := 0; y < 800; y++ {
+		for x := 0; x < 480; x++ {
+			src.Set(x, y, color.RGBA{byte(x % 256), byte(y % 256), 0x80, 0xFF})
+		}
+	}
+	var pngBuf bytes.Buffer
+	if err := png.Encode(&pngBuf, src); err != nil {
+		t.Fatalf("png.Encode failed: %v", err)
+	}
+
+	thumb := buildThumbnail(pngBuf.Bytes())
+	if len(thumb) < 2 || thumb[0] != 0xFF || thumb[1] != 0xD8 {
+		t.Fatalf("thumbnail is not a JPEG: starts %v", thumb[:4])
+	}
+	if !bytes.HasPrefix(thumb[2:], jfifAPP0) {
+		t.Fatalf("thumbnail lacks JFIF APP0 after SOI: % X", thumb[:24])
+	}
+	if bytes.Contains(thumb[2:], []byte{0xFF, 0xD8}) {
+		t.Fatalf("double SOI in thumbnail stream: % X", thumb[:24])
+	}
+}
+
 // TestBuildThumbnailFallback verifies graceful degradation: undecodable input
 // and already-small images are returned unchanged.
 func TestBuildThumbnailFallback(t *testing.T) {

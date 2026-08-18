@@ -70,5 +70,7 @@ func buildThumbnail(coverData []byte) []byte {
 	if err := jpeg.Encode(&out, dst, &jpeg.Options{Quality: 75}); err != nil {
 		return coverData
 	}
-	return out.Bytes()
+	// Same firmware decoder as the cover path: without a JFIF APP0 the
+	// device aborts thumbnail generation at a 0-byte .tmp.partial.
+	return withJFIFAPP0(out.Bytes())
 }
