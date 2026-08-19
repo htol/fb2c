@@ -60,11 +60,11 @@ func TestReadDump(t *testing.T) {
 
 	// Record unique IDs are sequential 0..n-1 with seed above them all.
 	for i, rec := range dump.Records {
-		if rec.UniqueID != uint32(i) {
+		if rec.UniqueID != uint32(i) { //nolint:gosec // i is bounded by the record count
 			t.Errorf("record %d uniqueID = %d, want %d", i, rec.UniqueID, i)
 		}
 	}
-	if dump.PalmDB.UniqueIDSeed <= uint32(len(dump.Records)-1) {
+	if dump.PalmDB.UniqueIDSeed <= uint32(len(dump.Records)-1) { //nolint:gosec // bounded by the record count
 		t.Errorf("UniqueIDSeed = %d, must exceed all record unique IDs (max %d)",
 			dump.PalmDB.UniqueIDSeed, len(dump.Records)-1)
 	}

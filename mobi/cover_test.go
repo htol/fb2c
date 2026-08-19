@@ -16,7 +16,7 @@ func TestEncodeCoverJPEG(t *testing.T) {
 	src := image.NewPaletted(image.Rect(0, 0, 40, 60), color.Palette{color.Black, color.White})
 	for y := 0; y < 60; y++ {
 		for x := 0; x < 40; x++ {
-			src.SetColorIndex(x, y, uint8((x/4+y/6)%2))
+			src.SetColorIndex(x, y, uint8((x/4+y/6)%2)) //nolint:gosec // x<40, y<60: the value stays far below 256
 		}
 	}
 	var pngBuf bytes.Buffer

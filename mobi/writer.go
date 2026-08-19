@@ -180,7 +180,7 @@ func (w *Writer) Write(output io.Writer) error {
 	all = append(all, textRecords...)
 	all = append(all, tocRecords...)
 	all = append(all, imageRecords...)
-	all = append(all, createFLISRecord(), createFCISRecord(uint32(uncompressedSize)),
+	all = append(all, createFLISRecord(), createFCISRecord(uint32(uncompressedSize)), //nolint:gosec // book text stays far below 4 GB
 		// EOF record (MOBI spec: E9 8E 0D 0A)
 		[]byte{0xE9, 0x8E, 0x0D, 0x0A})
 
@@ -392,7 +392,7 @@ func (w *Writer) buildImageRecords() [][]byte {
 			continue
 		}
 		res, ok := w.book.GetResource(id)
-		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
+		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != imageMediaTypePrefix {
 			continue
 		}
 		records = append(records, res.Data)

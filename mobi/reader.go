@@ -17,7 +17,7 @@ import (
 // text and JSON serializations of `fb2c dump`.
 type Dump struct {
 	PalmDB  PalmDBDump   `json:"palmdb"`
-	MOBI    *MOBIDump    `json:"mobi,omitempty"`
+	MOBI    *HeaderDump  `json:"mobi,omitempty"`
 	EXTH    *EXTHDump    `json:"exth,omitempty"`
 	Records []RecordDump `json:"records"`
 }
@@ -36,8 +36,8 @@ type PalmDBDump struct {
 	Creator          string `json:"creator"`
 }
 
-// MOBIDump holds the decoded MOBI header fields (record 0).
-type MOBIDump struct {
+// HeaderDump holds the decoded MOBI header fields (record 0).
+type HeaderDump struct {
 	Compression          uint16 `json:"compression"`
 	CompressionName      string `json:"compressionName"`
 	UncompressedTextSize uint32 `json:"uncompressedTextSize"`
@@ -163,7 +163,7 @@ func ReadDump(data []byte) (*Dump, error) {
 	// Classify records once the MOBI header (content record range) is known.
 	for i := range dump.Records {
 		dump.Records[i].Kind = classifyRecord(data, dump.Records[i], dump.MOBI)
-		if dump.Records[i].Kind == "indx" {
+		if dump.Records[i].Kind == kindIndx {
 			dump.Records[i].INDX = parseINDXHeader(recordData(data, dump.Records[i]))
 		}
 	}
@@ -314,7 +314,7 @@ func parsePalmDB(data []byte) (*PalmDBDump, []RecordDump, error) {
 	for i := 0; i < numRecords; i++ {
 		base := pdbHeaderSize + i*8
 		records[i] = RecordDump{
-			Index:      uint32(i),
+			Index:      uint32(i), //nolint:gosec // numRecords comes from a uint16 field
 			Offset:     binary.BigEndian.Uint32(data[base : base+4]),
 			Attributes: data[base+4],
 			UniqueID:   uint32(data[base+5])<<16 | uint32(data[base+6])<<8 | uint32(data[base+7]),
@@ -323,7 +323,7 @@ func parsePalmDB(data []byte) (*PalmDBDump, []RecordDump, error) {
 
 	// Record length runs to the next record's offset (file end for the last).
 	for i := 0; i < numRecords; i++ {
-		end := uint32(len(data))
+		end := uint32(len(data)) //nolint:gosec // A MOBI above 4 GB is not a real input; offsets are uint32 by format
 		if i+1 < numRecords {
 			end = records[i+1].Offset
 		}
@@ -339,7 +339,7 @@ func parsePalmDB(data []byte) (*PalmDBDump, []RecordDump, error) {
 
 // parseRecord0 decodes the PalmDOC+MOBI header and, when present, the EXTH
 // header from record 0.
-func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
+func parseRecord0(data []byte, rec0 RecordDump) (*HeaderDump, *EXTHDump, error) {
 	rec := recordData(data, rec0)
 	if len(rec) < 16+4+4 { // PalmDOC header + "MOBI" + header length
 		return nil, nil, fmt.Errorf("record 0 too short for MOBI header: %d bytes", len(rec))
@@ -376,7 +376,7 @@ func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
 		return binary.BigEndian.Uint32(rec[off : off+4])
 	}
 
-	h := &MOBIDump{
+	h := &HeaderDump{
 		Compression:          u16(0x00),
 		UncompressedTextSize: u32(0x04),
 		RecordCount:          u16(0x08),
@@ -474,44 +474,62 @@ func parseINDXHeader(rec []byte) *INDXDump {
 }
 
 // classifyRecord derives a human-readable kind for a record.
-func classifyRecord(data []byte, rec RecordDump, h *MOBIDump) string {
-	body := recordData(data, rec)
-	if len(body) >= 4 {
-		switch string(body[:4]) {
-		case "FLIS":
-			return "flis"
-		case "FCIS":
-			return "fcis"
-		case "INDX":
-			return "indx"
-		case "FONT":
-			return "font"
-		}
-		if len(body) >= 8 && string(body[:8]) == "BOUNDARY" {
-			return "boundary"
-		}
-		if len(body) >= 4 && body[0] == 0xE9 && body[1] == 0x8E && body[2] == 0x0D && body[3] == 0x0A {
-			return "eof"
-		}
-		if len(body) >= 3 && body[0] == 0xFF && body[1] == 0xD8 && body[2] == 0xFF {
-			return "image-jpeg"
-		}
-		if len(body) >= 4 && body[0] == 0x89 && body[1] == 'P' && body[2] == 'N' && body[3] == 'G' {
-			return "image-png"
-		}
-		if len(body) >= 4 && string(body[:4]) == "GIF8" {
-			return "image-gif"
-		}
+func classifyRecord(data []byte, rec RecordDump, h *HeaderDump) string {
+	if kind := sniffRecordKind(recordData(data, rec)); kind != "" {
+		return kind
 	}
 	if h != nil {
 		if rec.Index == 0 {
-			return "mobi-header"
+			return kindMobiHeader
 		}
 		if rec.Index >= uint32(h.FirstContentRec) && rec.Index <= uint32(h.LastContentRec) {
-			return "text"
+			return kindText
 		}
 	}
 	return "unknown"
+}
+
+// Record kinds shared by classifyRecord and ReadDump.
+const (
+	kindMobiHeader = "mobi-header"
+	kindText       = "text"
+	kindIndx       = "indx"
+)
+
+// sniffRecordKind identifies a record by its leading magic bytes; "" when
+// the body carries no known magic.
+//
+//nolint:gocyclo // a flat magic dispatch: every branch is one prefix rule
+func sniffRecordKind(body []byte) string {
+	if len(body) < 4 {
+		return ""
+	}
+	switch string(body[:4]) {
+	case "FLIS":
+		return "flis"
+	case "FCIS":
+		return "fcis"
+	case "INDX":
+		return kindIndx
+	case "FONT":
+		return "font"
+	}
+	if len(body) >= 8 && string(body[:8]) == "BOUNDARY" {
+		return "boundary"
+	}
+	if body[0] == 0xE9 && body[1] == 0x8E && body[2] == 0x0D && body[3] == 0x0A {
+		return "eof"
+	}
+	if len(body) >= 3 && body[0] == 0xFF && body[1] == 0xD8 && body[2] == 0xFF {
+		return "image-jpeg"
+	}
+	if body[0] == 0x89 && body[1] == 'P' && body[2] == 'N' && body[3] == 'G' {
+		return "image-png"
+	}
+	if string(body[:4]) == "GIF8" {
+		return "image-gif"
+	}
+	return ""
 }
 
 // recordData returns the raw bytes of a record.
@@ -526,17 +544,19 @@ func findDivergence(a, b []byte, recordsA, recordsB []RecordDump) *Divergence {
 		if a[i] == b[i] {
 			continue
 		}
+		off := uint32(i) //nolint:gosec // i < len(data); a MOBI above 4 GB is not a real input
 		return &Divergence{
-			Offset:  uint32(i),
-			RecordA: recordAtOffset(recordsA, uint32(i)),
-			RecordB: recordAtOffset(recordsB, uint32(i)),
+			Offset:  off,
+			RecordA: recordAtOffset(recordsA, off),
+			RecordB: recordAtOffset(recordsB, off),
 		}
 	}
 	// One file is a prefix of the other: divergence is the first extra byte.
+	off := uint32(n) //nolint:gosec // n <= len(data); offsets are uint32 by format
 	return &Divergence{
-		Offset:  uint32(n),
-		RecordA: recordAtOffset(recordsA, uint32(n)),
-		RecordB: recordAtOffset(recordsB, uint32(n)),
+		Offset:  off,
+		RecordA: recordAtOffset(recordsA, off),
+		RecordB: recordAtOffset(recordsB, off),
 	}
 }
 

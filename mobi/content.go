@@ -16,6 +16,10 @@ var (
 	fileposZeRe = regexp.MustCompile(`filepos=["']0000000000["']`)
 )
 
+// imageMediaTypePrefix is the prefix of every image media type in the
+// manifest ("image/jpeg", "image/png", ...).
+const imageMediaTypePrefix = "image"
+
 // resolveImageSources replaces src="filename" with src="recindex:N"
 // If baseIndex is 0, it uses relative indexing (1, 2, 3...)
 // If baseIndex is > 0, it uses absolute 1-based indexing (baseIndex + 1, baseIndex + 2...)
@@ -46,7 +50,7 @@ func resolveImageSources(book *opf.OEBBook, hasCover bool, content string) strin
 			continue
 		}
 		res, ok := book.GetResource(id)
-		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != "image" {
+		if !ok || len(res.MediaType) < 6 || res.MediaType[0:5] != imageMediaTypePrefix {
 			continue
 		}
 		imageMap[id] = currentOffset
