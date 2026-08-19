@@ -53,7 +53,7 @@ func regenTestdataCmd(args []string) {
 		mobiPath := filepath.Join(goldenRoot, "mobi6", name+".mobi")
 		epubPath := filepath.Join(goldenRoot, "epub", name+".epub")
 
-		err := convertTo(fixture, mobiPath)
+		err := fb2c.NewConverter().Convert(fixture, mobiPath)
 		if err != nil {
 			// Expected failures are themselves goldens (docs/TESTING.md Q15).
 			if writeErr := os.WriteFile(
@@ -65,7 +65,7 @@ func regenTestdataCmd(args []string) {
 			failed++
 			continue
 		}
-		exitOnError(convertTo(fixture, epubPath))
+		exitOnError(fb2c.NewConverter().Convert(fixture, epubPath))
 
 		// Content goldens: what a human diffs when a byte golden breaks.
 		mobiData, readErr := os.ReadFile(mobiPath)
@@ -89,11 +89,4 @@ func regenTestdataCmd(args []string) {
 	}
 
 	fmt.Printf("done: %d converted, %d negative goldens\n", converted, failed)
-}
-
-// convertTo converts an FB2 fixture to the output format selected by the
-// golden file extension, using the default conversion options.
-func convertTo(input, output string) error {
-	converter := fb2c.NewConverter()
-	return converter.Convert(input, output)
 }
