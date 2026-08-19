@@ -1,4 +1,4 @@
-.PHONY: help build test validate clean benchmark test-validate-by-mobitool preview kindle kindle-reset kindle-udev kindle-probe
+.PHONY: help build test lint validate clean benchmark test-validate-by-mobitool preview kindle kindle-reset kindle-udev kindle-probe
 
 # Default target
 .DEFAULT_GOAL := build
@@ -18,6 +18,16 @@ test: ## Run all tests
 	@echo "Running tests..."
 	go test ./...
 	@echo "✓ Tests complete"
+
+lint: ## Lint the codebase with golangci-lint (config: .golangci.yml)
+	@echo "Running golangci-lint..."
+	@if command -v golangci-lint > /dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "✗ golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		exit 1; \
+	fi
+	@echo "✓ Lint complete"
 
 validate: build ## Validate converter against Calibre
 	@echo "Running validation..."

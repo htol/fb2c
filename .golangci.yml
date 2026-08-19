@@ -2,6 +2,15 @@ run:
   timeout: 5m
   tests: true
 
+issues:
+  exclude-rules:
+    # Tests legitimately repeat fixture strings and grow assertion-heavy;
+    # goconst/gocyclo noise there hides real findings in production code.
+    - path: _test\.go
+      linters:
+        - goconst
+        - gocyclo
+
 linters:
   disable-all: true
   enable:
