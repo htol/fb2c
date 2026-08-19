@@ -23,9 +23,9 @@ func TestDecode(t *testing.T) {
 			want:  "ABC",
 		},
 		{
-			name:    "with whitespace",
-			input:   "QU J D", // "ABC" with spaces (skipped)
-			want:    "ABC",
+			name:  "with whitespace",
+			input: "QU J D", // "ABC" with spaces (skipped)
+			want:  "ABC",
 		},
 		{
 			name:    "with invalid chars",

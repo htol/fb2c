@@ -154,7 +154,7 @@ func TestToUTF8(t *testing.T) {
 			want:  "привет",
 		},
 		{
-			name:  "KOI8-R declared Cyrillic",
+			name: "KOI8-R declared Cyrillic",
 			// <?xml version="1.0" encoding="koi8-r"?> + "привет" in KOI8-R
 			input: append([]byte(`<?xml version="1.0" encoding="koi8-r"?>`), 0xD0, 0xD2, 0xC9, 0xD7, 0xC5, 0xD4),
 			want:  `<?xml version="1.0" encoding="koi8-r"?>` + "привет",

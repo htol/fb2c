@@ -263,7 +263,6 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 	return buf.String()
 }
 
-
 // Cleanup removes temporary/cleanup markers from HTML
 func (p *HTMLProcessor) Cleanup(html string) string {
 	html = htmlCommentRe.ReplaceAllString(html, "")
