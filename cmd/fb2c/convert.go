@@ -12,7 +12,7 @@ import (
 
 func convertCmd(args []string) {
 	fs := flag.NewFlagSet("convert", flag.ExitOnError)
-	fs.Parse(args)
+	_ = fs.Parse(args) // ExitOnError makes the error unreachable: parse failures exit inside
 
 	cmdArgs := fs.Args()
 	if len(cmdArgs) < 2 {

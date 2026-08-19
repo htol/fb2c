@@ -11,7 +11,7 @@ import (
 
 func metadataCmd(args []string) {
 	fs := flag.NewFlagSet("metadata", flag.ExitOnError)
-	fs.Parse(args)
+	_ = fs.Parse(args) // ExitOnError makes the error unreachable: parse failures exit inside
 
 	cmdArgs := fs.Args()
 	if len(cmdArgs) < 1 {

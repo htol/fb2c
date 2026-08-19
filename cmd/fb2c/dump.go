@@ -16,7 +16,7 @@ func dumpCmd(args []string) {
 	jsonOut := fs.Bool("json", false, "Output JSON instead of text")
 	rawml := fs.Bool("rawml", false, "Print the extracted book text (rawml)")
 	diffMode := fs.Bool("diff", false, "Compare two MOBI files record by record")
-	fs.Parse(args)
+	_ = fs.Parse(args) // ExitOnError makes the error unreachable: parse failures exit inside
 
 	files := fs.Args()
 

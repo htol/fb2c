@@ -58,7 +58,7 @@ func regenTestdataCmd(args []string) {
 			// Expected failures are themselves goldens (docs/TESTING.md Q15).
 			if writeErr := os.WriteFile(
 				filepath.Join(goldenRoot, "negative", name+".txt"),
-				[]byte(err.Error()+"\n"), 0o644); writeErr != nil {
+				[]byte(err.Error()+"\n"), 0o600); writeErr != nil {
 				exitOnError(writeErr)
 			}
 			fmt.Printf("  %-24s conversion fails (negative golden): %v\n", name, err)
@@ -74,7 +74,7 @@ func regenTestdataCmd(args []string) {
 		exitOnError(extractErr)
 		exitOnError(os.WriteFile(
 			filepath.Join(goldenRoot, "mobi6", name+".rawml"),
-			[]byte(rawml), 0o644))
+			[]byte(rawml), 0o600))
 
 		epubData, readErr := os.ReadFile(epubPath)
 		exitOnError(readErr)
@@ -82,7 +82,7 @@ func regenTestdataCmd(args []string) {
 		exitOnError(listErr)
 		exitOnError(os.WriteFile(
 			filepath.Join(goldenRoot, "epub", name+".txt"),
-			[]byte(listing), 0o644))
+			[]byte(listing), 0o600))
 
 		fmt.Printf("  %-24s mobi6 + epub goldens regenerated\n", name)
 		converted++
