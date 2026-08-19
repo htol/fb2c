@@ -16,7 +16,7 @@ func (t *Transformer) renderBody(body Body) string {
 	}
 
 	// Add anchor for notes body (for TOC linking)
-	if body.Name == "notes" {
+	if body.Name == notesBodyName {
 		buf.WriteString("<a id=\"notes\"></a>\n")
 	}
 
@@ -41,7 +41,7 @@ func (t *Transformer) renderBody(body Body) string {
 	}
 
 	// Process sections
-	isNotesBody := body.Name == "notes"
+	isNotesBody := body.Name == notesBodyName
 	for _, section := range body.Sections {
 		buf.WriteString(t.renderSectionWithBackLink(section, isNotesBody))
 	}

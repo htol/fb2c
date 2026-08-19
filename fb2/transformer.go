@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// notesBodyName is the FB2 body name that marks the notes/footnotes body.
+const notesBodyName = "notes"
+
 // Transformer converts FB2 to HTML
 type Transformer struct {
 	parser *Parser
@@ -146,32 +149,7 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 		buf.WriteString("<a id=\"toc\"></a>\n")
 
 		toc := t.generateTOC(fb2.Bodies[0].Sections, 0)
-
-		// Check for notes body
-		hasNotes := false
-		notesTitle := "Notes"
-		for _, b := range fb2.Bodies {
-			if b.Name == "notes" {
-				hasNotes = true
-				// Try to get title from body
-				if b.Title != nil && len(b.Title.P) > 0 {
-					notesTitle = b.Title.P[0].Text
-				} else {
-					notesTitle = b.Name // Fallback to "notes" or whatever name is
-				}
-				break
-			}
-		}
-
-		// Inject notes link into TOC if present
-		if hasNotes {
-			// Find the last closing </ul> and insert the list item before it
-			lastUL := strings.LastIndex(toc, "</ul>")
-			if lastUL != -1 {
-				notesLink := fmt.Sprintf("  <li><a href=\"#notes\">%s</a></li>\n", html.EscapeString(notesTitle))
-				toc = toc[:lastUL] + notesLink + toc[lastUL:]
-			}
-		}
+		toc = withNotesLink(toc, notesTitle(fb2.Bodies))
 
 		buf.WriteString(toc)
 		buf.WriteString("<hr/>\n")
@@ -184,6 +162,35 @@ func (t *Transformer) transformToHTML(fb2 *FictionBook) string {
 	buf.WriteString("</body>\n</html>")
 
 	return buf.String()
+}
+
+// notesTitle returns the TOC label for the notes body, preferring its
+// title over the body name; "" when there is no notes body.
+func notesTitle(bodies []Body) string {
+	for _, b := range bodies {
+		if b.Name != notesBodyName {
+			continue
+		}
+		if b.Title != nil && len(b.Title.P) > 0 {
+			return b.Title.P[0].Text
+		}
+		return b.Name
+	}
+	return ""
+}
+
+// withNotesLink appends the notes entry to the TOC's last list, so notes
+// are reachable from the table of contents.
+func withNotesLink(toc, title string) string {
+	if title == "" {
+		return toc
+	}
+	lastUL := strings.LastIndex(toc, "</ul>")
+	if lastUL == -1 {
+		return toc
+	}
+	notesLink := fmt.Sprintf("  <li><a href=\"#notes\">%s</a></li>\n", html.EscapeString(title))
+	return toc[:lastUL] + notesLink + toc[lastUL:]
 }
 
 // getDisplayTitle returns the title for display
