@@ -8,6 +8,7 @@
 package mobi
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 )
@@ -267,11 +268,11 @@ func Diff(a, b []byte) (*DiffReport, error) {
 			rd.UniqueIDB = recordsB[i].UniqueID
 		}
 		rd.BytesEqual = i < len(recordsA) && i < len(recordsB) &&
-			bytesEqual(recordData(a, recordsA[i]), recordData(b, recordsB[i]))
+			bytes.Equal(recordData(a, recordsA[i]), recordData(b, recordsB[i]))
 		report.Records[i] = rd
 	}
 
-	if aLen, bLen := len(a), len(b); aLen != bLen || !bytesEqual(a, b) {
+	if len(a) != len(b) || !bytes.Equal(a, b) {
 		report.FirstDivergence = findDivergence(a, b, recordsA, recordsB)
 	}
 
@@ -580,17 +581,4 @@ func isPrintableASCII(b []byte) bool {
 		}
 	}
 	return len(b) > 0
-}
-
-// bytesEqual is bytes.Equal, declared locally to keep imports minimal.
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
