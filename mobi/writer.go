@@ -164,11 +164,17 @@ func (w *Writer) Write(output io.Writer) error {
 	}
 
 	// 4. Build record 0 once, from the complete layout.
-	mobiHeaderRecord, err := w.createMOBIHeaderRecordExtended(uncompressedSize,
-		len(textRecords),
-		firstTextRecord, int(lastContentRec),
-		firstImageIndex, firstNonBookIndexField,
-		flisIndex, fcisIndex, tocIndexOffset)
+	layout := recordLayout{
+		textRecordCount:   len(textRecords),
+		firstTextRecord:   firstTextRecord,
+		lastContentRec:    int(lastContentRec),
+		firstImageIndex:   firstImageIndex,
+		firstNonBookIndex: firstNonBookIndexField,
+		flisIndex:         flisIndex,
+		fcisIndex:         fcisIndex,
+		indxOffset:        tocIndexOffset,
+	}
+	mobiHeaderRecord, err := w.createMOBIHeaderRecordExtended(uncompressedSize, layout)
 	if err != nil {
 		return fmt.Errorf("failed to create MOBI header: %w", err)
 	}
@@ -240,19 +246,33 @@ func localeForLanguage(lang string) uint32 {
 	}
 }
 
+// recordLayout is the finished record layout of the MOBI file: every header
+// index Write derives from the assembled record slices. record 0 is built
+// from it in one pass and never patched afterwards.
+type recordLayout struct {
+	textRecordCount   int
+	firstTextRecord   int
+	lastContentRec    int
+	firstImageIndex   uint32
+	firstNonBookIndex uint32
+	flisIndex         uint32
+	fcisIndex         uint32
+	indxOffset        uint32
+}
+
 // createMOBIHeaderRecordExtended builds record 0: PalmDOC header, MOBI
 // header and (optionally) EXTH metadata plus the full name, from the
 // finished record layout.
-func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount int, firstTextRec, lastTextRec int, firstImageIndex, firstNonBookIndex, flisIndex, fcisIndex, indxOffset uint32) ([]byte, error) {
+func (w *Writer) createMOBIHeaderRecordExtended(textSize int, layout recordLayout) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Create MOBI header with REAL text record count (Record 0)
 	// This ensures the reader stops DECODING text before it hits binary images.
-	mobiHeader := NewHeader(textSize, textRecordCount)
+	mobiHeader := NewHeader(textSize, layout.textRecordCount)
 
 	// Set content record indices
-	mobiHeader.FirstContentRec = uint16(firstTextRec) //nolint:gosec // Limit verified
-	mobiHeader.LastContentRec = uint16(lastTextRec)   //nolint:gosec // Limit verified
+	mobiHeader.FirstContentRec = uint16(layout.firstTextRecord) //nolint:gosec // Limit verified
+	mobiHeader.LastContentRec = uint16(layout.lastContentRec)   //nolint:gosec // Limit verified
 
 	// Set header flags for UTF-8 and structure
 	mobiHeader.TextEncoding = UTF8Encoding
@@ -263,9 +283,9 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.ExtraRecordFlags = 0
 
 	// Set mandatory structural indices
-	mobiHeader.FCISIndex = fcisIndex
-	mobiHeader.FLISIndex = flisIndex
-	mobiHeader.INDXRecordOffset = indxOffset // Point to TOC index
+	mobiHeader.FCISIndex = layout.fcisIndex
+	mobiHeader.FLISIndex = layout.flisIndex
+	mobiHeader.INDXRecordOffset = layout.indxOffset // Point to TOC index
 
 	// Set IndexKeys to 0xFFFFFFFF to match reference
 	mobiHeader.IndexKeys = 0xFFFFFFFF
@@ -274,8 +294,8 @@ func (w *Writer) createMOBIHeaderRecordExtended(textSize int, textRecordCount in
 	mobiHeader.Compression = uint16(w.options.CompressionType) //nolint:gosec // Enum values fit
 
 	// Set image indices
-	mobiHeader.FirstImageIndex = firstImageIndex
-	mobiHeader.FirstNonBookIndex = firstNonBookIndex
+	mobiHeader.FirstImageIndex = layout.firstImageIndex
+	mobiHeader.FirstNonBookIndex = layout.firstNonBookIndex
 
 	// Set title
 	bookName := w.GetBookName()
