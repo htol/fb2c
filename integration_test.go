@@ -15,10 +15,11 @@ import (
 // metadata extraction and parse validation.
 
 const (
-	srcRefFixture = "testdata/fb2/src_ref.fb2"
-	srcRefTitle   = "Тестовый ознакомительный документ FictionBook 2.1"
-	srcRefAuthor  = "Дмитрий Петрович Грибов"
+	srcRefTitle  = "Тестовый ознакомительный документ FictionBook 2.1"
+	srcRefAuthor = "Дмитрий Петрович Грибов"
 )
+
+var srcRefFixture = filepath.Join(fixtureDir, "src_ref.fb2")
 
 // TestConvertCorpusAPI drives the public Converter API over every happy
 // fixture for both output formats.
