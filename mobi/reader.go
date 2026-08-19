@@ -496,7 +496,7 @@ func classifyRecord(data []byte, rec RecordDump, h *MOBIDump) string {
 		if len(body) >= 3 && body[0] == 0xFF && body[1] == 0xD8 && body[2] == 0xFF {
 			return "image-jpeg"
 		}
-		if len(body) >= 4 && body[1] == 'P' && body[2] == 'N' && body[3] == 'G' {
+		if len(body) >= 4 && body[0] == 0x89 && body[1] == 'P' && body[2] == 'N' && body[3] == 'G' {
 			return "image-png"
 		}
 		if len(body) >= 4 && string(body[:4]) == "GIF8" {
