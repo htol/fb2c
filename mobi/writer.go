@@ -33,11 +33,6 @@ func DefaultWriteOptions() WriteOptions {
 	}
 }
 
-// generateThumbnail creates a small library-list thumbnail from the cover
-func (w *Writer) generateThumbnail(coverData []byte) []byte {
-	return buildThumbnail(coverData)
-}
-
 // CalculateRecordCount calculates the number of records for text
 func CalculateRecordCount(textSize int) int {
 	const recordSize = 4096
@@ -384,7 +379,7 @@ func (w *Writer) buildImageRecords() [][]byte {
 	var records [][]byte
 	if w.options.CoverImage != nil {
 		records = append(records, encodeCoverJPEG(w.options.CoverImage))
-		if thumb := w.generateThumbnail(w.options.CoverImage); thumb != nil {
+		if thumb := buildThumbnail(w.options.CoverImage); thumb != nil {
 			records = append(records, thumb)
 		}
 	}
