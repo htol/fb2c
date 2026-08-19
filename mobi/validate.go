@@ -53,8 +53,8 @@ func (v *Validator) validatePalmDBHeader() {
 	// Typically: name(32) + attrs(2) + version(2) + dates(12) + modnum(4) + appInfo(4) + sortInfo(4) = 60
 	// But implementations vary
 
-	// Try to find "BOOK" type in the first 100 bytes
-	typeOffset := bytes.Index(v.data[:100], []byte("BOOK"))
+	// Try to find "BOOK" type in the first 100 bytes (or fewer in a short file)
+	typeOffset := bytes.Index(v.data[:min(100, len(v.data))], []byte("BOOK"))
 	if typeOffset == -1 {
 		v.addError("Could not find file type 'BOOK'")
 		return
@@ -118,12 +118,18 @@ func (v *Validator) validateMOBIHeader() {
 // Magic searches must stay inside it: the strings "MOBI"/"EXTH" can also
 // occur in book text.
 func (v *Validator) record0Range() (int, int, error) {
-	if len(v.data) < 86 {
+	if len(v.data) < 78 {
 		return 0, 0, fmt.Errorf("File too short for record index")
 	}
 	numRecords := int(binary.BigEndian.Uint16(v.data[76:78])) //nolint:gosec // Bounded by file length checks below
 	if numRecords < 1 {
 		return 0, 0, fmt.Errorf("No records in file")
+	}
+	// The record index holds numRecords 8-byte entries starting at 78; the
+	// whole index must be present before its offsets may be read.
+	if indexEnd := 78 + numRecords*8; len(v.data) < indexEnd {
+		return 0, 0, fmt.Errorf("File too short for %d record index entries: need %d bytes, have %d",
+			numRecords, indexEnd, len(v.data))
 	}
 	start := int(binary.BigEndian.Uint32(v.data[78:82])) //nolint:gosec // Validated below
 	end := len(v.data)

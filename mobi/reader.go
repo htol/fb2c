@@ -358,8 +358,22 @@ func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
 		return nil, nil, fmt.Errorf("MOBI header length %d overruns record 0 (%d bytes)", headerLength, len(rec))
 	}
 
-	u16 := func(off int) uint16 { return binary.BigEndian.Uint16(rec[off : off+2]) }
-	u32 := func(off int) uint32 { return binary.BigEndian.Uint32(rec[off : off+4]) }
+	// Field reads are bounded by the MOBI header end: fields beyond
+	// HeaderLength do not exist — an old file's record 0 physically ends with
+	// its (shorter) header — and read as zero instead of slicing past the
+	// record and panicking.
+	u16 := func(off int) uint16 {
+		if off+2 > mobiEnd {
+			return 0
+		}
+		return binary.BigEndian.Uint16(rec[off : off+2])
+	}
+	u32 := func(off int) uint32 {
+		if off+4 > mobiEnd {
+			return 0
+		}
+		return binary.BigEndian.Uint32(rec[off : off+4])
+	}
 
 	h := &MOBIDump{
 		Compression:          u16(0x00),
@@ -378,6 +392,9 @@ func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
 		FLISIndex:            u32(0xD0),
 		INDXRecordOffset:     u32(0xF4),
 		EXTHFlags:            u32(0x80),
+		// 0xF2, trailing-entry flags; 0xF0 (fill5) is always zero. Both sit
+		// beyond the minimum 0x84 header and read as 0 when absent.
+		ExtraRecordFlags: uint32(u16(0xF2)),
 	}
 	h.CompressionName = compressionNames[h.Compression]
 
@@ -386,11 +403,6 @@ func parseRecord0(data []byte, rec0 RecordDump) (*MOBIDump, *EXTHDump, error) {
 		if int(off)+int(length) <= len(rec) {
 			h.FullName = decodeMobiString(rec[off:off+length], h.TextEncoding)
 		}
-	}
-
-	// 0xF0 = fill5 (u16), 0xF2 = trailing-entry flags (u16); absent in short headers.
-	if mobiEnd >= 16+0xF2+2 {
-		h.ExtraRecordFlags = uint32(u16(0xF2))
 	}
 
 	var exth *EXTHDump

@@ -2,6 +2,7 @@ package mobi
 
 import (
 	"bytes"
+	"encoding/binary"
 	"strings"
 	"testing"
 
@@ -205,4 +206,45 @@ func dump0Offset(t *testing.T, data []byte) uint32 {
 func recordOffset(t *testing.T, data []byte, index int) uint32 {
 	t.Helper()
 	return mustRecords(t, data)[index].Offset
+}
+
+// TestReadDumpShortHeader pins the short-header contract: fields beyond
+// HeaderLength do not exist in an old file's record 0 (the record physically
+// ends with its header) and must decode as zero instead of panicking on an
+// out-of-range slice read.
+func TestReadDumpShortHeader(t *testing.T) {
+	full := createMinimalMOBI()
+	// Record 0 starts at 86. Shrink HeaderLength to the 0x84 minimum and cut
+	// the record to that physical length; declare uncompressed text so
+	// ExtractRawML proceeds past the compression check.
+	binary.BigEndian.PutUint32(full[86+16+4:86+16+8], 0x84)
+	binary.BigEndian.PutUint16(full[86:86+2], uint16(NoCompression))
+	data := append(full[:86:86], full[86:86+16+0x84]...)
+
+	dump, err := ReadDump(data)
+	if err != nil {
+		t.Fatalf("ReadDump failed: %v", err)
+	}
+	if dump.MOBI == nil {
+		t.Fatal("MOBI header not decoded")
+	}
+	// Everything past 0x84 (FirstContentRec at 0xC0, INDXRecordOffset at
+	// 0xF4, ...) is absent and reads as zero.
+	if dump.MOBI.FirstContentRec != 0 || dump.MOBI.LastContentRec != 0 {
+		t.Errorf("content record range = %d..%d, want 0..0 (absent in a 0x84 header)",
+			dump.MOBI.FirstContentRec, dump.MOBI.LastContentRec)
+	}
+	if dump.MOBI.FCISIndex != 0 || dump.MOBI.FLISIndex != 0 || dump.MOBI.INDXRecordOffset != 0 {
+		t.Errorf("structural indices = fcis %d flis %d indx %d, want all 0 (absent fields)",
+			dump.MOBI.FCISIndex, dump.MOBI.FLISIndex, dump.MOBI.INDXRecordOffset)
+	}
+	if dump.MOBI.ExtraRecordFlags != 0 {
+		t.Errorf("ExtraRecordFlags = 0x%X, want 0 (field absent)", dump.MOBI.ExtraRecordFlags)
+	}
+
+	// Text extraction fails with an explicit error (no valid content range),
+	// not a panic.
+	if _, err := ExtractRawML(data); err == nil {
+		t.Error("ExtractRawML accepted a header-only file without a content range")
+	}
 }

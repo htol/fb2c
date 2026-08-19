@@ -3,6 +3,7 @@ package mobi
 import (
 	"bytes"
 	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -189,6 +190,31 @@ func TestValidateMissingMOBIHeader(t *testing.T) {
 
 	if !hasMOBIError {
 		t.Errorf("Expected 'MOBI header not found in record 0' error, got: %v", validator.Errors())
+	}
+}
+
+// TestValidateShortRecordIndex verifies that a file declaring more records
+// than its truncated index holds reports an error instead of panicking on
+// the unreadable index entry (entry 1's offset lives at bytes 86:90).
+func TestValidateShortRecordIndex(t *testing.T) {
+	base := createMinimalMOBI()
+	binary.BigEndian.PutUint16(base[76:78], 2) // declare two records
+
+	for size := 86; size < 90; size++ {
+		// Clone: len == cap, like a real on-disk short file. A subslice of the
+		// full buffer keeps spare capacity, and out-of-range index reads then
+		// return stale bytes instead of panicking.
+		validator := NewValidator(bytes.Clone(base[:size]))
+		validator.Validate() // must not panic
+		found := false
+		for _, err := range validator.Errors() {
+			if strings.Contains(err, "record index entries") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("size %d: expected a record-index error, got %v", size, validator.Errors())
+		}
 	}
 }
 
