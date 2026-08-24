@@ -18,6 +18,12 @@ func (w *Writer) buildTOCRecords(resolvedContent string, textRecords [][]byte) (
 		return nil, fmt.Errorf("failed to generate TOC index: %w", err)
 	}
 
+	// Every entry filtered out (e.g. all sections lack a <title>): the book
+	// has no navigable TOC, so emit it without TOC records rather than fail.
+	if len(tocINDX.IDXT) == 0 {
+		return nil, nil
+	}
+
 	// No root entry: Calibre's first INDX entry is the book's first section,
 	// and the Kindle firmware rejects an index that starts with a root entry
 	// carrying offset 0 (the native TOC then shows only Begin/Cover/End).

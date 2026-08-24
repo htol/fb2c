@@ -227,6 +227,33 @@ func TestConvertOEBToMOBI(t *testing.T) {
 	t.Logf("Generated MOBI file size: %d bytes", output.Len())
 }
 
+// TestConvertOEBToMOBIUntitledSections pins the FB2-without-section-titles
+// contract: the parser emits TOC entries for every section, the MOBI index
+// drops entries with empty labels, and the writer must then emit the book
+// without native TOC records instead of failing with "no INDX entries".
+func TestConvertOEBToMOBIUntitledSections(t *testing.T) {
+	book := opf.NewOEBBook()
+	book.Metadata = opf.Metadata{
+		Title:    "Untitled Sections Book",
+		Language: "en",
+	}
+	book.Metadata.Authors = []opf.Author{
+		opf.NewAuthor("John", "", "Doe", ""),
+	}
+	book.Content = "<html><body><p>Content without section titles</p></body></html>"
+
+	// A section without <title>: present in the TOC, but its label is empty
+	book.TOC.AddChild("section_1", "", "#section_1")
+
+	var output bytes.Buffer
+	if err := ConvertOEBToMOBI(book, &output); err != nil {
+		t.Fatalf("ConvertOEBToMOBI() error = %v", err)
+	}
+	if output.Len() == 0 {
+		t.Error("ConvertOEBToMOBI() produced no output")
+	}
+}
+
 // TestCdeTypePDOC pins the on-device-verified shelf-thumbnail contract
 // (verified on two e-ink Kindles 2026-08-18): the EXTH pair cdeType=EBOK +
 // ASIN routes the book down the firmware's "store book" path, where the
