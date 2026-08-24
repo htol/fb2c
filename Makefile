@@ -24,7 +24,7 @@ lint: ## Lint the codebase with golangci-lint (config: .golangci.yml)
 	@if command -v golangci-lint > /dev/null 2>&1; then \
 		golangci-lint run ./...; \
 	else \
-		echo "✗ golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "✗ golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"; \
 		exit 1; \
 	fi
 	@echo "✓ Lint complete"

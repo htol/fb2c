@@ -60,10 +60,10 @@ func robustDecode(raw []byte) ([]byte, error) {
 
 				// Output bytes based on how many chars we had before padding
 				if quadPos >= 2 {
-					out = append(out, byte(triple>>16))
+					out = append(out, byte((triple>>16)&0xFF))
 				}
 				if quadPos >= 3 {
-					out = append(out, byte(triple>>8))
+					out = append(out, byte((triple>>8)&0xFF))
 				}
 			}
 			return out, nil
@@ -77,9 +77,9 @@ func robustDecode(raw []byte) ([]byte, error) {
 			triple := (uint32(quad[0]) << 18) | (uint32(quad[1]) << 12) |
 				(uint32(quad[2]) << 6) | uint32(quad[3])
 
-			out = append(out, byte(triple>>16))
-			out = append(out, byte(triple>>8))
-			out = append(out, byte(triple))
+			out = append(out, byte((triple>>16)&0xFF))
+			out = append(out, byte((triple>>8)&0xFF))
+			out = append(out, byte(triple&0xFF))
 
 			quadPos = 0
 		}
@@ -96,10 +96,10 @@ func robustDecode(raw []byte) ([]byte, error) {
 			(uint32(quad[2]) << 6) | uint32(quad[3])
 
 		if quadPos >= 2 {
-			out = append(out, byte(triple>>16))
+			out = append(out, byte((triple>>16)&0xFF))
 		}
 		if quadPos >= 3 {
-			out = append(out, byte(triple>>8))
+			out = append(out, byte((triple>>8)&0xFF))
 		}
 	}
 

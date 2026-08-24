@@ -34,9 +34,9 @@ func (t *Transformer) renderBody(body Body) string {
 
 	if displayTitle != "" {
 		if t.MOBIMode {
-			buf.WriteString(fmt.Sprintf("<p align=\"center\"><b>%s</b></p>\n", displayTitle))
+			fmt.Fprintf(&buf, "<p align=\"center\"><b>%s</b></p>\n", displayTitle)
 		} else {
-			buf.WriteString(fmt.Sprintf("<h4 align=\"center\">%s</h4>\n", displayTitle))
+			fmt.Fprintf(&buf, "<h4 align=\"center\">%s</h4>\n", displayTitle)
 		}
 	}
 
@@ -70,9 +70,9 @@ func (t *Transformer) renderSectionWithBackLink(section Section, isNoteSection b
 	}
 
 	if t.MOBIMode {
-		buf.WriteString(fmt.Sprintf("<a id=\"%s\"></a>\n", id))
+		fmt.Fprintf(&buf, "<a id=\"%s\"></a>\n", id)
 	} else {
-		buf.WriteString(fmt.Sprintf("<div id=\"%s\">\n", id))
+		fmt.Fprintf(&buf, "<div id=\"%s\">\n", id)
 	}
 
 	buf.WriteString(t.renderSectionTitle(section))
@@ -80,7 +80,7 @@ func (t *Transformer) renderSectionWithBackLink(section Section, isNoteSection b
 
 	// Add back-link for note sections
 	if isNoteSection && id != "" {
-		buf.WriteString(fmt.Sprintf(" <a href=\"#noteref_%s\" class=\"noteback\">↩</a>\n", id))
+		fmt.Fprintf(&buf, " <a href=\"#noteref_%s\" class=\"noteback\">↩</a>\n", id)
 	}
 
 	// subsections (also as note sections if parent is)
@@ -101,19 +101,19 @@ func (t *Transformer) renderSectionTitle(section Section) string {
 	if section.Title != nil && len(section.Title.P) > 0 {
 		// Determine heading level based on depth (h1-h6)
 		level := t.getHeadingLevel(section)
-		buf.WriteString(fmt.Sprintf("<h%d>", level))
+		fmt.Fprintf(&buf, "<h%d>", level)
 
 		for _, p := range section.Title.P {
 			buf.WriteString(t.renderP(p))
 			buf.WriteString("<br/>\n")
 		}
 
-		buf.WriteString(fmt.Sprintf("</h%d>\n", level))
+		fmt.Fprintf(&buf, "</h%d>\n", level)
 	}
 
 	// Subtitle
 	if section.Subtitle != nil {
-		buf.WriteString(fmt.Sprintf("<h5 class=\"subtitle\">%s</h5>\n", t.renderP(*section.Subtitle)))
+		fmt.Fprintf(&buf, "<h5 class=\"subtitle\">%s</h5>\n", t.renderP(*section.Subtitle))
 	}
 	return buf.String()
 }
@@ -137,7 +137,7 @@ func (t *Transformer) renderSectionContent(section Section) string {
 
 	// Code
 	for _, code := range section.Code {
-		buf.WriteString(fmt.Sprintf("<code>%s</code><br/>\n", html.EscapeString(code.Text)))
+		fmt.Fprintf(&buf, "<code>%s</code><br/>\n", html.EscapeString(code.Text))
 	}
 
 	// Tables
@@ -152,7 +152,7 @@ func (t *Transformer) renderSectionContent(section Section) string {
 
 	// Paragraphs
 	for _, p := range section.Paragraphs {
-		buf.WriteString(fmt.Sprintf("<p class=\"paragraph\">%s</p>\n", t.renderP(p)))
+		fmt.Fprintf(&buf, "<p class=\"paragraph\">%s</p>\n", t.renderP(p))
 	}
 	return buf.String()
 }
@@ -166,16 +166,16 @@ func (t *Transformer) renderEpigraph(epigraph Epigraph) string {
 		align = fmt.Sprintf(" align=\"%s\"", epigraph.TextAlign)
 	}
 
-	buf.WriteString(fmt.Sprintf("<blockquote class=\"epigraph\"%s>\n", align))
+	fmt.Fprintf(&buf, "<blockquote class=\"epigraph\"%s>\n", align)
 
 	// Authors
 	for _, author := range epigraph.Authors {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
+		fmt.Fprintf(&buf, "  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author)))
 	}
 
 	// Content
 	for _, node := range epigraph.Content {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(node.Content)))
+		fmt.Fprintf(&buf, "  <p>%s</p>\n", html.EscapeString(node.Content))
 	}
 
 	buf.WriteString("</blockquote>\n")
@@ -191,12 +191,12 @@ func (t *Transformer) renderCite(cite Cite) string {
 
 	// Authors
 	for _, author := range cite.Authors {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
+		fmt.Fprintf(&buf, "  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author)))
 	}
 
 	// Content
 	for _, node := range cite.Content {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(node.Content)))
+		fmt.Fprintf(&buf, "  <p>%s</p>\n", html.EscapeString(node.Content))
 	}
 
 	buf.WriteString("</blockquote>\n")
@@ -213,23 +213,23 @@ func (t *Transformer) renderStanza(stanza Stanza) string {
 	// Title
 	if stanza.Title != nil && len(stanza.Title.P) > 0 {
 		for _, p := range stanza.Title.P {
-			buf.WriteString(fmt.Sprintf("  <p><strong>%s</strong></p>\n", html.EscapeString(p.Text)))
+			fmt.Fprintf(&buf, "  <p><strong>%s</strong></p>\n", html.EscapeString(p.Text))
 		}
 	}
 
 	// Author
 	for _, author := range stanza.Author {
-		buf.WriteString(fmt.Sprintf("  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author))))
+		fmt.Fprintf(&buf, "  <p><em>%s</em></p>\n", html.EscapeString(formatAuthorName(author)))
 	}
 
 	// Date
 	if stanza.Date.Text != "" {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(stanza.Date.Text)))
+		fmt.Fprintf(&buf, "  <p>%s</p>\n", html.EscapeString(stanza.Date.Text))
 	}
 
 	// Verses
 	for _, v := range stanza.V {
-		buf.WriteString(fmt.Sprintf("  <p>%s</p>\n", html.EscapeString(v.Text)))
+		fmt.Fprintf(&buf, "  <p>%s</p>\n", html.EscapeString(v.Text))
 		buf.WriteString("<br/>\n")
 	}
 
@@ -247,23 +247,23 @@ func (t *Transformer) renderTable(table Table) string {
 	for _, row := range table.Rows {
 		buf.WriteString("  <tr")
 		if row.Align != "" {
-			buf.WriteString(fmt.Sprintf(" align=\"%s\"", row.Align))
+			fmt.Fprintf(&buf, " align=\"%s\"", row.Align)
 		}
 		buf.WriteString(">\n")
 
 		for _, cell := range row.Cells {
 			buf.WriteString("    <td")
 			if cell.ColSpan > 0 {
-				buf.WriteString(fmt.Sprintf(" colspan=\"%d\"", cell.ColSpan))
+				fmt.Fprintf(&buf, " colspan=\"%d\"", cell.ColSpan)
 			}
 			if cell.RowSpan > 0 {
-				buf.WriteString(fmt.Sprintf(" rowspan=\"%d\"", cell.RowSpan))
+				fmt.Fprintf(&buf, " rowspan=\"%d\"", cell.RowSpan)
 			}
 			if cell.Style != "" {
-				buf.WriteString(fmt.Sprintf(" style=\"%s\"", html.EscapeString(cell.Style)))
+				fmt.Fprintf(&buf, " style=\"%s\"", html.EscapeString(cell.Style))
 			}
 			if cell.Class != "" {
-				buf.WriteString(fmt.Sprintf(" class=\"%s\"", html.EscapeString(cell.Class)))
+				fmt.Fprintf(&buf, " class=\"%s\"", html.EscapeString(cell.Class))
 			}
 			buf.WriteString(">")
 

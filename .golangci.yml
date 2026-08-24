@@ -1,66 +1,53 @@
+version: "2"
 run:
-  timeout: 5m
   tests: true
-
-issues:
-  exclude-rules:
-    # Tests legitimately repeat fixture strings and grow assertion-heavy;
-    # goconst/gocyclo noise there hides real findings in production code.
-    - path: _test\.go
-      linters:
-        - goconst
-        - gocyclo
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - typecheck
-    - gofmt
-    - goimports
-    - misspell
-    - revive
     - bodyclose
     - dogsled
     - dupl
+    - errcheck
     - goconst
     - gocyclo
     - gosec
-
-linters-settings:
-  govet:
-    shadow: true
-  gocyclo:
-    min-complexity: 15
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-    ignore-words:
-      - calibre
-      - Calibre
-  llll:
-    line-length: 140
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - wrapperFunc
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unused
+  settings:
+    misspell:
+      locale: US
+      ignore-rules:
+        - calibre
+        - Calibre
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Tests legitimately repeat fixture strings and grow assertion-heavy;
+      # goconst/gocyclo noise there hides real findings in production code.
+      - linters:
+          - goconst
+          - gocyclo
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

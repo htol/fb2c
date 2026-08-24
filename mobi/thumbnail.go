@@ -59,9 +59,9 @@ func buildThumbnail(coverData []byte) []byte {
 				}
 			}
 			off := dst.PixOffset(x, y)
-			dst.Pix[off+0] = byte(r / n >> 8)
-			dst.Pix[off+1] = byte(g / n >> 8)
-			dst.Pix[off+2] = byte(bl / n >> 8)
+			dst.Pix[off+0] = byte((r / n >> 8) & 0xFF)
+			dst.Pix[off+1] = byte((g / n >> 8) & 0xFF)
+			dst.Pix[off+2] = byte((bl / n >> 8) & 0xFF)
 			dst.Pix[off+3] = 0xFF
 		}
 	}

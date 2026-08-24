@@ -135,31 +135,31 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 `)
 
 	// Identifier (required)
-	buf.WriteString(fmt.Sprintf(`    <dc:identifier id="bookid">%s</dc:identifier>
-`, w.bookID))
+	fmt.Fprintf(buf, `    <dc:identifier id="bookid">%s</dc:identifier>
+`, w.bookID)
 
 	// Title
 	if m.Title != "" {
-		buf.WriteString(fmt.Sprintf(`    <dc:title>%s</dc:title>
-`, html.EscapeString(m.Title)))
+		fmt.Fprintf(buf, `    <dc:title>%s</dc:title>
+`, html.EscapeString(m.Title))
 	}
 
 	// Authors
 	for _, author := range m.Authors {
-		buf.WriteString(fmt.Sprintf(`    <dc:creator>%s</dc:creator>
-`, html.EscapeString(author.FullName)))
+		fmt.Fprintf(buf, `    <dc:creator>%s</dc:creator>
+`, html.EscapeString(author.FullName))
 	}
 
 	// Publisher
 	if m.Publisher != "" {
-		buf.WriteString(fmt.Sprintf(`    <dc:publisher>%s</dc:publisher>
-`, html.EscapeString(m.Publisher)))
+		fmt.Fprintf(buf, `    <dc:publisher>%s</dc:publisher>
+`, html.EscapeString(m.Publisher))
 	}
 
 	// ISBN
 	if m.ISBN != "" {
-		buf.WriteString(fmt.Sprintf(`    <dc:identifier>urn:isbn:%s</dc:identifier>
-`, html.EscapeString(m.ISBN)))
+		fmt.Fprintf(buf, `    <dc:identifier>urn:isbn:%s</dc:identifier>
+`, html.EscapeString(m.ISBN))
 	}
 
 	// Date/Year
@@ -167,17 +167,17 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 		year := m.PubDate.Year()
 		month := m.PubDate.Month()
 		day := m.PubDate.Day()
-		buf.WriteString(fmt.Sprintf(`    <dc:date>%04d-%02d-%02d</dc:date>
-`, year, month, day))
+		fmt.Fprintf(buf, `    <dc:date>%04d-%02d-%02d</dc:date>
+`, year, month, day)
 	} else if m.Year != "" {
-		buf.WriteString(fmt.Sprintf(`    <dc:date>%s</dc:date>
-`, html.EscapeString(m.Year)))
+		fmt.Fprintf(buf, `    <dc:date>%s</dc:date>
+`, html.EscapeString(m.Year))
 	}
 
 	// Language
 	if m.Language != "" {
-		buf.WriteString(fmt.Sprintf(`    <dc:language>%s</dc:language>
-`, html.EscapeString(m.Language)))
+		fmt.Fprintf(buf, `    <dc:language>%s</dc:language>
+`, html.EscapeString(m.Language))
 	}
 
 	// Annotation (description)
@@ -187,7 +187,7 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 		// Indent each line of annotation
 		lines := strings.Split(m.Annotation, "\n")
 		for _, line := range lines {
-			buf.WriteString(fmt.Sprintf("      %s\n", html.EscapeString(line)))
+			fmt.Fprintf(buf, "      %s\n", html.EscapeString(line))
 		}
 		buf.WriteString(`    </dc:description>
 `)
@@ -196,8 +196,8 @@ func (w *Writer) writeMetadata(buf *bytes.Buffer) {
 	// Cover
 	if m.CoverID != "" {
 		coverID := "cover-" + m.CoverID
-		buf.WriteString(fmt.Sprintf(`    <meta name="cover" content="%s"/>
-`, coverID))
+		fmt.Fprintf(buf, `    <meta name="cover" content="%s"/>
+`, coverID)
 	}
 
 	buf.WriteString(`  </metadata>
@@ -227,8 +227,8 @@ func (w *Writer) writeManifest(buf *bytes.Buffer) {
 		// Add prefix for resource IDs
 		itemID := "res-" + id
 		href := id // Already includes subdirectory if any (e.g., Images/cover.jpg)
-		buf.WriteString(fmt.Sprintf(`    <item id="%s" href="%s" media-type="%s"/>
-`, itemID, href, res.MediaType))
+		fmt.Fprintf(buf, `    <item id="%s" href="%s" media-type="%s"/>
+`, itemID, href, res.MediaType)
 	}
 
 	buf.WriteString(`  </manifest>
@@ -308,12 +308,12 @@ func (w *Writer) writeTOCEntries(buf *bytes.Buffer, entry *opf.TOCEntry, depth i
 	// Collect fragment ID for later injection into HTML
 	w.tocFragments = append(w.tocFragments, fragmentID)
 
-	buf.WriteString(fmt.Sprintf(`    <navPoint id="navPoint-%d" playOrder="%d">
+	fmt.Fprintf(buf, `    <navPoint id="navPoint-%d" playOrder="%d">
       <navLabel>
         <text>%s</text>
       </navLabel>
       <content src="%s"/>
-`, playOrder, playOrder, label, href))
+`, playOrder, playOrder, label, href)
 
 	// Write children (indented)
 	for _, child := range entry.Children {
@@ -434,7 +434,7 @@ func (w *Writer) convertToXHTML(rawHTML string) string {
 					var anchorsBuilder strings.Builder
 					anchorsBuilder.WriteString(`<div class="toc-anchors">`)
 					for _, fragID := range w.tocFragments {
-						anchorsBuilder.WriteString(fmt.Sprintf(`<span id="%s"></span>%s`, fragID, "\n"))
+						fmt.Fprintf(&anchorsBuilder, `<span id="%s"></span>%s`, fragID, "\n")
 					}
 					anchorsBuilder.WriteString(`</div>`)
 					bodyWithContent = anchorsBuilder.String() + "\n" + bodyContent

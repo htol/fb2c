@@ -249,8 +249,8 @@ func (b *OEBBook) GenerateHTMLTOC() string {
 // writeHTMLTOC writes TOC entries as HTML list
 func (b *OEBBook) writeHTMLTOC(buf *bytes.Buffer, toc *TOCEntry) {
 	if toc.Label != "" || toc.ID != TOCRootID {
-		buf.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a>`,
-			html.EscapeString(toc.Href), html.EscapeString(toc.Label)))
+		fmt.Fprintf(buf, `<li><a href="%s">%s</a>`,
+			html.EscapeString(toc.Href), html.EscapeString(toc.Label))
 
 		if len(toc.Children) > 0 {
 			buf.WriteString("\n<ul>\n")

@@ -168,7 +168,7 @@ func TestDiffDifferentRecordCounts(t *testing.T) {
 	b := bytes.Clone(a)
 	numRecords := len(mustRecords(t, a))
 	b[76] = byte((numRecords - 1) >> 8)
-	b[77] = byte(numRecords - 1)
+	b[77] = byte((numRecords - 1) & 0xFF)
 
 	report, err := Diff(a, b)
 	if err != nil {

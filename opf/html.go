@@ -221,14 +221,14 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 
 	// Title
 	if metadata.Title != "" {
-		buf.WriteString(fmt.Sprintf(`<h1>%s</h1>\n`, html.EscapeString(metadata.Title)))
+		fmt.Fprintf(&buf, `<h1>%s</h1>\n`, html.EscapeString(metadata.Title))
 	}
 
 	// Authors
 	if len(metadata.Authors) > 0 {
 		for _, author := range metadata.Authors {
 			if author.FullName != "" {
-				buf.WriteString(fmt.Sprintf(`<h2>%s</h2>\n`, html.EscapeString(author.FullName)))
+				fmt.Fprintf(&buf, `<h2>%s</h2>\n`, html.EscapeString(author.FullName))
 			}
 		}
 		buf.WriteString("<br/>\n")
@@ -240,22 +240,22 @@ func (p *HTMLProcessor) GenerateTitlePage(metadata Metadata) string {
 		if metadata.SeriesIndex > 0 {
 			seriesText += fmt.Sprintf(" (#%d)", metadata.SeriesIndex)
 		}
-		buf.WriteString(fmt.Sprintf(`<h3>%s</h3>\n`, html.EscapeString(seriesText)))
+		fmt.Fprintf(&buf, `<h3>%s</h3>\n`, html.EscapeString(seriesText))
 		buf.WriteString("<br/>\n")
 	}
 
 	// Publisher info
 	if metadata.Publisher != "" {
-		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, html.EscapeString(metadata.Publisher)))
+		fmt.Fprintf(&buf, `<p>%s</p>\n`, html.EscapeString(metadata.Publisher))
 	}
 
 	if metadata.Year != "" {
-		buf.WriteString(fmt.Sprintf(`<p>%s</p>\n`, html.EscapeString(metadata.Year)))
+		fmt.Fprintf(&buf, `<p>%s</p>\n`, html.EscapeString(metadata.Year))
 	}
 
 	// ISBN
 	if metadata.ISBN != "" {
-		buf.WriteString(fmt.Sprintf(`<p>ISBN: %s</p>\n`, html.EscapeString(metadata.ISBN)))
+		fmt.Fprintf(&buf, `<p>ISBN: %s</p>\n`, html.EscapeString(metadata.ISBN))
 	}
 
 	buf.WriteString("</div>\n")

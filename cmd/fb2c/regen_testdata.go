@@ -72,7 +72,9 @@ func regenTestdataCmd(args []string) {
 		exitOnError(readErr)
 		rawml, extractErr := mobi.ExtractRawML(mobiData)
 		exitOnError(extractErr)
-		exitOnError(os.WriteFile(
+		// G703 false positive: taint rides the content (os.ReadFile is a
+		// registered source), the path itself is a fixed golden-root join.
+		exitOnError(os.WriteFile( //nolint:gosec // G703: content taint, path is fixed
 			filepath.Join(goldenRoot, "mobi6", name+".rawml"),
 			[]byte(rawml), 0o600))
 
@@ -80,7 +82,8 @@ func regenTestdataCmd(args []string) {
 		exitOnError(readErr)
 		listing, listErr := epub.TextListing(epubData)
 		exitOnError(listErr)
-		exitOnError(os.WriteFile(
+		// G703 false positive: same content-taint flow as the rawml golden above.
+		exitOnError(os.WriteFile( //nolint:gosec // G703: content taint, path is fixed
 			filepath.Join(goldenRoot, "epub", name+".txt"),
 			[]byte(listing), 0o600))
 

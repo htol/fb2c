@@ -18,32 +18,46 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// Canonical encoding names shared by the alias map, the BOM table and the
+// decoder switch — the three structures must agree, constants make that
+// contract compile-checked.
+const (
+	encUTF8    = "utf-8"
+	encUTF16LE = "utf-16le"
+	encUTF16BE = "utf-16be"
+	encCP1250  = "cp1250"
+	encCP1251  = "cp1251"
+	encCP1252  = "cp1252"
+	encKOI8R   = "koi8-r"
+	encGBK     = "gbk"
+)
+
 // Common encoding aliases
 var encodingAliases = map[string]string{
 	"macintosh":         "mac-roman",
 	"x-sjis":            "shift-jis",
-	"mac-centraleurope": "cp1250",
-	"gb2312":            "gbk", // Microsoft Word bug workaround
-	"chinese":           "gbk",
-	"csiso58gb231280":   "gbk",
-	"euc-cn":            "gbk",
-	"euccn":             "gbk",
-	"eucgb2312-cn":      "gbk",
-	"gb2312-1980":       "gbk",
-	"gb2312-80":         "gbk",
-	"iso-ir-58":         "gbk",
-	"ascii":             "utf-8",
+	"mac-centraleurope": encCP1250,
+	"gb2312":            encGBK, // Microsoft Word bug workaround
+	"chinese":           encGBK,
+	"csiso58gb231280":   encGBK,
+	"euc-cn":            encGBK,
+	"euccn":             encGBK,
+	"eucgb2312-cn":      encGBK,
+	"gb2312-1980":       encGBK,
+	"gb2312-80":         encGBK,
+	"iso-ir-58":         encGBK,
+	"ascii":             encUTF8,
 	// Windows codepages
-	"windows-1250": "cp1250",
-	"windows-1251": "cp1251",
-	"windows-1252": "cp1252",
-	"cp1250":       "cp1250",
-	"cp1251":       "cp1251",
-	"cp1252":       "cp1252",
+	"windows-1250": encCP1250,
+	"windows-1251": encCP1251,
+	"windows-1252": encCP1252,
+	"cp1250":       encCP1250,
+	"cp1251":       encCP1251,
+	"cp1252":       encCP1252,
 	// KOI8-R (Russian)
-	"koi8-r":  "koi8-r",
-	"koi8r":   "koi8-r",
-	"cskoi8r": "koi8-r",
+	"koi8-r":  encKOI8R,
+	"koi8r":   encKOI8R,
+	"cskoi8r": encKOI8R,
 }
 
 // BOM markers for different encodings
@@ -51,9 +65,9 @@ var boms = []struct {
 	bom      []byte
 	encoding string
 }{
-	{[]byte{0xEF, 0xBB, 0xBF}, "utf-8"},          // UTF-8
-	{[]byte{0xFF, 0xFE}, "utf-16le"},             // UTF-16 LE
-	{[]byte{0xFE, 0xFF}, "utf-16be"},             // UTF-16 BE
+	{[]byte{0xEF, 0xBB, 0xBF}, encUTF8},          // UTF-8
+	{[]byte{0xFF, 0xFE}, encUTF16LE},             // UTF-16 LE
+	{[]byte{0xFE, 0xFF}, encUTF16BE},             // UTF-16 BE
 	{[]byte{0xFF, 0xFE, 0x00, 0x00}, "utf-32le"}, // UTF-32 LE
 	{[]byte{0x00, 0x00, 0xFE, 0xFF}, "utf-32be"}, // UTF-32 BE
 }
@@ -77,7 +91,7 @@ type DetectResult struct {
 // It checks BOM, XML/HTML declarations, and falls back to heuristics.
 func Detect(raw []byte) *DetectResult {
 	if len(raw) == 0 {
-		return &DetectResult{Encoding: "utf-8", Confidence: 0.5}
+		return &DetectResult{Encoding: encUTF8, Confidence: 0.5}
 	}
 
 	// Check for BOM
@@ -139,27 +153,27 @@ func normalizeEncoding(enc string) string {
 func detectHeuristic(raw []byte) *DetectResult {
 	if utf8.Valid(raw) {
 		return &DetectResult{
-			Encoding:   "utf-8",
+			Encoding:   encUTF8,
 			Confidence: 0.8,
 		}
 	}
 
 	if looksLikeUTF16LE(raw) {
 		return &DetectResult{
-			Encoding:   "utf-16le",
+			Encoding:   encUTF16LE,
 			Confidence: 0.6,
 		}
 	}
 
 	if looksLikeUTF16BE(raw) {
 		return &DetectResult{
-			Encoding:   "utf-16be",
+			Encoding:   encUTF16BE,
 			Confidence: 0.6,
 		}
 	}
 
 	return &DetectResult{
-		Encoding:   "utf-8",
+		Encoding:   encUTF8,
 		Confidence: 0.3,
 	}
 }
@@ -233,7 +247,7 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 		}
 	}
 
-	if enc == "utf-8" || enc == "utf8" {
+	if enc == encUTF8 || enc == "utf8" {
 		if !utf8.Valid(raw) {
 			return strings.ToValidUTF8(string(raw), "�"), nil
 		}
@@ -241,21 +255,21 @@ func toUTF8WithEncoding(raw []byte, enc string) (string, error) {
 	}
 
 	switch enc {
-	case "utf-16le", "utf16le", "utf-16-le":
+	case encUTF16LE, "utf16le", "utf-16-le":
 		return decodeUTF16(raw, unicode.LittleEndian)
-	case "utf-16be", "utf16be", "utf-16-be":
+	case encUTF16BE, "utf16be", "utf-16-be":
 		return decodeUTF16(raw, unicode.BigEndian)
 	}
 
 	var encoding encoding.Encoding
 	switch enc {
-	case "cp1250":
+	case encCP1250:
 		encoding = charmap.Windows1250
-	case "cp1251":
+	case encCP1251:
 		encoding = charmap.Windows1251
-	case "cp1252":
+	case encCP1252:
 		encoding = charmap.Windows1252
-	case "koi8-r":
+	case encKOI8R:
 		encoding = charmap.KOI8R
 	default:
 		// For other encodings, return an error

@@ -108,7 +108,8 @@ func main() { //nolint:gocyclo
 		os.Exit(1)
 	}
 
-	data, err := os.ReadFile(os.Args[1])
+	// Inspection tool: reading the file it was pointed at is its purpose.
+	data, err := os.ReadFile(os.Args[1]) //nolint:gosec // G703: the path is the tool's input by design
 	if err != nil {
 		panic(err)
 	}

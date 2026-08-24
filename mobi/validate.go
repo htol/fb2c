@@ -119,16 +119,16 @@ func (v *Validator) validateMOBIHeader() {
 // occur in book text.
 func (v *Validator) record0Range() (int, int, error) {
 	if len(v.data) < 78 {
-		return 0, 0, fmt.Errorf("File too short for record index")
+		return 0, 0, fmt.Errorf("file too short for record index")
 	}
 	numRecords := int(binary.BigEndian.Uint16(v.data[76:78])) //nolint:gosec // Bounded by file length checks below
 	if numRecords < 1 {
-		return 0, 0, fmt.Errorf("No records in file")
+		return 0, 0, fmt.Errorf("no records in file")
 	}
 	// The record index holds numRecords 8-byte entries starting at 78; the
 	// whole index must be present before its offsets may be read.
 	if indexEnd := 78 + numRecords*8; len(v.data) < indexEnd {
-		return 0, 0, fmt.Errorf("File too short for %d record index entries: need %d bytes, have %d",
+		return 0, 0, fmt.Errorf("file too short for %d record index entries: need %d bytes, have %d",
 			numRecords, indexEnd, len(v.data))
 	}
 	start := int(binary.BigEndian.Uint32(v.data[78:82])) //nolint:gosec // Validated below
@@ -137,7 +137,7 @@ func (v *Validator) record0Range() (int, int, error) {
 		end = int(binary.BigEndian.Uint32(v.data[86:90])) //nolint:gosec // Validated below
 	}
 	if start <= 0 || end <= start || end > len(v.data) {
-		return 0, 0, fmt.Errorf("Invalid record 0 range %d..%d", start, end)
+		return 0, 0, fmt.Errorf("invalid record 0 range %d..%d", start, end)
 	}
 	return start, end, nil
 }
@@ -319,7 +319,7 @@ func (v *Validator) String() string {
 	if len(v.errors) > 0 {
 		buf.WriteString("Errors:\n")
 		for _, err := range v.errors {
-			buf.WriteString(fmt.Sprintf("  ✗ %s\n", err))
+			fmt.Fprintf(&buf, "  ✗ %s\n", err)
 		}
 		buf.WriteString("\n")
 	}
@@ -327,7 +327,7 @@ func (v *Validator) String() string {
 	if len(v.warnings) > 0 {
 		buf.WriteString("Warnings:\n")
 		for _, warn := range v.warnings {
-			buf.WriteString(fmt.Sprintf("  ⚠ %s\n", warn))
+			fmt.Fprintf(&buf, "  ⚠ %s\n", warn)
 		}
 	}
 

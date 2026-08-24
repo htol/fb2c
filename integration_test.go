@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/htol/fb2c/fb2"
@@ -87,13 +88,7 @@ func TestMetadataExtraction(t *testing.T) {
 			if metadata.Title != tt.wantTitle {
 				t.Errorf("Title = %q, want %q", metadata.Title, tt.wantTitle)
 			}
-			found := false
-			for _, author := range metadata.Authors {
-				if author == tt.wantAuthor {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(metadata.Authors, tt.wantAuthor)
 			if !found {
 				t.Errorf("author %q not found in %v", tt.wantAuthor, metadata.Authors)
 			}

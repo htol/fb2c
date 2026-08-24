@@ -183,7 +183,7 @@ func (i *INDX) encodePrimaryINDX(totalEntries int) ([]byte, error) {
 	// Create a single entry that represents the whole secondary index
 	// Entry label is the count in hex format (e.g., "0E" for 14 entries)
 	entryLabel := fmt.Sprintf("%02X", totalEntries-1) // 0-based max index
-	entryData := []byte{byte(len(entryLabel))}
+	entryData := []byte{byte(len(entryLabel) & 0xFF)}
 	entryData = append(entryData, []byte(entryLabel)...)
 	entryData = append(entryData, 0x00) // Control byte (no tags for meta entry)
 
@@ -385,7 +385,7 @@ func (i *INDX) encodeSecondaryEntryWithOffset(label string, offset, length, cncx
 	var buf bytes.Buffer
 
 	// Write label
-	buf.WriteByte(byte(len(label)))
+	buf.WriteByte(byte(len(label) & 0xFF))
 	buf.WriteString(label)
 
 	// Control byte - indicates which tags are present

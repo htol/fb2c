@@ -226,7 +226,7 @@ func (t *Transformer) generateTOC(sections []Section, depth int) string {
 			id = fmt.Sprintf("section_%d", i+1)
 		}
 
-		buf.WriteString(fmt.Sprintf("  <li><a href=\"#%s\">%s</a>", id, html.EscapeString(title)))
+		fmt.Fprintf(&buf, "  <li><a href=\"#%s\">%s</a>", id, html.EscapeString(title))
 
 		// Recurse for subsections
 		if len(section.Sections) > 0 {
